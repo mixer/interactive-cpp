@@ -1,0 +1,65 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 14
+VisualStudioVersion = 14.0.25420.1
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "BeamSample", "BeamSample\BeamSample.vcxproj", "{60802DB8-98CE-42A5-A1E2-67E732274E5A}"
+	ProjectSection(ProjectDependencies) = postProject
+		{441F8169-F31E-4653-941E-25AC223CBAFB} = {441F8169-F31E-4653-941E-25AC223CBAFB}
+	EndProjectSection
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Beam.140.Win32.Cpp", "..\..\..\..\Build\Microsoft.Xbox.Services.Beam.140.Win32.Cpp\Beam.140.Win32.Cpp.vcxproj", "{441F8169-F31E-4653-941E-25AC223CBAFB}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "cpprestsdk140", "..\..\..\..\External\xsapi\External\cpprestsdk\Release\src\build\vs14\casablanca140.vcxproj", "{1014C621-BC2D-4813-B8C1-6D83AD6F9249}"
+EndProject
+Global
+	GlobalSection(SharedMSBuildProjectFiles) = preSolution
+		..\..\..\..\External\xsapi\External\cpprestsdk\Release\src\build\common.vcxitems*{1014c621-bc2d-4813-b8c1-6d83ad6f9249}*SharedItemsImports = 4
+		..\..\..\..\External\xsapi\External\cpprestsdk\Release\src\build\win32.vcxitems*{1014c621-bc2d-4813-b8c1-6d83ad6f9249}*SharedItemsImports = 4
+	EndGlobalSection
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|ARM = Debug|ARM
+		Debug|x64 = Debug|x64
+		Debug|x86 = Debug|x86
+		Release|ARM = Release|ARM
+		Release|x64 = Release|x64
+		Release|x86 = Release|x86
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{60802DB8-98CE-42A5-A1E2-67E732274E5A}.Debug|ARM.ActiveCfg = Debug|Win32
+		{60802DB8-98CE-42A5-A1E2-67E732274E5A}.Debug|x64.ActiveCfg = Debug|x64
+		{60802DB8-98CE-42A5-A1E2-67E732274E5A}.Debug|x64.Build.0 = Debug|x64
+		{60802DB8-98CE-42A5-A1E2-67E732274E5A}.Debug|x86.ActiveCfg = Debug|Win32
+		{60802DB8-98CE-42A5-A1E2-67E732274E5A}.Debug|x86.Build.0 = Debug|Win32
+		{60802DB8-98CE-42A5-A1E2-67E732274E5A}.Release|ARM.ActiveCfg = Release|Win32
+		{60802DB8-98CE-42A5-A1E2-67E732274E5A}.Release|x64.ActiveCfg = Release|x64
+		{60802DB8-98CE-42A5-A1E2-67E732274E5A}.Release|x64.Build.0 = Release|x64
+		{60802DB8-98CE-42A5-A1E2-67E732274E5A}.Release|x86.ActiveCfg = Release|Win32
+		{60802DB8-98CE-42A5-A1E2-67E732274E5A}.Release|x86.Build.0 = Release|Win32
+		{441F8169-F31E-4653-941E-25AC223CBAFB}.Debug|ARM.ActiveCfg = Debug|Win32
+		{441F8169-F31E-4653-941E-25AC223CBAFB}.Debug|x64.ActiveCfg = Debug|x64
+		{441F8169-F31E-4653-941E-25AC223CBAFB}.Debug|x64.Build.0 = Debug|x64
+		{441F8169-F31E-4653-941E-25AC223CBAFB}.Debug|x86.ActiveCfg = Debug|Win32
+		{441F8169-F31E-4653-941E-25AC223CBAFB}.Debug|x86.Build.0 = Debug|Win32
+		{441F8169-F31E-4653-941E-25AC223CBAFB}.Release|ARM.ActiveCfg = Release|Win32
+		{441F8169-F31E-4653-941E-25AC223CBAFB}.Release|x64.ActiveCfg = Release|x64
+		{441F8169-F31E-4653-941E-25AC223CBAFB}.Release|x64.Build.0 = Release|x64
+		{441F8169-F31E-4653-941E-25AC223CBAFB}.Release|x86.ActiveCfg = Release|Win32
+		{441F8169-F31E-4653-941E-25AC223CBAFB}.Release|x86.Build.0 = Release|Win32
+		{1014C621-BC2D-4813-B8C1-6D83AD6F9249}.Debug|ARM.ActiveCfg = Debug|ARM
+		{1014C621-BC2D-4813-B8C1-6D83AD6F9249}.Debug|ARM.Build.0 = Debug|ARM
+		{1014C621-BC2D-4813-B8C1-6D83AD6F9249}.Debug|x64.ActiveCfg = Debug|x64
+		{1014C621-BC2D-4813-B8C1-6D83AD6F9249}.Debug|x64.Build.0 = Debug|x64
+		{1014C621-BC2D-4813-B8C1-6D83AD6F9249}.Debug|x86.ActiveCfg = Debug|Win32
+		{1014C621-BC2D-4813-B8C1-6D83AD6F9249}.Debug|x86.Build.0 = Debug|Win32
+		{1014C621-BC2D-4813-B8C1-6D83AD6F9249}.Release|ARM.ActiveCfg = Release|ARM
+		{1014C621-BC2D-4813-B8C1-6D83AD6F9249}.Release|ARM.Build.0 = Release|ARM
+		{1014C621-BC2D-4813-B8C1-6D83AD6F9249}.Release|x64.ActiveCfg = Release|x64
+		{1014C621-BC2D-4813-B8C1-6D83AD6F9249}.Release|x64.Build.0 = Release|x64
+		{1014C621-BC2D-4813-B8C1-6D83AD6F9249}.Release|x86.ActiveCfg = Release|Win32
+		{1014C621-BC2D-4813-B8C1-6D83AD6F9249}.Release|x86.Build.0 = Release|Win32
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal

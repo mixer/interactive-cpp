@@ -1,0 +1,10 @@
+[submodule "InProgressSamples/Kits/DirectXTK"]
+	path = InProgressSamples/Kits/DirectXTK
+	url = https://github.com/Microsoft/DirectXTK.git
+[submodule "cpprestsdk"]
+
+	path = cpprestsdk
+
+	url = https://github.com/jasonsandlin/cpprestsdk.git
+
+	branch = v2.9.0-mods

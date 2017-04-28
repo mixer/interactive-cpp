@@ -1,0 +1,129 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="14.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|Durango">
+      <Configuration>Debug</Configuration>
+      <Platform>Durango</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|Durango">
+      <Configuration>Release</Configuration>
+      <Platform>Durango</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <!-- This property is set 'title' for XDK, remove it when you need to build for ADK -->
+    <ApplicationEnvironment>title</ApplicationEnvironment>
+    <ProjectGuid>{8A112040-CDA1-4490-B518-62DFCC451FA7}</ProjectGuid>
+    <ProjectName>Microsoft.Xbox.Services.Beam.140.XDK.Cpp</ProjectName>
+    <RootNamespace>Microsoft.Xbox.Services</RootNamespace>
+    <DefaultLanguage>en-US</DefaultLanguage>
+    <MinimumVisualStudioVersion>11.0</MinimumVisualStudioVersion>
+    <AppContainerApplication Condition="'$(Platform)'!='Durango'">true</AppContainerApplication>
+    <ConsumeWinRT>true</ConsumeWinRT>
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <UseXboxServices>false</UseXboxServices>
+    <GenerateManifest>false</GenerateManifest>
+  </PropertyGroup>
+  <PropertyGroup Label="Configuration">
+    <PlatformToolset>v140</PlatformToolset>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)'=='Debug'" Label="Configuration">
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)'=='Release'" Label="Configuration">
+    <CharacterSet>Unicode</CharacterSet>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <WholeProgramOptimization>false</WholeProgramOptimization>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ItemGroup>
+    <ClCompile Include="..\..\Source\Services\Beam\beam_control.cpp" />
+    <ClCompile Include="..\..\Source\Services\Beam\beam_event.cpp" />
+    <ClCompile Include="..\..\Source\Services\Beam\beam_group.cpp" />
+    <ClCompile Include="..\..\Source\Services\Beam\beam_manager.cpp" />
+    <ClCompile Include="..\..\Source\Services\Beam\beam_manager_impl.cpp" />
+    <ClCompile Include="..\..\Source\Services\Beam\beam_mock_util.cpp" />
+    <ClCompile Include="..\..\Source\Services\Beam\beam_participant.cpp" />
+    <ClCompile Include="..\..\Source\Services\Beam\beam_scene.cpp" />
+    <ClCompile Include="..\..\Source\Shared\beam_web_socket_client.cpp" />
+    <ClCompile Include="..\..\Source\Shared\beam_web_socket_connection.cpp" />
+    <ClCompile Include="..\..\Source\System\debug_output.cpp" />
+    <ClCompile Include="..\..\Source\System\log.cpp" />
+    <ClCompile Include="..\..\Source\System\log_entry.cpp" />
+    <ClCompile Include="..\..\Source\System\log_output.cpp" />
+    <ClCompile Include="pch.cpp">
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">Create</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">Create</PrecompiledHeader>
+      <PrecompiledHeaderOutputFile Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">$(IntDir)pch.pch</PrecompiledHeaderOutputFile>
+      <PrecompiledHeaderOutputFile Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">$(IntDir)pch.pch</PrecompiledHeaderOutputFile>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\..\Include\beam\beam.h" />
+    <ClInclude Include="..\..\Include\beam\beam_types.h" />
+    <ClInclude Include="..\..\Include\beam\namespaces.h" />
+    <ClInclude Include="..\..\Source\Services\Beam\beam_internal.h" />
+    <ClInclude Include="..\..\Source\Services\Beam\json_helper.h" />
+    <ClInclude Include="..\..\Source\Shared\beam_web_socket_client.h" />
+    <ClInclude Include="..\..\Source\Shared\beam_web_socket_connection.h" />
+    <ClInclude Include="..\..\Source\Shared\beam_web_socket_connection_state.h" />
+    <ClInclude Include="..\..\Source\System\debug_output.h" />
+    <ClInclude Include="..\..\Source\System\log.h" />
+    <ClInclude Include="..\..\Source\Shared\pch.h" />
+  </ItemGroup>
+  <PropertyGroup>
+    <ProjectFolder>$(MSBuildProjectName)</ProjectFolder>
+    <OutDir>$(ProjectDir)..\..\Binaries\$(Configuration)\$(Platform)\$(ProjectFolder)\</OutDir>
+    <IntDir>$(ProjectDir)..\..\Obj\$(Configuration)\$(Platform)\$(ProjectFolder)\</IntDir>
+  </PropertyGroup>
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <PrecompiledHeader>Use</PrecompiledHeader>
+      <PreprocessorDefinitions Condition="'$(ConfigurationType)'=='StaticLibrary'">_NO_ASYNCRTIMP;_NO_PPLXIMP;_NO_BEAMIMP;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions Condition="'$(ConfigurationType)'=='DynamicLibrary'">_BEAMIMP_EXPORT;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_VARIADIC_MAX=10;ENABLE_INTSAFE_SIGNED_FUNCTIONS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
+      <PrecompiledHeaderOutputFile>$(IntDir)pch.pch</PrecompiledHeaderOutputFile>
+      <AdditionalUsingDirectories>$(WindowsSDK_WindowsMetadata);$(AdditionalUsingDirectories)</AdditionalUsingDirectories>
+      <AdditionalOptions>/bigobj /Zm250 %(AdditionalOptions)</AdditionalOptions>
+      <ProgramDataBaseFileName>$(OutDir)$(ProjectName).pdb</ProgramDataBaseFileName>
+      <WarningLevel Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">Level4</WarningLevel>
+      <MinimalRebuild>false</MinimalRebuild>
+      <CompileAsWinRT>true</CompileAsWinRT>
+      <AdditionalIncludeDirectories>
+      $(ProjectDir);
+      $(ProjectDir)\..\..\Include;
+      $(ProjectDir)\..\..\Include\beam;
+      $(ProjectDir)\..\..\Source;
+      $(ProjectDir)\..\..\Source\Services;
+      $(ProjectDir)\..\..\Source\Shared;
+      $(ProjectDir)\..\..\Source\System;
+      $(ProjectDir)\..\..\cpprestsdk\Release\include;
+      %(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ClCompile>
+    <Link>
+      <SubSystem>Console</SubSystem>
+    </Link>
+    <Lib>
+      <AdditionalOptions>/ignore:4264 %(AdditionalOptions)</AdditionalOptions>
+    </Lib>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)'=='Release'">
+    <ClCompile>
+      <PreprocessorDefinitions>NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ClCompile>
+    <Link>
+      <AdditionalOptions>/DEBUGTYPE:CV,FIXUP %(AdditionalOptions)</AdditionalOptions>
+    </Link>
+    <Lib>
+      <AdditionalOptions>/ignore:4264 %(AdditionalOptions)</AdditionalOptions>
+    </Lib>
+  </ItemDefinitionGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <Import Project="Build.$(Platform).Cpp.props" Condition="exists('Build.$(Platform).Cpp.props')" />
+</Project>

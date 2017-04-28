@@ -1,0 +1,131 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClCompile Include="Interactivity.cpp" />
+    <ClCompile Include="LiveResources.cpp" />
+    <ClCompile Include="..\..\..\Kits\ATGTK\SampleGUI.cpp">
+      <Filter>ATG Tool Kit</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\Kits\ATGTK\TextConsole.cpp">
+      <Filter>ATG Tool Kit</Filter>
+    </ClCompile>
+    <ClCompile Include="DeviceResources.cpp">
+      <Filter>Common</Filter>
+    </ClCompile>
+    <ClCompile Include="Main.cpp" />
+    <ClCompile Include="pch.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="Interactivity.h" />
+    <ClInclude Include="LiveResources.h" />
+    <ClInclude Include="pch.h" />
+    <ClInclude Include="..\..\..\Kits\ATGTK\ATGColors.h">
+      <Filter>ATG Tool Kit</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\Kits\ATGTK\ControllerFont.h">
+      <Filter>ATG Tool Kit</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\Kits\ATGTK\CSVReader.h">
+      <Filter>ATG Tool Kit</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\Kits\ATGTK\SampleGUI.h">
+      <Filter>ATG Tool Kit</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\Kits\ATGTK\TextConsole.h">
+      <Filter>ATG Tool Kit</Filter>
+    </ClInclude>
+    <ClInclude Include="DeviceResources.h">
+      <Filter>Common</Filter>
+    </ClInclude>
+    <ClInclude Include="StepTimer.h">
+      <Filter>Common</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <Image Include="Assets\SmallLogo.png">
+      <Filter>Assets</Filter>
+    </Image>
+    <Image Include="Assets\Logo.png">
+      <Filter>Assets</Filter>
+    </Image>
+    <Image Include="Assets\SplashScreen.png">
+      <Filter>Assets</Filter>
+    </Image>
+    <Image Include="Assets\StoreLogo.png">
+      <Filter>Assets</Filter>
+    </Image>
+    <Image Include="Assets\WideLogo.png">
+      <Filter>Assets</Filter>
+    </Image>
+    <Image Include="Assets\GamerPic.png">
+      <Filter>Assets</Filter>
+    </Image>
+    <Image Include="Assets\Background.png">
+      <Filter>Assets</Filter>
+    </Image>
+  </ItemGroup>
+  <ItemGroup>
+    <AppxManifest Include="Package.appxmanifest" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\..\..\Kits\Media\Fonts\Courier_16.spritefont" />
+    <None Include="ReadMe.docx" />
+    <None Include="xboxservices.config" />
+    <None Include="..\..\..\Kits\Media\Fonts\SegoeUI_18.spritefont">
+      <Filter>Assets</Filter>
+    </None>
+    <None Include="..\..\..\Kits\Media\Fonts\SegoeUI_18_Bold.spritefont">
+      <Filter>Assets</Filter>
+    </None>
+    <None Include="..\..\..\Kits\Media\Fonts\SegoeUI_18_Italic.spritefont">
+      <Filter>Assets</Filter>
+    </None>
+    <None Include="..\..\..\Kits\Media\Fonts\SegoeUI_22.spritefont">
+      <Filter>Assets</Filter>
+    </None>
+    <None Include="..\..\..\Kits\Media\Fonts\SegoeUI_22_Bold.spritefont">
+      <Filter>Assets</Filter>
+    </None>
+    <None Include="..\..\..\Kits\Media\Fonts\SegoeUI_22_Italic.spritefont">
+      <Filter>Assets</Filter>
+    </None>
+    <None Include="..\..\..\Kits\Media\Fonts\SegoeUI_36.spritefont">
+      <Filter>Assets</Filter>
+    </None>
+    <None Include="..\..\..\Kits\Media\Fonts\SegoeUI_36_Bold.spritefont">
+      <Filter>Assets</Filter>
+    </None>
+    <None Include="..\..\..\Kits\Media\Fonts\SegoeUI_36_Italic.spritefont">
+      <Filter>Assets</Filter>
+    </None>
+    <None Include="..\..\..\Kits\Media\Fonts\XboxOneController.spritefont">
+      <Filter>Assets</Filter>
+    </None>
+    <None Include="..\..\..\Kits\Media\Fonts\XboxOneControllerLegend.spritefont">
+      <Filter>Assets</Filter>
+    </None>
+    <None Include="..\..\..\Kits\Media\Fonts\XboxOneControllerSmall.spritefont">
+      <Filter>Assets</Filter>
+    </None>
+    <None Include="..\..\..\Kits\Media\Fonts\XboxOneControllerLegendSmall.spritefont">
+      <Filter>Assets</Filter>
+    </None>
+    <None Include="Assets\Layout.csv">
+      <Filter>Assets</Filter>
+    </None>
+    <None Include="Assets\LiveInfoHUD.csv">
+      <Filter>Assets</Filter>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="Assets">
+      <UniqueIdentifier>{177e39a0-784d-41fe-a5dc-2ca3ce0e234f}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ATG Tool Kit">
+      <UniqueIdentifier>{22054b34-b6e4-444c-88b0-361086d311e2}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Common">
+      <UniqueIdentifier>{7a177546-5704-4fad-84dc-c9cf2fb65265}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+</Project>
