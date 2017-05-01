@@ -200,7 +200,6 @@ namespace xbox { namespace services {
             _In_ string_t parentSceneId,
             _In_ string_t controlId,
             _In_ bool disabled,
-            _In_ string_t helpText,
             _In_ float progress,
             _In_ std::chrono::milliseconds cooldownDeadline,
             _In_ string_t buttonText,
@@ -213,7 +212,6 @@ namespace xbox { namespace services {
             _In_ string_t parentSceneId,
             _In_ string_t controlId,
             _In_ bool disabled,
-            _In_ string_t helpText,
             _In_ double x,
             _In_ double y
         );

@@ -1651,6 +1651,7 @@ void beam_manager_impl::process_joystick_input(web::json::value joystickInputJso
             {
                 if (inputData.has_field(RPC_CONTROL_ID) && inputData.has_field(RPC_JOYSTICK_X) && inputData.has_field(RPC_JOYSTICK_Y))
                 {
+                    LOGS_INFO << "Joystick move event json: " << joystickInputJson.serialize();
                     double x = inputData[RPC_JOYSTICK_X].as_double();
                     double y = inputData[RPC_JOYSTICK_Y].as_double();
 

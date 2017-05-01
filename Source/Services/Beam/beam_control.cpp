@@ -56,14 +56,13 @@ beam_control_builder::build_button_control(
     _In_ string_t parentSceneId,
     _In_ string_t controlId,
     _In_ bool enabled,
-    _In_ string_t helpText,
     _In_ float progress,
     _In_ std::chrono::milliseconds cooldownDeadline,
     _In_ string_t buttonText,
     _In_ uint32_t sparkCost
 )
 {
-    std::shared_ptr<beam_button_control> button = std::shared_ptr<beam_button_control>(new beam_button_control(parentSceneId, controlId, enabled, helpText, progress, cooldownDeadline, buttonText, sparkCost));
+    std::shared_ptr<beam_button_control> button = std::shared_ptr<beam_button_control>(new beam_button_control(parentSceneId, controlId, enabled, progress, cooldownDeadline, buttonText, sparkCost));
     
     beam_manager::get_singleton_instance()->m_impl->add_control_to_map(button);
 
@@ -106,12 +105,11 @@ beam_control_builder::build_joystick_control(
     _In_ string_t parentSceneId,
     _In_ string_t controlId,
     _In_ bool enabled,
-    _In_ string_t helpText,
     _In_ double x,
     _In_ double y
 )
 {
-    std::shared_ptr<beam_joystick_control> joystick = std::shared_ptr<beam_joystick_control>(new beam_joystick_control(parentSceneId, controlId, enabled, helpText, x, y));
+    std::shared_ptr<beam_joystick_control> joystick = std::shared_ptr<beam_joystick_control>(new beam_joystick_control(parentSceneId, controlId, enabled, x, y));
     beam_manager::get_singleton_instance()->m_impl->add_control_to_map(joystick);
 
     return joystick;
@@ -134,12 +132,6 @@ beam_control::control_id() const
 }
 
 
-const string_t&
-beam_control::help_text() const
-{
-    return m_helpText;
-}
-
 beam_control::beam_control()
 {
 
@@ -148,14 +140,12 @@ beam_control::beam_control()
 beam_control::beam_control(
     _In_ string_t parentScene,
     _In_ string_t controlId,
-    _In_ bool disabled,
-    _In_ string_t helpText
+    _In_ bool disabled
 )
 {
     m_parentScene = std::move(parentScene);
     m_controlId = std::move(controlId);
     m_disabled = disabled;
-    m_helpText = std::move(helpText);
 }
 
 
@@ -227,11 +217,13 @@ beam_button_control::disabled() const
     return m_disabled;
 }
 
+#if 0
 void
 beam_button_control::set_disabled(bool disabled)
 {
     m_disabled = disabled;
 }
+#endif
 
 const string_t&
 beam_button_control::button_text() const
@@ -268,20 +260,22 @@ beam_button_control::remaining_cooldown() const
 }
 
 
+#if 0
 float
 beam_button_control::progress() const
 {
     return m_progress;
 }
+#endif
 
 
+#if 0
 void
 beam_button_control::set_progress(_In_ float progress)
 {
     m_progress = progress;
-
-    // TODO: report to service
 }
+#endif
 
 
 uint32_t
@@ -290,11 +284,14 @@ beam_button_control::count_of_button_downs()
     return m_buttonCount->count_of_button_downs();
 }
 
+
+#if 0
 uint32_t
 beam_button_control::count_of_button_downs(_In_ uint32_t beamId)
 {
     return 0;
 }
+#endif
 
 
 uint32_t
@@ -303,11 +300,14 @@ beam_button_control::count_of_button_presses()
     return m_buttonCount->count_of_button_presses();
 }
 
+
+#if 0
 uint32_t
 beam_button_control::count_of_button_presses(_In_ uint32_t beamId)
 {
     return 0;
 }
+#endif
 
 
 uint32_t
@@ -316,11 +316,14 @@ beam_button_control::count_of_button_ups()
     return m_buttonCount->count_of_button_ups();
 }
 
+
+#if 0
 uint32_t
 beam_button_control::count_of_button_ups(_In_ uint32_t beamId)
 {
     return 0;
 }
+#endif
 
 
 bool
@@ -329,11 +332,14 @@ beam_button_control::is_pressed()
     return m_buttonCount->count_of_button_ups() > 0;
 }
 
+
+#if 0
 bool
 beam_button_control::is_pressed(_In_ uint32_t beamId)
 {
     return m_buttonStateByBeamId[beamId]->is_pressed();
 }
+#endif
 
 
 bool
@@ -342,11 +348,13 @@ beam_button_control::is_down()
     return (m_buttonCount->count_of_button_ups() < m_buttonCount->count_of_button_downs());
 }
 
+#if 0
 bool
 beam_button_control::is_down(_In_ uint32_t beamId)
 {
     return m_buttonStateByBeamId[beamId]->is_down();
 }
+#endif
 
 
 bool
@@ -355,11 +363,14 @@ beam_button_control::is_up()
     return (m_buttonCount->count_of_button_ups() > m_buttonCount->count_of_button_downs());
 }
 
+#if 0
 bool
 beam_button_control::is_up(_In_ uint32_t beamId)
 {
     return m_buttonStateByBeamId[beamId]->is_up();
 }
+#endif
+
 
 bool
 beam_button_control::init_from_json(web::json::value json)
@@ -375,10 +386,9 @@ xbox::services::beam::beam_button_control::update(web::json::value json, bool ov
 
     try
     {
-        // TODO: attributes that need to be plumbed through:
+        // Attributes that need to be plumbed through:
         // keyCode
         // position
-        // help text - is this supported by protocol still?
 
         if (success && json.has_field(RPC_ETAG))
         {
@@ -465,7 +475,6 @@ beam_button_control::beam_button_control(
     _In_ string_t parentSceneId,
     _In_ string_t controlId,
     _In_ bool disabled,
-    _In_ string_t helpText,
     _In_ float progress,
     _In_ std::chrono::milliseconds cooldownDeadline,
     _In_ string_t buttonText,
@@ -477,7 +486,6 @@ beam_button_control::beam_button_control(
     m_type = beam_control_type::button;
     m_controlId = std::move(controlId);
     m_disabled = disabled;
-    m_helpText = std::move(helpText);
     m_progress = progress;
     m_buttonText = std::move(buttonText);
     m_cooldownDeadline = std::move(cooldownDeadline);
@@ -519,7 +527,6 @@ beam_joystick_control::beam_joystick_control(
     _In_ string_t parentSceneId,
     _In_ string_t controlId,
     _In_ bool disabled,
-    _In_ string_t helpText,
     _In_ double x,
     _In_ double y
 )
@@ -529,7 +536,6 @@ beam_joystick_control::beam_joystick_control(
     m_type = beam_control_type::joystick;
     m_controlId = std::move(controlId);
     m_disabled = disabled;
-    m_helpText = std::move(helpText);
     m_x = x;
     m_y = y;
 }

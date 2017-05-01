@@ -151,6 +151,7 @@ beam_participant_impl::input_disabled() const
     return m_disabled;
 }
 
+#if 0
 std::shared_ptr<beam_button_control> xbox::services::beam::beam_participant_impl::button(const string_t & control_id)
 {
     return std::shared_ptr<beam_button_control>();
@@ -170,6 +171,7 @@ std::vector<std::shared_ptr<beam_joystick_control>> xbox::services::beam::beam_p
 {
     return std::vector<std::shared_ptr<beam_joystick_control>>();
 }
+#endif
 
 
 beam_participant_impl::beam_participant_impl(

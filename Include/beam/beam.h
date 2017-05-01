@@ -178,6 +178,7 @@ public:
     /// </summary>
     _BEAMIMP bool input_disabled() const;
 
+#if 0
     /// <summary>
     /// Returns a particular button. If the button does not exist,
     /// NULL is returned.
@@ -199,6 +200,7 @@ public:
     /// Returns joysticks that the participant has interacted with.
     /// </summary>
     _BEAMIMP const std::vector<std::shared_ptr<beam_joystick_control>>& joysticks();
+#endif
 
 private:
 
@@ -230,33 +232,34 @@ private:
 
 
 /// <summary>
-/// Describes the types of Beam events.
+/// Describes the types of Beam message objects.
 /// </summary>
 enum class beam_event_type
 {
     /// <summary>
-    /// This event is raised when the service or manager encounters an error. 
-    /// The err and err_message members will contain pertinent info.
+    /// An error message object. This object type is returned when the service
+	/// or manager encounters an error. The err and err_message members will
+	/// contain pertinent info.
     /// </summary>
     error,
 
     /// <summary>
-    /// This event is raised when the interactivity state has changed.
+    /// An interactivity state changed message object.
     /// </summary>
     interactivity_state_changed,
 
     /// <summary>
-    /// This event is raised when a participant's state has changed.
+    /// A participant state changed message object.
     /// </summary>
     participant_state_changed,
 
     /// <summary>
-    /// This event is raised when a button control is used.
+    /// A button message object.
     /// </summary>
     button,
 
     /// <summary>
-    /// This event is raised when a joystick control is used.
+    /// A joystick message object.
     /// </summary>
     joystick
 };
@@ -344,7 +347,7 @@ class beam_interactivity_state_change_event_args : public beam_event_args
 public:
 
     /// <summary>
-    /// Returns the current interactivity state.
+    /// The current interactivity state.
     /// </summary>
     _BEAMIMP const beam_interactivity_state new_state() const;
 
@@ -497,11 +500,6 @@ public:
     /// </summary>
     _BEAMIMP const string_t& control_id() const;
 
-    /// <summary>
-    /// The help text that is displayed when a participant hovers over the control.
-    /// </summary>
-    _BEAMIMP const string_t& help_text() const;
-
 protected:
 
     /// <summary>
@@ -522,8 +520,7 @@ protected:
     beam_control(
         _In_ string_t parentScene,
         _In_ string_t controlId,
-        _In_ bool disabled,
-        _In_ string_t helpText
+        _In_ bool disabled
         );
 
     /// <summary>
@@ -546,7 +543,6 @@ protected:
     beam_control_type m_type;
     string_t m_controlId;
     bool m_disabled;
-    string_t m_helpText;
     string_t m_etag;
 
     friend beam_control_builder;
@@ -579,12 +575,14 @@ public:
     /// </summary>
     _BEAMIMP bool disabled() const;
 
+#if 0
     /// <summary>
     /// Function to enable or disable the button.
     /// </summary>
     /// <param name="disabled">Value to enable or disable the button. 
     /// Set this value to TRUE to disable the button.</param>
     _BEAMIMP void set_disabled(_In_ bool disabled);
+#endif
 
     /// <summary>
     /// Sets the cooldown duration (in milliseconds) required between triggers. 
@@ -598,6 +596,7 @@ public:
     /// </summary>
     _BEAMIMP std::chrono::milliseconds remaining_cooldown() const;
 
+#if 0
     /// <summary>
     /// Current progress of the button control.
     /// </summary>
@@ -608,69 +607,82 @@ public:
     /// </summary>
     /// <param name="progress">The progress value, in the range of 0.0 to 1.0.</param>
     _BEAMIMP void set_progress(_In_ float progress);
+#endif
 
     /// <summary>
     /// Returns the total count of button downs since the last call to do_work().
     /// </summary>
     _BEAMIMP uint32_t count_of_button_downs();
 
+#if 0
     /// <summary>
     /// Returns the total count of button downs by the specified participant
     /// since the last call to do_work().
     /// </summary>
     _BEAMIMP uint32_t count_of_button_downs(_In_ uint32_t beamId);
+#endif
 
     /// <summary>
     /// Returns the total count of button presses since the last call to do_work().
     /// </summary>
     _BEAMIMP uint32_t count_of_button_presses();
 
+#if 0
     /// <summary>
     /// Returns the total count of button presses by the specified participant
     /// since the last call to do_work().
     /// </summary>
     _BEAMIMP uint32_t count_of_button_presses(_In_ uint32_t beamId);
+#endif
 
     /// <summary>
     /// Returns the total count of button ups since the last call to do_work().
     /// </summary>
     _BEAMIMP uint32_t count_of_button_ups();
 
+#if 0
     /// <summary>
     /// Returns the total count of button ups by the specified participant
     /// since the last call to do_work().
     /// </summary>
     _BEAMIMP uint32_t count_of_button_ups(_In_ uint32_t beamId);
+#endif
 
     /// <summary>
     /// Returns TRUE if button is currently pressed.
     /// </summary>
     _BEAMIMP bool is_pressed();
 
+#if 0
     /// <summary>
     /// Returns TRUE if the button is currently pressed by the specified participant.
     /// </summary>
     _BEAMIMP bool is_pressed(_In_ uint32_t beamId);
+#endif
 
     /// <summary>
     /// Returns TRUE if button is currently down.
     /// </summary>
     _BEAMIMP bool is_down();
 
+#if 0
     /// <summary>
     /// Returns TRUE if the button is clicked down by the specified participant.
     /// </summary>
     _BEAMIMP bool is_down(_In_ uint32_t beamId);
+#endif
 
     /// <summary>
     /// Returns TRUE if button is currently up.
     /// </summary>
     _BEAMIMP bool is_up();
 
+#if 0
     /// <summary>
     /// Returns TRUE if the button is currently up for the specified participant.
     /// </summary>
     _BEAMIMP bool is_up(_In_ uint32_t beamId);
+#endif
 
 private:
 
@@ -686,7 +698,6 @@ private:
         _In_ string_t parentSceneId,
         _In_ string_t controlId,
         _In_ bool enabled,
-        _In_ string_t helpText,
         _In_ float progress,
         _In_ std::chrono::milliseconds m_cooldownDeadline,
         _In_ string_t buttonText,
@@ -752,7 +763,6 @@ private:
         _In_ string_t parentSceneId,
         _In_ string_t controlId,
         _In_ bool enabled,
-        _In_ string_t helpText,
         _In_ double x,
         _In_ double y
         );
@@ -940,8 +950,7 @@ public:
 
 #if TV_API | XBOX_UWP
     /// <summary>
-    /// Adds a signed in local user to the Beam interactivity experience, to enable authentication
-	/// to the Beam interactivity service.
+    /// Authenticates a signed in local user for the Beam interactivity experience.
     /// </summary>
     /// <param name="user">The user's Xbox Live identifier.</param>
     /// <returns>Returns a Beam event to report any potential error. A nullptr is returned if there's no error.</returns>
@@ -963,7 +972,7 @@ public:
     _BEAMIMP const std::chrono::milliseconds get_server_time();
 
     /// <summary>
-    /// The version of the Beam interactivity experience created for the experience.
+    /// Returns the version of the Beam interactivity experience created.
     /// </summary>
     _BEAMIMP const string_t& interactive_version() const;
 
@@ -992,7 +1001,7 @@ public:
 
     /// <summary>
     /// Gets all the groups associated with the current interactivity instance.
-    /// Array will be empty if initialization is not yet completed.
+    /// Empty list is returned if initialization is not yet completed.
     /// </summary>
     _BEAMIMP std::vector<std::shared_ptr<beam_group>> groups();
 
@@ -1015,7 +1024,7 @@ public:
     _BEAMIMP std::shared_ptr<beam_scene> scene(_In_ const string_t&  scene_id);
 
     /// <summary>
-    /// Trigger a cooldown, disabling the specified control for a period of time.
+    /// Disables a specific control for a period of time, specified in milliseconds.
     /// </summary>
     /// <param name="control_id">The unique string identifier of the control.</param>
     /// <param name="cooldown">Cooldown duration (in milliseconds).</param>
@@ -1063,7 +1072,7 @@ public:
     _BEAMIMP static std::shared_ptr<beam_mock_util> get_singleton_instance();
 
     /// <summary>
-    /// Sets the OAuth token, skipping the linking code API.
+    /// Sets the OAuth token; skips the linking code API.
     /// </summary>
     /// <param name="token">The token.</param>
     _BEAMIMP void set_oauth_token(_In_ string_t token);
@@ -1085,7 +1094,7 @@ public:
     _BEAMIMP void mock_participant_join(_In_ uint32_t beamId, _In_ string_t beamUsername);
 
     /// <summary>
-    /// Simulates a specific participant leaving interactivity.
+    /// Simulates a specific mock participant leaving interactivity.
     /// </summary>
     /// <param name="beamId">The Beam ID of the user.</param>
     /// <param name="beamUsername">The Beam username of the user.</param>
