@@ -14,8 +14,8 @@
     <!-- This property is set 'title' for XDK, remove it when you need to build for ADK -->
     <ApplicationEnvironment>title</ApplicationEnvironment>
     <ProjectGuid>{8A112040-CDA1-4490-B518-62DFCC451FA7}</ProjectGuid>
-    <ProjectName>Microsoft.Xbox.Services.Beam.140.XDK.Cpp</ProjectName>
-    <RootNamespace>Microsoft.Xbox.Services</RootNamespace>
+    <ProjectName>Interactivity.Xbox.Cpp</ProjectName>
+    <RootNamespace>Interactivity.Xbox.Cpp</RootNamespace>
     <DefaultLanguage>en-US</DefaultLanguage>
     <MinimumVisualStudioVersion>11.0</MinimumVisualStudioVersion>
     <AppContainerApplication Condition="'$(Platform)'!='Durango'">true</AppContainerApplication>

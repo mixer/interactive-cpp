@@ -56,7 +56,7 @@
     <ProjectReference Include="..\Kits\DirectXTK\DirectXTK_XboxOneXDK_2015.vcxproj">
       <Project>{4fdfdccd-ee2e-415c-b458-1e8fdb0d85f2}</Project>
     </ProjectReference>
-    <ProjectReference Include="..\..\Build\Microsoft.Xbox.Services.Beam.140.XDK.Cpp\Microsoft.Xbox.Services.Beam.140.XDK.Cpp.vcxproj">
+    <ProjectReference Include="..\..\Build\Interactivity.Xbox.Cpp\Interactivity.Xbox.Cpp.vcxproj">
       <Project>{3549e31c-e007-48bf-b971-97b3b2ad7bef}</Project>
       <UseLibraryDependencyInputs>false</UseLibraryDependencyInputs>
     </ProjectReference>
