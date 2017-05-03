@@ -1,6 +1,9 @@
 # Beam Interactivity C++ SDK
 
 The C++ Interactivity SDK supports client-side development with Beam Interactivity.
+If you'd like to checkout the [API documentation](https://dev.beam.pro/reference/interactive/cplusplus/index.html), feel free to
+take a look around. You can also take a peek at the [Xbox console sample](https://github.com/WatchBeam/interactive-sdk-cpp/Samples/Xbox) for a
+simple example of an end-to-end integration.
 
 ## Release Notes
 
@@ -36,7 +39,7 @@ support the Xbox platform.
 Is there a feature missing that you'd like to see, or have you found a bug that you
 have a fix for? Do you have an idea or just interest in helping out in building the
 library? Let us know and we'd love to work with you. For a good starting point on where
-we are headed and feature ideas, take a look at our [requested features and bugs](https://github.com/WatchBeam/interactive-sdk-cpp/issues) or [backlog](https://github.com/WatchBeam/interactive-sdk-cpp/projects/1).
+we are headed and feature ideas, take a look at our [requested features and bugs](https://github.com/WatchBeam/interactive-sdk-cpp/issues) or [backlog](https://github.com/WatchBeam/interactive-sdk-cpp/backlog.md).
 
 Big or small we'd like to take your contributions to help improve the Beam Interactivity
 API for everyone. 
@@ -52,10 +55,9 @@ to do that is to open an issue in our [issue tracker](https://github.com/WatchBe
 
 *   [Beam](https://beam.pro/)
 *   [Developer Site](https://dev.beam.pro/)
-*   [Getting Started Guide](https://dev.beam.pro/reference/interactive/index.html#cpp_getting-started)
-*   [Interactivity SDK C# Repo](https://github.com/WatchBeam/interactive-sdk-cpp)
+*   [C++ API Documentation](https://dev.beam.pro/reference/interactive/cplusplus/index.html)
 *   [Issue Tracker](https://github.com/WatchBeam/interactive-sdk-cpp/issues)
-*   [Backlog](https://github.com/WatchBeam/interactive-sdk-cpp/projects/1)
+*   [Backlog](https://github.com/WatchBeam/interactive-sdk-cpp/backlog.md)
 
 This project has adopted the [Microsoft Open Source Code of Conduct](https://opensource.microsoft.com/codeofconduct/). For more information see the [Code of Conduct FAQ](https://opensource.microsoft.com/codeofconduct/faq/) or contact [opencode@microsoft.com](mailto:opencode@microsoft.com) with any additional questions or comments.
 
