@@ -59,7 +59,7 @@ beam_manager_impl::beam_manager_impl() :
     m_serverTimeOffset(std::chrono::milliseconds(0))
 {
     logger::create_logger();
-    logger::get_logger()->set_log_level(log_level::debug);
+    logger::get_logger()->set_log_level(log_level::error);
     logger::get_logger()->add_log_output(std::make_shared<debug_output>());
 }
 
