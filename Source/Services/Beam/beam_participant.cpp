@@ -292,10 +292,6 @@ beam_participant_impl::update(web::json::value json, bool overwrite)
         {
             if (json.has_field(RPC_ETAG))
             {
-                if (0 == m_etag.compare(json[RPC_ETAG].as_string()))
-                {
-                    LOGS_ERROR << L"New etag same as old (" << m_etag << L")";
-                }
                 m_etag = json[RPC_ETAG].as_string();
             }
             else if (overwrite)
