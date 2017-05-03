@@ -16,7 +16,7 @@ s_interactiveVersion
 ```
 
 with your own interactive project version id in Interactivity.cpp. You can get
-your project id in the Interactive Studio ([see example screenshot here](https://github.com/WatchBeam/interactive-sdk-cpp/blob/cleanup/Samples/Xbox/ExampleScenes/Screenshots/interactive_project_id.png)).
+your project id in the Interactive Studio ([see example screenshot here](https://github.com/WatchBeam/interactive-sdk-cpp/blob/master/Samples/Xbox/ExampleScenes/Screenshots/interactive_project_id.png)).
 
 ## Building and Running
 
@@ -51,4 +51,4 @@ If you run into any issues, feel free to reach out via our [issues tracker](http
 *   [Developer Site](https://dev.beam.pro/)
 *   [C++ API Documentation](https://dev.beam.pro/reference/interactive/cplusplus/index.html)
 *   [Issue Tracker](https://github.com/WatchBeam/interactive-sdk-cpp/issues)
-*   [Backlog](https://github.com/WatchBeam/interactive-sdk-cpp/backlog.md)
+*   [Backlog](https://github.com/WatchBeam/interactive-sdk-cpp/blob/master/backlog.md)
