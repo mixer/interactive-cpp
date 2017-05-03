@@ -1,8 +1,8 @@
 # Backlog for the C++ Interactivity SDK
 
-This document lists the current work being tracked for the C++ interactivity SDK. We're constantly investigating, listening to feedback and making improvements, so check back in as we develop!
+This document lists the current work being tracked for the C++ interactivity SDK. We're always investigating, listening to feedback and making improvements, so check back in as we develop!
 
-These tasks are not listed in priority order - take a peek at our release notes for updates as we work through these work items.
+The tasks below are not listed in priority order - take a peek at our release notes for updates as we work through these work items.
 
 
 ## Features
@@ -24,5 +24,6 @@ These tasks are not listed in priority order - take a peek at our release notes 
   * More robust retry logic
   * Improved performance of json message parsing
 * Re-incorporate Unit Tests on a platform-agnostic framework
+* Improved thread safety - refactor already underway!
 
 ### Bugs
