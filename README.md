@@ -1,6 +1,9 @@
 # Beam Interactivity C++ SDK
 
 The C++ Interactivity SDK supports client-side development with Beam Interactivity.
+If you'd like to checkout the [API documentation](https://dev.beam.pro/reference/interactive/cplusplus/index.html), feel free to
+take a look around. You can also take a peek at the [Xbox console sample](https://github.com/WatchBeam/interactive-sdk-cpp/Samples/Xbox) for a
+simple example of an end-to-end integration.
 
 ## Release Notes
 
@@ -52,8 +55,7 @@ to do that is to open an issue in our [issue tracker](https://github.com/WatchBe
 
 *   [Beam](https://beam.pro/)
 *   [Developer Site](https://dev.beam.pro/)
-*   [Getting Started Guide](https://dev.beam.pro/reference/interactive/index.html#cpp_getting-started)
-*   [Interactivity SDK C# Repo](https://github.com/WatchBeam/interactive-sdk-cpp)
+*   [C++ API Documentation](https://dev.beam.pro/reference/interactive/cplusplus/index.html)
 *   [Issue Tracker](https://github.com/WatchBeam/interactive-sdk-cpp/issues)
 *   [Backlog](https://github.com/WatchBeam/interactive-sdk-cpp/backlog.md)
 

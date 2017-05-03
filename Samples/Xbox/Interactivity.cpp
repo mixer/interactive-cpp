@@ -22,6 +22,8 @@ namespace
     const int c_voteYesCountLabel           = 1004;
     const int c_voteNoCountLabel            = 1006;
 
+    const string_t s_interactiveVersion     = L"19005";
+
     const string_t s_defaultGroup           = L"default";
     const string_t s_redGroup               = L"redGroup";
     const string_t s_blueGroup              = L"blueGroup";
@@ -271,9 +273,8 @@ void Sample::ToggleInteractivity()
         if (nullptr != user)
         {
             m_beamManager->add_local_user(user);
-            string_t interactiveVersion = L"19005";
 
-            bool bProcessed = m_beamManager->initialize(interactiveVersion, false /*goInteractive*/);
+            m_beamManager->initialize(s_interactiveVersion, false /*goInteractive*/);
         }
         else
         {
