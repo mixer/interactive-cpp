@@ -35,7 +35,7 @@ beam_control_builder::build_button_control(string_t parentSceneId, web::json::va
     else
     {
         button = nullptr;
-        beam_manager::get_singleton_instance()->m_impl->report_beam_event(L"Failed to initialize button control from json", std::make_error_code(std::errc::invalid_argument), beam_event_type::error, nullptr);
+        beam_manager::get_singleton_instance()->m_impl->queue_beam_event_for_client(L"Failed to initialize button control from json", std::make_error_code(std::errc::invalid_argument), beam_event_type::error, nullptr);
     }
 
     return button;
@@ -94,7 +94,7 @@ beam_control_builder::build_joystick_control(string_t parentSceneId, web::json::
     else
     {
         joystick = nullptr;
-        beam_manager::get_singleton_instance()->m_impl->report_beam_event(L"Failed to initialize joystick control from json", std::make_error_code(std::errc::invalid_argument), beam_event_type::error, nullptr);
+        beam_manager::get_singleton_instance()->m_impl->queue_beam_event_for_client(L"Failed to initialize joystick control from json", std::make_error_code(std::errc::invalid_argument), beam_event_type::error, nullptr);
     }
 
     return joystick;

@@ -1057,7 +1057,7 @@ private:
     friend beam_participant_impl;
 };
 
-
+#if 0
 /// <summary>
 /// Represents mock Beam events. This class mocks events between the Beam interactivity
 /// service and participants.
@@ -1112,5 +1112,6 @@ private:
     friend beam_control_builder;
     friend beam_manager_impl;
 };
+#endif
 
 }}}

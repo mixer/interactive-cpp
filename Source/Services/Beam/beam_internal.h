@@ -13,9 +13,7 @@
 #include "beam_web_socket_connection_state.h"
 #include "beam_web_socket_client.h"
 
-
 class beam_connection_manager;
-
 
 namespace xbox { namespace services {
     /// <summary>
@@ -336,31 +334,33 @@ namespace xbox { namespace services {
         void add_message_sent(std::shared_ptr<beam_rpc_message> message);
         std::shared_ptr<beam_rpc_message> pop_message_sent(uint32_t messageId);
 
-        void process_reply(web::json::value jsonReply);
-        void process_reply_error(web::json::value jsonReply);
-        void process_get_groups_reply(web::json::value jsonReply);
-        void process_create_groups_reply(web::json::value jsonReply);
-        void process_update_groups_reply(web::json::value jsonReply);
-        void process_update_controls_reply(web::json::value jsonReply);
-        void process_update_participants_reply(web::json::value jsonReply);
-        void process_get_scenes_reply(web::json::value jsonReply);
-        void process_get_time_reply(std::shared_ptr<beam_rpc_message> message, web::json::value jsonReply);
+        void process_messages_worker();
 
-        void process_method(web::json::value jsonMethod);
+        void process_reply(const web::json::value& jsonReply);
+        void process_reply_error(const web::json::value& jsonReply);
+        void process_get_groups_reply(const web::json::value& jsonReply);
+        void process_create_groups_reply(const web::json::value& jsonReply);
+        void process_update_groups_reply(const web::json::value& jsonReply);
+        void process_update_controls_reply(const web::json::value& jsonReply);
+        void process_update_participants_reply(const web::json::value& jsonReply);
+        void process_get_scenes_reply(const web::json::value& jsonReply);
+        void process_get_time_reply(std::shared_ptr<beam_rpc_message> message, const web::json::value& jsonReply);
 
-        void process_participant_joined(web::json::value participantJoinedJson);
-        void process_participant_left(web::json::value participantLeftJson);
-        void process_on_participant_update(web::json::value participantChangeJson);
+        void process_method(const web::json::value& methodJson);
 
-        void process_on_ready_changed(web::json::value onReadyMethod);
-        void process_on_group_create(web::json::value onGroupCreate);
-        void process_on_group_update(web::json::value onGroupUpdateMethod);
-        void process_on_control_update(web::json::value onControlUpdateMethod);
+        void process_participant_joined(const web::json::value& participantJoinedJson);
+        void process_participant_left(const web::json::value& participantLeftJson);
+        void process_on_participant_update(const web::json::value& participantChangeJson);
+
+        void process_on_ready_changed(const web::json::value& onReadyMethod);
+        void process_on_group_create(const web::json::value& onGroupCreateMethod);
+        void process_on_group_update(const web::json::value& onGroupUpdateMethod);
+        void process_on_control_update(const web::json::value& onControlUpdateMethod);
         void process_update_controls(web::json::array controlsToUpdate);
 
-        void process_input(web::json::value inputMethod);
-        void process_button_input(web::json::value buttonInputJson);
-        void process_joystick_input(web::json::value joystickInputJson);
+        void process_input(const web::json::value& inputMethod);
+        void process_button_input(const web::json::value& inputJson);
+        void process_joystick_input(const web::json::value& joystickInputJson);
 
         //
         // Controls, Scenes and Groups
@@ -402,7 +402,7 @@ namespace xbox { namespace services {
         //
         // Reporting events to client, error handling and logging
         //
-        void report_beam_event(string_t errorMessage, std::error_code errorCode, beam_event_type type, std::shared_ptr<beam_event_args> args);
+        void queue_beam_event_for_client(string_t errorMessage, std::error_code errorCode, beam_event_type type, std::shared_ptr<beam_event_args> args);
 
 #if TV_API | XBOX_UWP
         std::vector<xbox_live_user_t> m_localUsers;
@@ -418,21 +418,25 @@ namespace xbox { namespace services {
         std::recursive_mutex m_lock;
         std::recursive_mutex m_messageLock;
 
+        pplx::task<void> m_initializingTask;
         bool m_initScenesComplete;
         bool m_initGroupsComplete;
         bool m_initServerTimeComplete;
-        pplx::task<void> m_initializingTask;
         int m_maxInitRetries;
         int m_initRetryAttempt;
         std::chrono::milliseconds m_initRetryInterval;
 
+        bool m_processing;
+        pplx::task<void> m_processMessagesTask;
+        std::queue<std::shared_ptr<beam_rpc_message>> m_unhandledMsgsFromClient;
+        std::queue<std::shared_ptr<beam_rpc_message>> m_unhandledMsgsFromService;
+        std::queue<std::shared_ptr<beam_rpc_message>> m_pendingSend;
+        std::vector<std::shared_ptr<beam_rpc_message>> m_awaitingReply;
+        std::vector<beam::beam_event> m_eventsForClient;
+
         // Simple websocket connection for now, bring in robust connection manager in the future
         std::shared_ptr<XBOX_BEAM_NAMESPACE::web_socket_connection> m_webSocketConnection;
         beam_interactivity_connection_state m_connectionState;
-
-        std::vector<xbox::services::beam::beam_event> m_eventsForClient;
-        std::vector<std::shared_ptr<beam_rpc_message>> m_pendingSend;
-        std::vector<std::shared_ptr<beam_rpc_message>> m_awaitingReply;
 
         string_t m_currentDefaultGroupEtag;
         string_t m_currentScene;
