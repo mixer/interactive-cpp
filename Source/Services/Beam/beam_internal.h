@@ -225,6 +225,7 @@ namespace xbox { namespace services {
         beam_rpc_message(uint32_t id, web::json::value jsonMessage, std::chrono::milliseconds timestamp);
 
     private:
+        int m_retries;
         uint32_t m_id;
         web::json::value m_json;
         std::chrono::milliseconds m_timestamp;
@@ -331,8 +332,7 @@ namespace xbox { namespace services {
         //
         uint32_t get_next_message_id();
         void send_message(std::shared_ptr<beam_rpc_message> rpcMessage);
-        void add_message_sent(std::shared_ptr<beam_rpc_message> message);
-        std::shared_ptr<beam_rpc_message> pop_message_sent(uint32_t messageId);
+        std::shared_ptr<beam_rpc_message> remove_awaiting_reply(uint32_t messageId);
 
         void process_messages_worker();
 
@@ -376,7 +376,13 @@ namespace xbox { namespace services {
         void participant_leave_group(uint32_t participantId, string_t groupId);
 
         //
-        // Server communication
+        // Reporting events to client, server
+        //
+        void queue_beam_event_for_client(string_t errorMessage, std::error_code errorCode, beam_event_type type, std::shared_ptr<beam_event_args> args);
+        void queue_message_for_service(std::shared_ptr<beam_rpc_message> message);
+
+        //
+        // Server and connection management
         //
         void init_worker(_In_ string_t interactiveVersion, _In_ bool goInteractive);
         bool get_auth_token(_Out_ std::shared_ptr<xbox::services::beam::beam_event> &errorEvent);
@@ -399,11 +405,6 @@ namespace xbox { namespace services {
         void mock_participant_join(_In_ uint32_t beamId, _In_ string_t beamUsername);
         void mock_participant_leave(_In_ uint32_t beamId, _In_ string_t beamUsername);
 
-        //
-        // Reporting events to client, error handling and logging
-        //
-        void queue_beam_event_for_client(string_t errorMessage, std::error_code errorCode, beam_event_type type, std::shared_ptr<beam_event_args> args);
-
 #if TV_API | XBOX_UWP
         std::vector<xbox_live_user_t> m_localUsers;
 #endif
@@ -416,7 +417,7 @@ namespace xbox { namespace services {
         std::chrono::milliseconds m_latency;
 
         std::recursive_mutex m_lock;
-        std::recursive_mutex m_messageLock;
+        std::recursive_mutex m_awaitingReplyLock;
 
         pplx::task<void> m_initializingTask;
         bool m_initScenesComplete;
@@ -428,8 +429,7 @@ namespace xbox { namespace services {
 
         bool m_processing;
         pplx::task<void> m_processMessagesTask;
-        std::queue<std::shared_ptr<beam_rpc_message>> m_unhandledMsgsFromClient;
-        std::queue<std::shared_ptr<beam_rpc_message>> m_unhandledMsgsFromService;
+        std::queue<std::shared_ptr<beam_rpc_message>> m_unhandledFromService;
         std::queue<std::shared_ptr<beam_rpc_message>> m_pendingSend;
         std::vector<std::shared_ptr<beam_rpc_message>> m_awaitingReply;
         std::vector<beam::beam_event> m_eventsForClient;
