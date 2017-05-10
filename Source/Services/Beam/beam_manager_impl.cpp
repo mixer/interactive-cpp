@@ -52,6 +52,7 @@ beam_manager_impl::beam_manager_impl() :
     m_initRetryAttempt(0),
     m_maxInitRetries(10),
     m_initRetryInterval(std::chrono::milliseconds(100)),
+    m_processing(FALSE),
     m_currentScene(RPC_SCENE_DEFAULT),
     m_initScenesComplete(false),
     m_initGroupsComplete(false),
@@ -119,6 +120,18 @@ beam_manager_impl::initialize(
         if (nullptr != pThis)
         {
             pThis->init_worker(interactiveVersion, goInteractive);
+        }
+    });
+
+    // Create long-running message processing task
+    m_processMessagesTask = pplx::create_task([thisWeakPtr]()
+    {
+        std::shared_ptr<beam_manager_impl> pThis;
+        pThis = thisWeakPtr.lock();
+        if (nullptr != pThis)
+        {
+            pThis->m_processing = true;
+            pThis->process_messages_worker();
         }
     });
 
@@ -443,19 +456,19 @@ beam_manager_impl::start_interactive()
 
     if (!m_webSocketConnection || (m_webSocketConnection && m_webSocketConnection->state() != beam_web_socket_connection_state::connected))
     {
-        report_beam_event(L"Websocket connection has not been established, please wait for the initialized state", std::make_error_code(std::errc::not_connected), beam_event_type::error, nullptr);
+        queue_beam_event_for_client(L"Websocket connection has not been established, please wait for the initialized state", std::make_error_code(std::errc::not_connected), beam_event_type::error, nullptr);
         return false;
     }
 
     if (m_interactivityState == beam_interactivity_state::not_initialized)
     {
-        report_beam_event(L"Interactivity not initialized. Must call beam_manager::initialize before requesting start_interactive", std::make_error_code(std::errc::not_connected), beam_event_type::error, nullptr);
+        queue_beam_event_for_client(L"Interactivity not initialized. Must call beam_manager::initialize before requesting start_interactive", std::make_error_code(std::errc::not_connected), beam_event_type::error, nullptr);
         return false;
     }
 
     if (m_interactivityState == beam_interactivity_state::initializing)
     {
-        report_beam_event(L"Interactivity initialization is pending. Please wait for initialize to complete", std::make_error_code(std::errc::not_connected), beam_event_type::error, nullptr);
+        queue_beam_event_for_client(L"Interactivity initialization is pending. Please wait for initialize to complete", std::make_error_code(std::errc::not_connected), beam_event_type::error, nullptr);
         return false;
     }
 
@@ -881,7 +894,7 @@ beam_manager_impl::set_interactivity_state(beam_interactivity_state newState)
         m_interactivityState = newState;
      
         std::shared_ptr<beam_interactivity_state_change_event_args> args = std::make_shared<beam_interactivity_state_change_event_args>(m_interactivityState);
-        report_beam_event(L"", std::error_code(0, std::generic_category()), beam_event_type::interactivity_state_changed, args);
+        queue_beam_event_for_client(L"", std::error_code(0, std::generic_category()), beam_event_type::interactivity_state_changed, args);
 
         LOGS_DEBUG << L"Interactivity state change from " << oldState << L" to " << newState;
     }
@@ -939,35 +952,11 @@ beam_manager_impl::on_socket_message_received(
     _In_ const string_t& message
 )
 {
-    try
-    {
-        web::json::value msgJson = web::json::value::parse(message);
-
-        if (msgJson.has_field(RPC_TYPE))
-        {
-            string_t messageType = msgJson[RPC_TYPE].as_string();
-
-            if (0 == messageType.compare(RPC_REPLY))
-            {
-                process_reply(msgJson);
-            }
-            else if (0 == messageType.compare(RPC_METHOD))
-            {
-                process_method(msgJson);
-            }
-            else
-            {
-                LOGS_INFO << "Unexpected message from service";
-            }
-        }
-    }
-    catch (std::exception e)
-    {
-        LOGS_ERROR << "Failed to parse incoming socket message";
-    }
+    std::shared_ptr<beam_rpc_message> rpcMessage = std::shared_ptr<beam_rpc_message>(new beam_rpc_message(get_next_message_id(), web::json::value::parse(message), unix_timestamp_in_ms()));
+    m_unhandledMsgsFromService.push(rpcMessage);
 }
 
-void beam_manager_impl::process_reply(web::json::value jsonReply)
+void beam_manager_impl::process_reply(const web::json::value& jsonReply)
 {
     LOGS_INFO << "Received a reply from the service";
 
@@ -975,7 +964,7 @@ void beam_manager_impl::process_reply(web::json::value jsonReply)
     {
         if (jsonReply.has_field(L"id"))
         {
-            std::shared_ptr<beam_rpc_message> message = pop_message_sent(jsonReply[RPC_ID].as_integer());
+            std::shared_ptr<beam_rpc_message> message = pop_message_sent(jsonReply.at(RPC_ID).as_integer());
 
             if (jsonReply.has_field(RPC_ERROR))
             {
@@ -1032,23 +1021,27 @@ void beam_manager_impl::process_reply(web::json::value jsonReply)
     }
 }
 
-void beam_manager_impl::process_reply_error(web::json::value jsonReply)
+void beam_manager_impl::process_reply_error(const web::json::value& jsonReply)
 {
     try
     {
-        if (jsonReply.has_field(RPC_ID) && 
-            jsonReply.has_field(RPC_ERROR) &&
-            jsonReply[RPC_ERROR].has_field(RPC_ERROR_CODE) &&
-            jsonReply[RPC_ERROR].has_field(RPC_ERROR_MESSAGE) &&
-            jsonReply[RPC_ERROR].has_field(RPC_ERROR_PATH))
+        if (jsonReply.has_field(RPC_ID) &&
+            jsonReply.has_field(RPC_ERROR))
         {
-            uint32_t id = jsonReply[RPC_ID].as_number().to_uint32();
-            string_t errorCode = jsonReply[RPC_ERROR][RPC_ERROR_CODE].serialize();
-            string_t errorMessage = jsonReply[RPC_ERROR][RPC_ERROR_MESSAGE].serialize();
-            string_t errorPath = jsonReply[RPC_ERROR][RPC_ERROR_PATH].serialize();
+            web::json::value jsonError = jsonReply.at(RPC_ERROR);
 
-            LOGS_ERROR << L"Error id: " << id << ", code: " << errorCode << ", message: " << errorMessage << ", path: " << errorPath;
-            LOGS_ERROR << L"Full error payload: " << jsonReply.serialize();
+            if (jsonError.has_field(RPC_ERROR_CODE) &&
+                jsonError.has_field(RPC_ERROR_MESSAGE) &&
+                jsonError.has_field(RPC_ERROR_PATH))
+            {
+                uint32_t id = jsonReply.at(RPC_ID).as_number().to_uint32();
+                string_t errorCode = jsonError[RPC_ERROR_CODE].serialize();
+                string_t errorMessage = jsonError[RPC_ERROR_MESSAGE].serialize();
+                string_t errorPath = jsonError[RPC_ERROR_PATH].serialize();
+
+                LOGS_ERROR << L"Error id: " << id << ", code: " << errorCode << ", message: " << errorMessage << ", path: " << errorPath;
+                LOGS_ERROR << L"Full error payload: " << jsonReply.serialize();
+            }
 
             return;
         }
@@ -1059,7 +1052,7 @@ void beam_manager_impl::process_reply_error(web::json::value jsonReply)
     }
 }
 
-void beam_manager_impl::process_get_time_reply(std::shared_ptr<beam_rpc_message> message, web::json::value jsonReply)
+void beam_manager_impl::process_get_time_reply(std::shared_ptr<beam_rpc_message> message, const web::json::value& jsonReply)
 {
     try
     {
@@ -1083,7 +1076,7 @@ void beam_manager_impl::process_get_time_reply(std::shared_ptr<beam_rpc_message>
     }
 }
 
-void beam_manager_impl::process_get_groups_reply(web::json::value jsonReply)
+void beam_manager_impl::process_get_groups_reply(const web::json::value& jsonReply)
 {
     try
     {
@@ -1107,7 +1100,7 @@ void beam_manager_impl::process_get_groups_reply(web::json::value jsonReply)
     }
 }
 
-void beam_manager_impl::process_create_groups_reply(web::json::value jsonReply)
+void beam_manager_impl::process_create_groups_reply(const web::json::value& jsonReply)
 {
     try
     {
@@ -1120,7 +1113,7 @@ void beam_manager_impl::process_create_groups_reply(web::json::value jsonReply)
     }
 }
 
-void beam_manager_impl::process_update_groups_reply(web::json::value jsonReply)
+void beam_manager_impl::process_update_groups_reply(const web::json::value& jsonReply)
 {
     try
     {
@@ -1144,7 +1137,7 @@ void beam_manager_impl::process_update_groups_reply(web::json::value jsonReply)
     }
 }
 
-void beam_manager_impl::process_on_group_create(web::json::value onGroupCreateMethod)
+void beam_manager_impl::process_on_group_create(const web::json::value& onGroupCreateMethod)
 {
     try
     {
@@ -1176,7 +1169,7 @@ void beam_manager_impl::process_on_group_create(web::json::value onGroupCreateMe
     }
 }
 
-void beam_manager_impl::process_on_group_update(web::json::value onGroupUpdateMethod)
+void beam_manager_impl::process_on_group_update(const web::json::value& onGroupUpdateMethod)
 {
     try
     {
@@ -1200,7 +1193,7 @@ void beam_manager_impl::process_on_group_update(web::json::value onGroupUpdateMe
     }
 }
 
-void beam_manager_impl::process_update_controls_reply(web::json::value jsonReply)
+void beam_manager_impl::process_update_controls_reply(const web::json::value& jsonReply)
 {
     try
     {
@@ -1219,7 +1212,7 @@ void beam_manager_impl::process_update_controls_reply(web::json::value jsonReply
     }
 }
 
-void beam_manager_impl::process_on_control_update(web::json::value onControlUpdateMethod)
+void beam_manager_impl::process_on_control_update(const web::json::value& onControlUpdateMethod)
 {
     try
     {
@@ -1279,7 +1272,7 @@ void beam_manager_impl::process_update_controls(web::json::array controlsToUpdat
 }
 
 
-void beam_manager_impl::process_get_scenes_reply(web::json::value jsonReply)
+void beam_manager_impl::process_get_scenes_reply(const web::json::value& jsonReply)
 {
     try
     {
@@ -1305,7 +1298,7 @@ void beam_manager_impl::process_get_scenes_reply(web::json::value jsonReply)
     }
 }
 
-void beam_manager_impl::process_update_participants_reply(web::json::value jsonReply)
+void beam_manager_impl::process_update_participants_reply(const web::json::value& jsonReply)
 {
     try
     {
@@ -1332,49 +1325,49 @@ void beam_manager_impl::process_update_participants_reply(web::json::value jsonR
     }
 }
 
-void beam_manager_impl::process_method(web::json::value jsonMethod)
+void beam_manager_impl::process_method(const web::json::value& methodJson)
 {
     LOGS_DEBUG << "Received an RPC call from the service";
     try
     {
-        if (jsonMethod.has_field(RPC_METHOD))
+        if (methodJson.has_field(RPC_METHOD))
         {
-            string_t rpcMethodName = jsonMethod[RPC_METHOD].as_string();
+            string_t rpcMethodName = methodJson.at(RPC_METHOD).as_string();
             if (0 == rpcMethodName.compare(RPC_METHOD_ON_INPUT))
             {
-                process_input(jsonMethod);
+                process_input(methodJson);
             }
             else if (0 == rpcMethodName.compare(RPC_METHOD_PARTICIPANTS_JOINED))
             {
-                process_participant_joined(jsonMethod);
+                process_participant_joined(methodJson);
             }
             else if (0 == rpcMethodName.compare(RPC_METHOD_PARTICIPANTS_LEFT))
             {
-                process_participant_left(jsonMethod);
+                process_participant_left(methodJson);
             }
             else if (0 == rpcMethodName.compare(RPC_PARTICIPANTS_ON_UPDATE))
             {
-                process_on_participant_update(jsonMethod);
+                process_on_participant_update(methodJson);
             }
             else if (0 == rpcMethodName.compare(RPC_METHOD_ON_READY_CHANGED))
             {
-                process_on_ready_changed(jsonMethod);
+                process_on_ready_changed(methodJson);
             }
             else if (0 == rpcMethodName.compare(RPC_METHOD_ON_GROUP_CREATE))
             {
-                process_on_group_create(jsonMethod);
+                process_on_group_create(methodJson);
             }
             else if (0 == rpcMethodName.compare(RPC_METHOD_ON_GROUP_UPDATE))
             {
-                process_on_group_update(jsonMethod);
+                process_on_group_update(methodJson);
             }
             else if (0 == rpcMethodName.compare(RPC_METHOD_ON_CONTROL_UPDATE))
             {
-                process_on_control_update(jsonMethod);
+                process_on_control_update(methodJson);
             }
             else
             {
-                LOGS_INFO << "Unexpected or unsupported RPC call: " << jsonMethod[RPC_METHOD].as_string();
+                LOGS_INFO << "Unexpected or unsupported RPC call: " << methodJson.at(RPC_METHOD).as_string();
             }
         }
         else
@@ -1389,41 +1382,38 @@ void beam_manager_impl::process_method(web::json::value jsonMethod)
 }
 
 
-void beam_manager_impl::process_participant_joined(web::json::value participantJoinedJson)
+void beam_manager_impl::process_participant_joined(const web::json::value& participantJoinedJson)
 {
     LOGS_INFO << "Received a participant joined event";
     try
     {
-        if (participantJoinedJson.has_field(RPC_PARAMS) && participantJoinedJson[RPC_PARAMS].has_field(RPC_PARAM_PARTICIPANTS))
+        if (participantJoinedJson.has_field(RPC_PARAMS) && participantJoinedJson.at(RPC_PARAMS).has_field(RPC_PARAM_PARTICIPANTS))
         {
             web::json::array currParticipants = participantJoinedJson.at(RPC_PARAMS).at(RPC_PARAM_PARTICIPANTS).as_array();
             for (auto iter = currParticipants.begin(); iter != currParticipants.end(); ++iter)
             {
-                if (0 == participantJoinedJson[RPC_METHOD].as_string().compare(RPC_METHOD_PARTICIPANTS_JOINED))
+                std::shared_ptr<beam_participant> currParticipant = std::shared_ptr<beam_participant>(new beam_participant());
+                currParticipant->m_impl = std::shared_ptr<beam_participant_impl>(new beam_participant_impl());
+
+                bool success = currParticipant->m_impl->init_from_json(*iter);
+
+                if (success)
                 {
-                    std::shared_ptr<beam_participant> currParticipant = std::shared_ptr<beam_participant>(new beam_participant());
-                    currParticipant->m_impl = std::shared_ptr<beam_participant_impl>(new beam_participant_impl());
+                    currParticipant->m_impl->m_state = beam_participant_state::joined;
+                    m_participants[currParticipant->beam_id()] = currParticipant;
+                    m_participantToBeamId[currParticipant->m_impl->m_sessionId] = currParticipant->beam_id();
 
-                    bool success = currParticipant->m_impl->init_from_json(*iter);
+                    m_participantsByGroupId[currParticipant->m_impl->m_groupId].push_back(currParticipant->beam_id());
 
-                    if (success)
-                    {
-                        currParticipant->m_impl->m_state = beam_participant_state::joined;
-                        m_participants[currParticipant->beam_id()] = currParticipant;
-                        m_participantToBeamId[currParticipant->m_impl->m_sessionId] = currParticipant->beam_id();
+                    LOGS_DEBUG << "Participant " << currParticipant->beam_id() << " joined";
 
-                        m_participantsByGroupId[currParticipant->m_impl->m_groupId].push_back(currParticipant->beam_id());
+                    std::shared_ptr<beam_participant_state_change_event_args> args = std::shared_ptr<beam_participant_state_change_event_args>(new beam_participant_state_change_event_args(currParticipant, beam_participant_state::joined));
 
-                        LOGS_DEBUG << "Participant " << currParticipant->beam_id() << " joined";
-
-                        std::shared_ptr<beam_participant_state_change_event_args> args = std::shared_ptr<beam_participant_state_change_event_args>(new beam_participant_state_change_event_args(currParticipant, beam_participant_state::joined));
-
-                        report_beam_event(L"", std::error_code(0, std::generic_category()), beam_event_type::participant_state_changed, args);
-                    }
-                    else
-                    {
-                        report_beam_event(L"Failed to initialize participant, onParticipantJoin", std::make_error_code(std::errc::not_supported), beam_event_type::error, nullptr);
-                    }
+                    queue_beam_event_for_client(L"", std::error_code(0, std::generic_category()), beam_event_type::participant_state_changed, args);
+                }
+                else
+                {
+                    queue_beam_event_for_client(L"Failed to initialize participant, onParticipantJoin", std::make_error_code(std::errc::not_supported), beam_event_type::error, nullptr);
                 }
             }
         }
@@ -1435,37 +1425,34 @@ void beam_manager_impl::process_participant_joined(web::json::value participantJ
 }
 
 
-void beam_manager_impl::process_participant_left(web::json::value participantLeftJson)
+void beam_manager_impl::process_participant_left(const web::json::value& participantLeftJson)
 {
     LOGS_INFO << "Received a participant left event";
     try
     {
-        if (participantLeftJson.has_field(RPC_PARAMS) && participantLeftJson[RPC_PARAMS].has_field(RPC_PARAM_PARTICIPANTS))
+        if (participantLeftJson.has_field(RPC_PARAMS) && participantLeftJson.at(RPC_PARAMS).has_field(RPC_PARAM_PARTICIPANTS))
         {
             web::json::array currParticipants = participantLeftJson.at(RPC_PARAMS).at(RPC_PARAM_PARTICIPANTS).as_array();
             for (auto iter = currParticipants.begin(); iter != currParticipants.end(); ++iter)
             {
-                if (0 == participantLeftJson[RPC_METHOD].as_string().compare(RPC_METHOD_PARTICIPANTS_LEFT))
+                if (iter->has_field(RPC_BEAM_ID))
                 {
-                    if (iter->has_field(RPC_BEAM_ID))
-                    {
-                        uint32_t beamId = iter->at(RPC_BEAM_ID).as_number().to_uint32();
-                        std::shared_ptr<beam_participant> currParticipant = m_participants[beamId];
-                        currParticipant->m_impl->m_state = beam_participant_state::left;
+                    uint32_t beamId = iter->at(RPC_BEAM_ID).as_number().to_uint32();
+                    std::shared_ptr<beam_participant> currParticipant = m_participants[beamId];
+                    currParticipant->m_impl->m_state = beam_participant_state::left;
 
-                        // update the states of the group - remove the participant entirely
-                        participant_leave_group(currParticipant->beam_id(), currParticipant->m_impl->m_groupId);
+                    // update the states of the group - remove the participant entirely
+                    participant_leave_group(currParticipant->beam_id(), currParticipant->m_impl->m_groupId);
 
-                        LOGS_DEBUG << "Participant " << beamId << " left";
+                    LOGS_DEBUG << "Participant " << beamId << " left";
 
-                        std::shared_ptr<beam_participant_state_change_event_args> args = std::shared_ptr<beam_participant_state_change_event_args>(new beam_participant_state_change_event_args(currParticipant, beam_participant_state::left));
+                    std::shared_ptr<beam_participant_state_change_event_args> args = std::shared_ptr<beam_participant_state_change_event_args>(new beam_participant_state_change_event_args(currParticipant, beam_participant_state::left));
 
-                        report_beam_event(L"", std::error_code(0, std::generic_category()), beam_event_type::participant_state_changed, args);
-                    }
-                    else
-                    {
-                        LOGS_DEBUG << "Failed to parse beam id from participants left";
-                    }
+                    queue_beam_event_for_client(L"", std::error_code(0, std::generic_category()), beam_event_type::participant_state_changed, args);
+                }
+                else
+                {
+                    LOGS_DEBUG << "Failed to parse beam id from participants left";
                 }
             }
         }
@@ -1476,12 +1463,12 @@ void beam_manager_impl::process_participant_left(web::json::value participantLef
     }
 }
 
-void beam_manager_impl::process_on_participant_update(web::json::value participantChangeJson)
+void beam_manager_impl::process_on_participant_update(const web::json::value& participantChangeJson)
 {
-    LOGS_INFO << "Received a participant update: " << participantChangeJson.serialize();
+    LOGS_INFO << "Received a participant update";
     try
     {
-        if (participantChangeJson.has_field(RPC_PARAMS) && participantChangeJson[RPC_PARAMS].has_field(RPC_PARAM_PARTICIPANTS))
+        if (participantChangeJson.has_field(RPC_PARAMS) && participantChangeJson.at(RPC_PARAMS).has_field(RPC_PARAM_PARTICIPANTS))
         {
             web::json::array currParticipants = participantChangeJson.at(RPC_PARAMS).at(RPC_PARAM_PARTICIPANTS).as_array();
             for (auto iter = currParticipants.begin(); iter != currParticipants.end(); ++iter)
@@ -1498,16 +1485,16 @@ void beam_manager_impl::process_on_participant_update(web::json::value participa
     }
 }
 
-void beam_manager_impl::process_on_ready_changed(web::json::value onReadyMethod)
+void beam_manager_impl::process_on_ready_changed(const web::json::value& onReadyMethod)
 {
     LOGS_INFO << "Received an interactivity state change from service";
     try
     {
-        if (onReadyMethod.has_field(RPC_PARAMS) && onReadyMethod[RPC_PARAMS].has_field(RPC_PARAM_IS_READY))
+        if (onReadyMethod.has_field(RPC_PARAMS) && onReadyMethod.at(RPC_PARAMS).has_field(RPC_PARAM_IS_READY))
         {
             std::lock_guard<std::recursive_mutex> lock(m_lock);
 
-            if (onReadyMethod[RPC_PARAMS][RPC_PARAM_IS_READY].as_bool() == true)
+            if (onReadyMethod.at(RPC_PARAMS).at(RPC_PARAM_IS_READY).as_bool() == true)
             {
                 set_interactivity_state(beam_interactivity_state::interactivity_enabled);
             }
@@ -1524,7 +1511,7 @@ void beam_manager_impl::process_on_ready_changed(web::json::value onReadyMethod)
 }
 
 
-void beam_manager_impl::process_input(web::json::value inputMethod)
+void beam_manager_impl::process_input(const web::json::value& inputMethod)
 {
     LOGS_INFO << "Received an input message";
 
@@ -1536,11 +1523,12 @@ void beam_manager_impl::process_input(web::json::value inputMethod)
 
     try
     {
-        if (inputMethod.has_field(RPC_PARAMS) && inputMethod[RPC_PARAMS].has_field(RPC_PARAM_INPUT))
+        if (inputMethod.has_field(RPC_PARAMS) && inputMethod.at(RPC_PARAMS).has_field(RPC_PARAM_INPUT))
         {
-            if (inputMethod[RPC_PARAMS][RPC_PARAM_INPUT].has_field(RPC_CONTROL_KIND))
+            auto paramInputJson = inputMethod.at(RPC_PARAMS).at(RPC_PARAM_INPUT);
+            if (paramInputJson.has_field(RPC_CONTROL_KIND))
             {
-                string_t kind = inputMethod[RPC_PARAMS][RPC_PARAM_INPUT][RPC_CONTROL_KIND].as_string();
+                string_t kind = paramInputJson[RPC_CONTROL_KIND].as_string();
 
                 if (0 == kind.compare(RPC_CONTROL_BUTTON))
                 {
@@ -1555,9 +1543,9 @@ void beam_manager_impl::process_input(web::json::value inputMethod)
                     LOGS_INFO << "Received unknown input";
                 }
             }
-            else if (inputMethod[RPC_PARAMS][RPC_PARAM_INPUT].has_field(RPC_CONTROL_EVENT)) // TODO: service update to add "kind" to control input events
+            else if (paramInputJson.has_field(RPC_CONTROL_EVENT)) // TODO: service update to add "kind" to control input events
             {
-                string_t controlEvent = inputMethod[RPC_PARAMS][RPC_PARAM_INPUT][RPC_CONTROL_EVENT].as_string();
+                string_t controlEvent = paramInputJson[RPC_CONTROL_EVENT].as_string();
 
                 if (0 == controlEvent.compare(RPC_INPUT_EVENT_BUTTON_DOWN) || 0 == controlEvent.compare(RPC_INPUT_EVENT_BUTTON_UP))
                 {
@@ -1585,27 +1573,29 @@ void beam_manager_impl::process_input(web::json::value inputMethod)
 }
 
 
-void beam_manager_impl::process_button_input(web::json::value buttonInputJson)
+void beam_manager_impl::process_button_input(const web::json::value& inputJson)
 {
-    LOGS_INFO << "Received a button input message: " << buttonInputJson.serialize();
+    LOGS_INFO << "Received a button input message";
     try
     {
-        if (buttonInputJson.has_field(RPC_PARAMS) && buttonInputJson[RPC_PARAMS].has_field(RPC_PARAM_INPUT) && buttonInputJson[RPC_PARAMS][RPC_PARAM_INPUT].has_field(RPC_CONTROL_ID))
+        if (inputJson.has_field(RPC_PARAMS) &&
+            inputJson.at(RPC_PARAMS).has_field(RPC_PARAM_INPUT) &&
+            inputJson.at(RPC_PARAMS).at(RPC_PARAM_INPUT).has_field(RPC_CONTROL_ID))
         {
-            if (buttonInputJson[RPC_PARAMS][RPC_PARAM_INPUT].has_field(RPC_PARAM_INPUT_EVENT))
+            auto buttonInputJson = inputJson.at(RPC_PARAMS).at(RPC_PARAM_INPUT);
+            if (buttonInputJson.has_field(RPC_PARAM_INPUT_EVENT))
             {
                 std::lock_guard<std::recursive_mutex> lock(m_lock);
 
-                update_button_state(buttonInputJson[RPC_PARAMS][RPC_PARAM_INPUT][RPC_CONTROL_ID].as_string(), buttonInputJson);
+                string_t controId = buttonInputJson[RPC_CONTROL_ID].as_string();
+                update_button_state(controId, buttonInputJson);
 
                 // send event out to title
-                string_t controId = buttonInputJson[RPC_PARAMS][RPC_PARAM_INPUT][RPC_CONTROL_ID].as_string();
-
                 std::shared_ptr<beam_participant> currParticipant;
 
-                if (buttonInputJson[RPC_PARAMS].has_field(RPC_PARTICIPANT_ID))
+                if (inputJson.at(RPC_PARAMS).has_field(RPC_PARTICIPANT_ID))
                 {
-                    uint32_t beamId = m_participantToBeamId[buttonInputJson[RPC_PARAMS][RPC_PARTICIPANT_ID].as_string()];
+                    uint32_t beamId = m_participantToBeamId[inputJson.at(RPC_PARAMS).at(RPC_PARTICIPANT_ID).as_string()];
                     currParticipant = m_participants[beamId];
                 }
                 else
@@ -1613,11 +1603,11 @@ void beam_manager_impl::process_button_input(web::json::value buttonInputJson)
                     LOGS_ERROR << L"Received button input without a participant session id";
                 }
 
-                bool isPressed = ((0 == buttonInputJson[RPC_PARAMS][RPC_PARAM_INPUT][RPC_PARAM_INPUT_EVENT].as_string().compare(RPC_INPUT_EVENT_BUTTON_DOWN)) ? true : false);
+                bool isPressed = ((0 == buttonInputJson[RPC_PARAM_INPUT_EVENT].as_string().compare(RPC_INPUT_EVENT_BUTTON_DOWN)) ? true : false);
                 
                 std::shared_ptr<beam_button_event_args> args = std::shared_ptr<beam_button_event_args>(new beam_button_event_args(controId, currParticipant, isPressed));
 
-                report_beam_event(L"", std::error_code(0, std::generic_category()), beam_event_type::button, args);
+                queue_beam_event_for_client(L"", std::error_code(0, std::generic_category()), beam_event_type::button, args);
             }
             else
             {
@@ -1636,11 +1626,11 @@ void beam_manager_impl::process_button_input(web::json::value buttonInputJson)
 }
 
 
-void beam_manager_impl::process_joystick_input(web::json::value joystickInputJson)
+void beam_manager_impl::process_joystick_input(const web::json::value& joystickInputJson)
 {
     if (joystickInputJson.has_field(RPC_PARAMS))
     {
-        web::json::value joystickParams = joystickInputJson[RPC_PARAMS];
+        web::json::value joystickParams = joystickInputJson.at(RPC_PARAMS);
         if (joystickParams.has_field(RPC_PARTICIPANT_ID)
             && joystickParams.has_field(RPC_PARAM_INPUT)
             && joystickParams[RPC_PARAM_INPUT].has_field(RPC_CONTROL_EVENT))
@@ -1651,7 +1641,6 @@ void beam_manager_impl::process_joystick_input(web::json::value joystickInputJso
             {
                 if (inputData.has_field(RPC_CONTROL_ID) && inputData.has_field(RPC_JOYSTICK_X) && inputData.has_field(RPC_JOYSTICK_Y))
                 {
-                    LOGS_INFO << "Joystick move event json: " << joystickInputJson.serialize();
                     double x = inputData[RPC_JOYSTICK_X].as_double();
                     double y = inputData[RPC_JOYSTICK_Y].as_double();
 
@@ -1674,7 +1663,7 @@ void beam_manager_impl::process_joystick_input(web::json::value joystickInputJso
 
                     std::shared_ptr<beam_joystick_event_args> args = std::shared_ptr<beam_joystick_event_args>(new beam_joystick_event_args(participant, x, y, controlId));
 
-                    report_beam_event(L"", std::error_code(0, std::generic_category()), beam_event_type::joystick, args);
+                    queue_beam_event_for_client(L"", std::error_code(0, std::generic_category()), beam_event_type::joystick, args);
 
                     return;
                 }
@@ -1759,6 +1748,43 @@ beam_manager_impl::pop_message_sent(uint32_t messageId)
     }
 
     return message;
+}
+
+void xbox::services::beam::beam_manager_impl::process_messages_worker()
+{
+    int chunkSize = 10;
+    while (m_processing)
+    {
+        for (int i = 0; i < chunkSize && !m_unhandledMsgsFromService.empty(); i++)
+        {
+            std::shared_ptr<beam_rpc_message> currentMessage = m_unhandledMsgsFromService.front();
+            m_unhandledMsgsFromService.pop();
+            try
+            {
+                if (currentMessage->m_json.has_field(RPC_TYPE))
+                {
+                    string_t messageType = currentMessage->m_json[RPC_TYPE].as_string();
+
+                    if (0 == messageType.compare(RPC_REPLY))
+                    {
+                        process_reply(currentMessage->m_json);
+                    }
+                    else if (0 == messageType.compare(RPC_METHOD))
+                    {
+                        process_method(currentMessage->m_json);
+                    }
+                    else
+                    {
+                        LOGS_INFO << "Unexpected message from service";
+                    }
+                }
+            }
+            catch (std::exception e)
+            {
+                LOGS_ERROR << "Failed to parse incoming socket message";
+            }
+        }
+    }
 }
 
 
@@ -1928,26 +1954,32 @@ beam_manager_impl::mock_button_event(_In_ uint32_t beamId, _In_ string_t buttonI
     on_socket_message_received(mockInputJson.serialize());
 }
 
+#if 0
 void
 beam_manager_impl::mock_participant_join(uint32_t beamId, string_t beamUsername)
 {
+    uint32_t messageId = get_next_message_id();
     string_t participantSessionId = find_or_create_participant_session_id(beamId);
-    web::json::value mockParticipantJoinJson = build_participant_state_change_mock_data(get_next_message_id(), beamId, beamUsername, participantSessionId, true /*isJoin*/, false /*discard*/);
+    web::json::value mockParticipantJoinJson = build_participant_state_change_mock_data(messageId, beamId, beamUsername, participantSessionId, true /*isJoin*/, false /*discard*/);
+    auto mockParticipantJoinMethod = build_mediator_rpc_message(messageId, RPC_METHOD_PARTICIPANTS_JOINED, mockParticipantJoinJson);
 
-    process_method(mockParticipantJoinJson);
+    process_method(mockParticipantJoinMethod);
 }
 
 void
 beam_manager_impl::mock_participant_leave(uint32_t beamId, string_t beamUsername)
 {
+    uint32_t messageId = get_next_message_id();
     string_t participantSessionId = find_or_create_participant_session_id(beamId);
-    web::json::value mockParticipantLeaveJson = build_participant_state_change_mock_data(get_next_message_id(), beamId, beamUsername, participantSessionId, false /*isJoin*/, false /*discard*/);
+    web::json::value mockParticipantLeaveJson = build_participant_state_change_mock_data(messageId, beamId, beamUsername, participantSessionId, false /*isJoin*/, false /*discard*/);
+    auto mockParticipantLeaveMethod = build_mediator_rpc_message(messageId, RPC_METHOD_PARTICIPANTS_LEFT, mockParticipantLeaveJson);
 
-    process_method(mockParticipantLeaveJson);
+    process_method(mockParticipantLeaveMethod);
 }
+#endif
 
 void
-beam_manager_impl::report_beam_event(string_t errorMessage, std::error_code errorCode, beam_event_type type, std::shared_ptr<beam_event_args> args)
+beam_manager_impl::queue_beam_event_for_client(string_t errorMessage, std::error_code errorCode, beam_event_type type, std::shared_ptr<beam_event_args> args)
 {
     std::lock_guard<std::recursive_mutex> lock(m_lock);
     m_eventsForClient.push_back(*(create_beam_event(errorMessage, errorCode, type, args)));

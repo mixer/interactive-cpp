@@ -641,6 +641,7 @@ void Sample::HandleButtonEvents(std::shared_ptr<beam_button_event_args> buttonEv
             m_console->Write(buttonId.c_str());
             m_console->Write(L" is down (");
             m_console->Write(buttonEventArgs->participant()->beam_username().c_str());
+            m_console->Write(L")\n");
         }
         else
         {

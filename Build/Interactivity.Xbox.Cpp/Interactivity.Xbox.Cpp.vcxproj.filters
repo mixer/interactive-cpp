@@ -100,8 +100,5 @@
     <ClCompile Include="..\..\Source\Services\Beam\beam_group.cpp">
       <Filter>C++ Source</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\Source\Services\Beam\beam_mock_util.cpp">
-      <Filter>C++ Source</Filter>
-    </ClCompile>
   </ItemGroup>
 </Project>

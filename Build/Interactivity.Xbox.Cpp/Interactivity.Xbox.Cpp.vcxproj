@@ -47,7 +47,6 @@
     <ClCompile Include="..\..\Source\Services\Beam\beam_group.cpp" />
     <ClCompile Include="..\..\Source\Services\Beam\beam_manager.cpp" />
     <ClCompile Include="..\..\Source\Services\Beam\beam_manager_impl.cpp" />
-    <ClCompile Include="..\..\Source\Services\Beam\beam_mock_util.cpp" />
     <ClCompile Include="..\..\Source\Services\Beam\beam_participant.cpp" />
     <ClCompile Include="..\..\Source\Services\Beam\beam_scene.cpp" />
     <ClCompile Include="..\..\Source\Shared\beam_web_socket_client.cpp" />
