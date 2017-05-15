@@ -40,8 +40,10 @@ public:
 private:
 
     // Interactivity Methods
+    void InitializeInteractivity();
     void ToggleInteractivity();
     void SwitchScenes();
+    void SimulateUserChange();
     void InitializeGroupsAndScenes();
     void AddParticipantToGroup();
     void DisbandGroups();
@@ -58,6 +60,7 @@ private:
     void Update(DX::StepTimer const& timer);
     void CreateDeviceDependentResources();
     void CreateWindowSizeDependentResources();
+    void SetAllButtonsEnabled(bool disabled);
 
     // Device resources.
     std::unique_ptr<DX::DeviceResources>        m_deviceResources;
@@ -88,12 +91,14 @@ private:
 
     // UI Objects
     std::unique_ptr<ATG::UIManager>     m_ui;
-    std::unique_ptr<DX::TextConsole>    m_console; 
+    std::unique_ptr<DX::TextConsole>    m_console;
+    std::vector<ATG::Button*>           m_buttons;
     ATG::Button*                        m_interactivityBtn;
     ATG::Button*                        m_disbandGroupsBtn;
     ATG::Button*                        m_cooldownRedControlsBtn;
     ATG::Button*                        m_cooldownBlueControlsBtn;
     ATG::Button*                        m_switchScenesBtn;
+    ATG::Button*                        m_simulateUserChangeBtn;
     ATG::TextLabel*                     m_voteYesCountLabel;
     ATG::TextLabel*                     m_voteNoCountLabel;
 };

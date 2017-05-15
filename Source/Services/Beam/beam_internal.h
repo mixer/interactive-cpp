@@ -417,12 +417,13 @@ namespace xbox { namespace services {
         std::chrono::milliseconds m_latency;
 
         std::recursive_mutex m_lock;
-        std::recursive_mutex m_awaitingReplyLock;
+        std::recursive_mutex m_messagesLock;
 
         pplx::task<void> m_initializingTask;
         bool m_initScenesComplete;
         bool m_initGroupsComplete;
         bool m_initServerTimeComplete;
+        bool m_localUserInitialized;
         int m_maxInitRetries;
         int m_initRetryAttempt;
         std::chrono::milliseconds m_initRetryInterval;

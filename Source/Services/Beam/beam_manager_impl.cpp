@@ -58,11 +58,15 @@ beam_manager_impl::beam_manager_impl() :
     m_initScenesComplete(false),
     m_initGroupsComplete(false),
     m_initServerTimeComplete(false),
+    m_localUserInitialized(false),
     m_serverTimeOffset(std::chrono::milliseconds(0))
 {
     logger::create_logger();
-    logger::get_logger()->set_log_level(log_level::debug);
+    logger::get_logger()->set_log_level(log_level::error);
     logger::get_logger()->add_log_output(std::make_shared<debug_output>());
+
+    m_initializingTask = pplx::create_task([] {});
+    m_processMessagesTask = pplx::create_task([] {});
 }
 
 beam_manager_impl::~beam_manager_impl()
@@ -110,38 +114,55 @@ beam_manager_impl::initialize(
     _In_ bool goInteractive
 )
 {
+    if (beam_interactivity_state::not_initialized != m_interactivityState)
+    {
+        return true;
+    }
+
     m_interactiveVersion = interactiveVersion;
 
     // Create long-running initialization task
     std::weak_ptr<beam_manager_impl> thisWeakPtr = shared_from_this();
-    m_initializingTask = pplx::create_task([thisWeakPtr, interactiveVersion, goInteractive]()
+
+    if (m_initializingTask.is_done())
     {
-        std::shared_ptr<beam_manager_impl> pThis;
-        pThis = thisWeakPtr.lock();
-        if (nullptr != pThis)
+        m_initializingTask = pplx::create_task([thisWeakPtr, interactiveVersion, goInteractive]()
         {
-            pThis->init_worker(interactiveVersion, goInteractive);
-        }
-    });
+            std::shared_ptr<beam_manager_impl> pThis;
+            pThis = thisWeakPtr.lock();
+            if (nullptr != pThis)
+            {
+                pThis->init_worker(interactiveVersion, goInteractive);
+            }
+        });
+    }
+    else
+    {
+        LOGS_DEBUG << "beam_manager initialization already in progress";
+        return false;
+    }
 
     // Create long-running message processing task
-    m_processMessagesTask = pplx::create_task([thisWeakPtr]()
+    if (false == m_processing)
     {
-        std::shared_ptr<beam_manager_impl> pThis;
-        pThis = thisWeakPtr.lock();
-        if (nullptr != pThis)
+        m_processMessagesTask = pplx::create_task([thisWeakPtr]()
         {
-            pThis->m_processing = true;
-            pThis->process_messages_worker();
-        }
-    });
+            std::shared_ptr<beam_manager_impl> pThis;
+            pThis = thisWeakPtr.lock();
+            if (nullptr != pThis)
+            {
+                pThis->m_processing = true;
+                pThis->process_messages_worker();
+            }
+        });
+    }
 
     return true;
 }
 
 #if TV_API | XBOX_UWP
 std::shared_ptr<beam_event>
-xbox::services::beam::beam_manager_impl::add_local_user(xbox_live_user_t user)
+beam_manager_impl::add_local_user(xbox_live_user_t user)
 {
     std::lock_guard<std::recursive_mutex> lock(m_lock);
 
@@ -165,6 +186,12 @@ xbox::services::beam::beam_manager_impl::add_local_user(xbox_live_user_t user)
             m_localUsers.clear();
         }
         m_localUsers.push_back(user);
+
+        if (m_localUserInitialized)
+        {
+            m_localUserInitialized = false;
+            set_interactivity_state(beam_interactivity_state::not_initialized);
+        }
     }
 
     return event;
@@ -254,43 +281,46 @@ void xbox::services::beam::beam_manager_impl::process_messages_worker()
     static const int chunkSize = 10;
     while (m_processing)
     {
-        for (int i = 0; i < chunkSize && !m_unhandledFromService.empty(); i++)
         {
-            std::shared_ptr<beam_rpc_message> currentMessage = m_unhandledFromService.front();
-            m_unhandledFromService.pop();
-            try
+            std::lock_guard<std::recursive_mutex> lock(m_messagesLock);
+            for (int i = 0; i < chunkSize && !m_unhandledFromService.empty(); i++)
             {
-                if (currentMessage->m_json.has_field(RPC_TYPE))
+                std::shared_ptr<beam_rpc_message> currentMessage = m_unhandledFromService.front();
+                m_unhandledFromService.pop();
+                try
                 {
-                    string_t messageType = currentMessage->m_json[RPC_TYPE].as_string();
+                    if (currentMessage->m_json.has_field(RPC_TYPE))
+                    {
+                        string_t messageType = currentMessage->m_json[RPC_TYPE].as_string();
 
-                    if (0 == messageType.compare(RPC_REPLY))
-                    {
-                        process_reply(currentMessage->m_json);
-                    }
-                    else if (0 == messageType.compare(RPC_METHOD))
-                    {
-                        process_method(currentMessage->m_json);
-                    }
-                    else
-                    {
-                        LOGS_INFO << "Unexpected message from service";
+                        if (0 == messageType.compare(RPC_REPLY))
+                        {
+                            process_reply(currentMessage->m_json);
+                        }
+                        else if (0 == messageType.compare(RPC_METHOD))
+                        {
+                            process_method(currentMessage->m_json);
+                        }
+                        else
+                        {
+                            LOGS_INFO << "Unexpected message from service";
+                        }
                     }
                 }
-            }
-            catch (std::exception e)
-            {
-                LOGS_ERROR << "Failed to parse incoming socket message";
+                catch (std::exception e)
+                {
+                    LOGS_ERROR << "Failed to parse incoming socket message";
+                }
             }
         }
 
         if (m_webSocketConnection && m_webSocketConnection->state() == beam_web_socket_connection_state::connected)
         {
+            std::lock_guard<std::recursive_mutex> lock(m_messagesLock);
             for (int i = 0; i < chunkSize && !m_pendingSend.empty(); i++)
             {
                 std::shared_ptr<beam_rpc_message> currentMessage = m_pendingSend.front();
                 m_pendingSend.pop();
-
                 send_message(currentMessage);
             }
         }
@@ -299,7 +329,7 @@ void xbox::services::beam::beam_manager_impl::process_messages_worker()
             static const int numMessageRetries = 10;
             static const std::chrono::milliseconds messageRetryInterval = std::chrono::milliseconds(10 * 1000); // 10-second retry interval
 
-            std::lock_guard<std::recursive_mutex> lock(m_awaitingReplyLock);
+            std::lock_guard<std::recursive_mutex> lock(m_messagesLock);
             for (int i = 0; i < chunkSize && i < m_awaitingReply.size(); i++)
             {
                 std::shared_ptr<beam_rpc_message> currentMessage = m_awaitingReply[i];
@@ -370,6 +400,7 @@ beam_manager_impl::get_auth_token(_Out_ std::shared_ptr<beam_event> &errorEvent)
             }
 
             m_accessToken = token;
+            m_localUserInitialized = true;
         }
         catch (Platform::Exception^ ex)
         {
@@ -436,8 +467,13 @@ beam_manager_impl::get_interactive_host()
 void
 beam_manager_impl::initialize_websockets_helper()
 {
-    if (m_webSocketConnection == nullptr && m_interactivityState == beam_interactivity_state::initializing)
+    if (m_interactivityState == beam_interactivity_state::initializing)
     {
+        if (m_webSocketConnection != nullptr)
+        {
+            close_websocket();
+        }
+
         m_webSocketConnection = std::make_shared<XBOX_BEAM_NAMESPACE::web_socket_connection>(m_accessToken, m_interactiveVersion, protocolVersion);
 
         // We will reset these event handlers on destructor, so it's safe to pass in 'this' here.
@@ -558,7 +594,7 @@ beam_manager_impl::start_interactive()
     params[RPC_PARAM_IS_READY] = web::json::value::boolean(true);
     std::shared_ptr<beam_rpc_message> sendInteractiveReadyMessage = build_mediator_rpc_message(get_next_message_id(), RPC_METHOD_READY, params, true);
     queue_message_for_service(sendInteractiveReadyMessage);
-    
+
     return true;
 }
 
@@ -572,7 +608,7 @@ beam_manager_impl::stop_interactive()
         return true;
     }
 
-    set_interactivity_state(beam_interactivity_state::interactivity_disabled);
+    set_interactivity_state(beam_interactivity_state::interactivity_pending);
 
     web::json::value params;
     params[RPC_PARAM_IS_READY] = web::json::value::boolean(false);
@@ -929,44 +965,38 @@ beam_manager_impl::set_interactivity_state(beam_interactivity_state newState)
     beam_interactivity_state oldState = m_interactivityState;
     std::shared_ptr<beam_interactivity_state_change_event_args> eventArgs;
 
-    if (beam_interactivity_state::initializing == newState)
+    switch (newState)
     {
+    case beam_interactivity_state::not_initialized:
+        // can revert to not_initialized from any state
+        break;
+    case beam_interactivity_state::initializing:
         if (m_interactivityState != beam_interactivity_state::not_initialized)
         {
             validStateChange = false;
         }
-    }
-    else if (beam_interactivity_state::not_initialized == newState)
-    {
-        if (m_interactivityState != beam_interactivity_state::initializing)
+        break;
+    case beam_interactivity_state::interactivity_disabled:
+        if (m_interactivityState == beam_interactivity_state::not_initialized || m_interactivityState == beam_interactivity_state::interactivity_enabled)
         {
             validStateChange = false;
         }
-    }
-    else if (beam_interactivity_state::interactivity_disabled == newState)
-    {
-        if (m_interactivityState == beam_interactivity_state::not_initialized)
+        break;
+    case beam_interactivity_state::interactivity_pending:
+        if (m_interactivityState != beam_interactivity_state::interactivity_disabled && m_interactivityState != beam_interactivity_state::interactivity_enabled)
         {
             validStateChange = false;
         }
-    }
-    else if (beam_interactivity_state::interactivity_pending == newState)
-    {
-        if (m_interactivityState != beam_interactivity_state::interactivity_disabled)
-        {
-            validStateChange = false;
-        }
-    }
-    else if (beam_interactivity_state::interactivity_enabled == newState)
-    {
+        break;
+    case beam_interactivity_state::interactivity_enabled:
         if (m_interactivityState != beam_interactivity_state::interactivity_pending)
         {
             validStateChange = false;
         }
-    }
-    else
-    {
+        break;
+    default:
         validStateChange = false;
+        break;
     }
 
     if (validStateChange)
@@ -1044,7 +1074,7 @@ void beam_manager_impl::process_reply(const web::json::value& jsonReply)
     {
         if (jsonReply.has_field(L"id"))
         {
-            std::lock_guard<std::recursive_mutex> lock(m_awaitingReplyLock);
+            std::lock_guard<std::recursive_mutex> lock(m_messagesLock);
             std::shared_ptr<beam_rpc_message> message = remove_awaiting_reply(jsonReply.at(RPC_ID).as_integer());
 
             if (jsonReply.has_field(RPC_ERROR))
@@ -1803,7 +1833,7 @@ void beam_manager_impl::send_message(std::shared_ptr<beam_rpc_message> rpcMessag
 std::shared_ptr<beam_rpc_message>
 beam_manager_impl::remove_awaiting_reply(uint32_t messageId)
 {
-    std::lock_guard<std::recursive_mutex> lock(m_awaitingReplyLock);
+    std::lock_guard<std::recursive_mutex> lock(m_messagesLock);
     std::shared_ptr<beam_rpc_message> message;
 
     auto msgToRemove = std::find_if(m_awaitingReply.begin(), m_awaitingReply.end(), [&](const std::shared_ptr<beam_rpc_message> & msg) {
