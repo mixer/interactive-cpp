@@ -283,7 +283,7 @@ namespace xbox { namespace services {
         );
 
 #if TV_API | XBOX_UWP
-        std::shared_ptr<beam_event> add_local_user(_In_ xbox_live_user_t user);
+        std::shared_ptr<beam_event> set_local_user(_In_ xbox_live_user_t user);
 #else
         std::shared_ptr<beam_event> set_xtoken(_In_ string_t token);
 #endif
@@ -322,6 +322,8 @@ namespace xbox { namespace services {
         std::vector<std::shared_ptr<beam_joystick_control>> joysticks();
 
         void trigger_cooldown(_In_ const string_t& control_id, _In_ const std::chrono::milliseconds& cooldownDeadline);
+
+        void capture_transaction(_In_ const string_t& transaction_id);
 
         std::vector<xbox::services::beam::beam_event> do_work();
 
@@ -432,7 +434,6 @@ namespace xbox { namespace services {
         std::chrono::milliseconds m_initRetryInterval;
 
         bool m_processing;
-        pplx::task<void> m_processMessagesTask;
         std::queue<std::shared_ptr<beam_rpc_message>> m_unhandledFromService;
         std::queue<std::shared_ptr<beam_rpc_message>> m_pendingSend;
         std::vector<std::shared_ptr<beam_rpc_message>> m_awaitingReply;

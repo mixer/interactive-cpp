@@ -55,9 +55,9 @@ bool beam_manager::initialize(
 
 #if TV_API | XBOX_UWP
 std::shared_ptr<beam_event>
-beam_manager::add_local_user(xbox_live_user_t user)
+beam_manager::set_local_user(xbox_live_user_t user)
 {
-    return m_impl->add_local_user(user);
+    return m_impl->set_local_user(user);
 }
 #else
 std::shared_ptr<beam_event>
@@ -125,6 +125,12 @@ void
 beam_manager::trigger_cooldown(_In_ const string_t& control_id, _In_ const std::chrono::milliseconds& cooldown) const
 {
     return m_impl->trigger_cooldown(control_id, cooldown);
+}
+
+void
+beam_manager::capture_transaction(const string_t & transaction_id) const
+{
+    return m_impl->capture_transaction(transaction_id);
 }
 
 std::vector<xbox::services::beam::beam_event>

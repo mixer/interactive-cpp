@@ -66,7 +66,6 @@ beam_manager_impl::beam_manager_impl() :
     logger::get_logger()->add_log_output(std::make_shared<debug_output>());
 
     m_initializingTask = pplx::task_from_result();
-    m_processMessagesTask = pplx::task_from_result();
 }
 
 beam_manager_impl::~beam_manager_impl()
@@ -114,6 +113,7 @@ beam_manager_impl::initialize(
     _In_ bool goInteractive
 )
 {
+    std::lock_guard<std::recursive_mutex> lock(m_lock);
     if (beam_interactivity_state::not_initialized != m_interactivityState)
     {
         return true;
@@ -145,7 +145,7 @@ beam_manager_impl::initialize(
     // Create long-running message processing task
     if (false == m_processing)
     {
-        m_processMessagesTask = pplx::create_task([thisWeakPtr]()
+        pplx::create_task([thisWeakPtr]()
         {
             std::shared_ptr<beam_manager_impl> pThis;
             pThis = thisWeakPtr.lock();
@@ -162,7 +162,7 @@ beam_manager_impl::initialize(
 
 #if TV_API | XBOX_UWP
 std::shared_ptr<beam_event>
-beam_manager_impl::add_local_user(xbox_live_user_t user)
+beam_manager_impl::set_local_user(xbox_live_user_t user)
 {
     std::lock_guard<std::recursive_mutex> lock(m_lock);
 
@@ -436,8 +436,8 @@ beam_manager_impl::get_auth_token(_Out_ std::shared_ptr<beam_event> &errorEvent)
 #else
     if (m_accessToken.empty())
     {
-        LOGS_INFO << "OAuth token empty";
-        errorEvent = create_beam_event(L"OAuth token empty", std::make_error_code(std::errc::operation_canceled), beam_event_type::error, nullptr);
+        LOGS_INFO << "Token empty";
+        errorEvent = create_beam_event(L"Token empty", std::make_error_code(std::errc::operation_canceled), beam_event_type::error, nullptr);
         return false;
     }
 #endif
@@ -950,6 +950,15 @@ beam_manager_impl::trigger_cooldown(_In_ const string_t& control_id, _In_ const 
             queue_message_for_service(updateControlMessage);
         }
     }
+}
+
+void xbox::services::beam::beam_manager_impl::capture_transaction(const string_t & transaction_id)
+{
+    web::json::value params;
+    params[RPC_TRANSACTION_ID] = web::json::value::string(transaction_id);
+
+    std::shared_ptr<beam_rpc_message> captureTransactionMessage = build_mediator_rpc_message(get_next_message_id(), RPC_METHOD_CAPTURE, params, false);
+    queue_message_for_service(captureTransactionMessage);
 }
 
 std::vector<beam_event>
@@ -1722,11 +1731,15 @@ void beam_manager_impl::process_button_input(const web::json::value& inputJson)
             {
                 std::lock_guard<std::recursive_mutex> lock(m_lock);
 
-                string_t controId = buttonInputJson[RPC_CONTROL_ID].as_string();
-                update_button_state(controId, buttonInputJson);
+                string_t controlId = buttonInputJson[RPC_CONTROL_ID].as_string();
+                string_t transactionId;
+                uint32_t cost = 0;
+                update_button_state(controlId, buttonInputJson);
 
                 // send event out to title
                 std::shared_ptr<beam_participant> currParticipant;
+
+                bool isPressed = ((0 == buttonInputJson[RPC_PARAM_INPUT_EVENT].as_string().compare(RPC_INPUT_EVENT_BUTTON_DOWN)) ? true : false);
 
                 if (inputJson.at(RPC_PARAMS).has_field(RPC_PARTICIPANT_ID))
                 {
@@ -1738,9 +1751,25 @@ void beam_manager_impl::process_button_input(const web::json::value& inputJson)
                     LOGS_ERROR << L"Received button input without a participant session id";
                 }
 
-                bool isPressed = ((0 == buttonInputJson[RPC_PARAM_INPUT_EVENT].as_string().compare(RPC_INPUT_EVENT_BUTTON_DOWN)) ? true : false);
+                if (isPressed)
+                {
+                    if (inputJson.at(RPC_PARAMS).has_field(RPC_TRANSACTION_ID))
+                    {
+                        auto button = m_buttons[controlId];
+                        if (button)
+                        {
+                            cost = button->cost();
+                        }
+
+                        transactionId = inputJson.at(RPC_PARAMS).at(RPC_TRANSACTION_ID).as_string();
+                    }
+                    else
+                    {
+                        LOGS_ERROR << L"Received button press input without a spark transaction id";
+                    }
+                }
                 
-                std::shared_ptr<beam_button_event_args> args = std::shared_ptr<beam_button_event_args>(new beam_button_event_args(controId, currParticipant, isPressed));
+                std::shared_ptr<beam_button_event_args> args = std::shared_ptr<beam_button_event_args>(new beam_button_event_args(controlId, transactionId, cost, currParticipant, isPressed));
 
                 queue_beam_event_for_client(L"", std::error_code(0, std::generic_category()), beam_event_type::button, args);
             }

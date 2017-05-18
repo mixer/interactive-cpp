@@ -93,6 +93,7 @@
 
 // controls
 #define RPC_CONTROL_ID              L"controlID"
+#define RPC_TRANSACTION_ID          L"transactionID"
 #define RPC_CONTROL_KIND            L"kind"
 #define RPC_CONTROL_BUTTON          L"button"
 #define RPC_CONTROL_BUTTON_TYPE     L"button" // repeat, but for clarity - this corresponds to the javascript mouse event button types (0-4)
