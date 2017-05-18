@@ -65,8 +65,8 @@ beam_manager_impl::beam_manager_impl() :
     logger::get_logger()->set_log_level(log_level::error);
     logger::get_logger()->add_log_output(std::make_shared<debug_output>());
 
-    m_initializingTask = pplx::create_task([] {});
-    m_processMessagesTask = pplx::create_task([] {});
+    m_initializingTask = pplx::task_from_result();
+    m_processMessagesTask = pplx::task_from_result();
 }
 
 beam_manager_impl::~beam_manager_impl()
