@@ -75,13 +75,24 @@ void Sample::Initialize(IUnknown* window)
 
     m_ui->LoadLayout(L".\\Assets\\SampleUI.csv", L".\\Assets");
 
-    m_interactivityBtn = m_ui->FindControl<ATG::Button>(2000, c_goInteractiveBtn);
-    m_disbandGroupsBtn = m_ui->FindControl<ATG::Button>(2000, c_disbandGroupsBtn);
-    m_cooldownRedControlsBtn = m_ui->FindControl<ATG::Button>(2000, c_cooldownRedBtn);
-    m_cooldownBlueControlsBtn = m_ui->FindControl<ATG::Button>(2000, c_cooldownBlueBtn);
-    m_switchScenesBtn = m_ui->FindControl<ATG::Button>(2000, c_switchScenesBtn);
     m_voteYesCountLabel = m_ui->FindControl<ATG::TextLabel>(2000, c_voteYesCountLabel);
     m_voteNoCountLabel = m_ui->FindControl<ATG::TextLabel>(2000, c_voteNoCountLabel);
+
+    // Set up references to buttons in the main scene
+    m_interactivityBtn = m_ui->FindControl<ATG::Button>(2000, c_goInteractiveBtn);
+    m_buttons.push_back(m_interactivityBtn);
+
+    m_disbandGroupsBtn = m_ui->FindControl<ATG::Button>(2000, c_disbandGroupsBtn);
+    m_buttons.push_back(m_disbandGroupsBtn);
+
+    m_cooldownRedControlsBtn = m_ui->FindControl<ATG::Button>(2000, c_cooldownRedBtn);
+    m_buttons.push_back(m_cooldownRedControlsBtn);
+
+    m_cooldownBlueControlsBtn = m_ui->FindControl<ATG::Button>(2000, c_cooldownBlueBtn);
+    m_buttons.push_back(m_cooldownBlueControlsBtn);
+
+    m_switchScenesBtn = m_ui->FindControl<ATG::Button>(2000, c_switchScenesBtn);
+    m_buttons.push_back(m_switchScenesBtn);
 
     m_liveResources->Initialize(m_ui, m_ui->FindPanel<ATG::Overlay>(c_sampleUIPanel));
     m_deviceResources->SetWindow(window);
@@ -263,23 +274,28 @@ void Sample::OnResuming()
 
 #pragma region Interactivity Methods
 
+void Sample::InitializeInteractivity()
+{
+    auto user = m_liveResources->GetUser();
+
+    if (nullptr != user)
+    {
+        m_beamManager->add_local_user(user);
+
+        m_beamManager->initialize(s_interactiveVersion, false /*goInteractive*/);
+    }
+    else
+    {
+        m_console->WriteLine(L"ERROR: no signed in local user");
+    }
+}
+
 void Sample::ToggleInteractivity()
 {
     auto currentInteractiveState = m_beamManager->interactivity_state();
     if (beam_interactivity_state::not_initialized == currentInteractiveState)
     {
-        auto user = m_liveResources->GetUser();
-
-        if (nullptr != user)
-        {
-            m_beamManager->add_local_user(user);
-
-            m_beamManager->initialize(s_interactiveVersion, false /*goInteractive*/);
-        }
-        else
-        {
-            m_console->WriteLine(L"ERROR: no signed in local user");
-        }
+        InitializeInteractivity();
     }
     else if (beam_interactivity_state::interactivity_enabled == currentInteractiveState ||
         beam_interactivity_state::interactivity_pending == currentInteractiveState)
@@ -337,6 +353,46 @@ void Sample::SwitchScenes()
             }
         }
     }
+}
+
+void Sample::SimulateUserChange()
+{
+    SetAllButtonsEnabled(false);
+
+    m_beamManager->stop_interactive();
+    m_interactivityBtn->SetText(L"Go Interactive");
+
+    while (true)
+    {
+        auto currentInteractiveState = m_beamManager->interactivity_state();
+
+        if (beam_interactivity_state::interactivity_disabled == currentInteractiveState)
+        {
+            OutputDebugStringW(L"Interactivity now disabled\n");
+            break;
+        }
+
+        Sleep(100);
+    }
+
+    InitializeInteractivity();
+
+    while (true)
+    {
+        auto currentInteractiveState = m_beamManager->interactivity_state();
+
+        if (beam_interactivity_state::interactivity_disabled == currentInteractiveState)
+        {
+            OutputDebugStringW(L"Interactivity now back to disabled\n");
+            break;
+        }
+
+        Sleep(100);
+    }
+
+    m_beamManager->start_interactive();
+
+    SetAllButtonsEnabled(true);
 }
 
 void Sample::InitializeGroupsAndScenes()
@@ -707,5 +763,14 @@ void Sample::CreateWindowSizeDependentResources()
 
     m_ui->SetWindow(fullscreen);
     m_console->SetWindow(consoleDisplay);
+}
+
+void Sample::SetAllButtonsEnabled(bool enabled)
+{
+    for (auto iter = m_buttons.begin(); iter != m_buttons.end(); iter++)
+    {
+        auto currButton = (*iter);
+        currButton->SetEnabled(enabled);
+    }
 }
 #pragma endregion
