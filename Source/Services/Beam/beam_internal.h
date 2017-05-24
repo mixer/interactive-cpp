@@ -285,6 +285,9 @@ namespace xbox { namespace services {
 #if TV_API | XBOX_UWP
         std::shared_ptr<beam_event> add_local_user(_In_ xbox_live_user_t user);
 #else
+        std::shared_ptr<beam_event> set_xtoken(_In_ string_t token);
+#endif
+#if 0
         void request_linking_code(_In_ const string_t& beam_id) const;
 #endif
 

@@ -957,6 +957,15 @@ public:
     _BEAMIMP std::shared_ptr<beam_event> add_local_user(_In_ xbox_live_user_t user);
 #else
     /// <summary>
+    /// Set an xtoken retrieved from a signed in user. This is used to authenticate into the Beam interactivity experience.
+    /// </summary>
+    /// <param name="user">The user's xtoken.</param>
+    /// <returns>Returns a Beam event to report any potential error. A nullptr is returned if there's no error.</returns>
+    _BEAMIMP std::shared_ptr<beam_event> set_xtoken(_In_ string_t token);
+#endif
+
+#if 0
+    /// <summary>
     /// Requests an OAuth account authorization code from the Beam services. The title needs to display this 
     /// code and prompt the user to enter it at beam.pro/go. This process allows the user's Beam account to 
     /// be linked to an interactivity stream.
