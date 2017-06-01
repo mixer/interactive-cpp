@@ -196,6 +196,31 @@ beam_manager_impl::add_local_user(xbox_live_user_t user)
 
     return event;
 }
+#else
+std::shared_ptr<beam_event>
+beam_manager_impl::set_xtoken(_In_ string_t token)
+{
+    std::lock_guard<std::recursive_mutex> lock(m_lock);
+
+    auto duration = std::chrono::steady_clock::now().time_since_epoch();
+    std::chrono::milliseconds currTime = std::chrono::duration_cast<std::chrono::milliseconds>(duration);
+    std::shared_ptr<beam_event> event = nullptr;
+
+    if (beam_interactivity_state::interactivity_enabled == m_interactivityState || beam_interactivity_state::interactivity_pending == m_interactivityState)
+    {
+        event = std::make_shared<xbox::services::beam::beam_event>(currTime, std::error_code(0, std::generic_category()), L"Cannot set token while in an interactive state", beam_event_type::error, nullptr);
+    }
+    else if (beam_interactivity_state::initializing == m_interactivityState)
+    {
+        event = std::make_shared<xbox::services::beam::beam_event>(currTime, std::error_code(0, std::generic_category()), L"Cannot set token while initialization is in progress", beam_event_type::error, nullptr);
+    }
+    else
+    {
+        m_accessToken = token;
+    }
+
+    return event;
+}
 #endif
 
 void
@@ -368,7 +393,7 @@ beam_manager_impl::get_auth_token(_Out_ std::shared_ptr<beam_event> &errorEvent)
     }
     else
     {
-        string_t beamUri = L"https://beam.pro";
+        string_t beamUri = L"https://mixer.com";
         string_t authRequestHeaders = L"";
         auto platformHttp = ref new Platform::String(L"POST");
         auto platformUrl = ref new Platform::String(beamUri.c_str());
@@ -409,7 +434,6 @@ beam_manager_impl::get_auth_token(_Out_ std::shared_ptr<beam_event> &errorEvent)
         }
     }
 #else
-    // For now, the auth code needs to be set by a call to beam_mock_util::set_oauth_token, eventually will require a call to get the shortcode auth
     if (m_accessToken.empty())
     {
         LOGS_INFO << "OAuth token empty";

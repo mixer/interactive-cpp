@@ -59,6 +59,12 @@ beam_manager::add_local_user(xbox_live_user_t user)
 {
     return m_impl->add_local_user(user);
 }
+#else
+std::shared_ptr<beam_event>
+beam_manager::set_xtoken(string_t token)
+{
+    return m_impl->set_xtoken(token);
+}
 #endif
 
 const std::chrono::milliseconds
