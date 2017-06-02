@@ -12,47 +12,47 @@
 #include "beam_internal.h"
 #include "json_helper.h"
 
-NAMESPACE_MICROSOFT_XBOX_BEAM_BEGIN
+NAMESPACE_MICROSOFT_MIXER_BEGIN
 static std::mutex s_singletonLock;
 
 //
 // Control builder static methods - in order to maintain correct sync state
-// with the service, we want the beam_manager_impl to own the various scene
+// with the service, we want the interactivity_manager_impl to own the various scene
 // and control objects.
 //
 
-std::shared_ptr<beam_button_control>
-beam_control_builder::build_button_control(string_t parentSceneId, web::json::value json)
+std::shared_ptr<interactive_button_control>
+interactive_control_builder::build_button_control(string_t parentSceneId, web::json::value json)
 {
-    std::shared_ptr<beam_button_control> button = std::shared_ptr<beam_button_control>(new beam_button_control());
+    std::shared_ptr<interactive_button_control> button = std::shared_ptr<interactive_button_control>(new interactive_button_control());
     bool success = button->init_from_json(json);
 
     if (success)
     {
         button->m_parentScene = parentSceneId;
-        beam_manager::get_singleton_instance()->m_impl->add_control_to_map(button);
+        interactivity_manager::get_singleton_instance()->m_impl->add_control_to_map(button);
     }
     else
     {
         button = nullptr;
-        beam_manager::get_singleton_instance()->m_impl->queue_beam_event_for_client(L"Failed to initialize button control from json", std::make_error_code(std::errc::invalid_argument), beam_event_type::error, nullptr);
+        interactivity_manager::get_singleton_instance()->m_impl->queue_interactive_event_for_client(L"Failed to initialize button control from json", std::make_error_code(std::errc::invalid_argument), interactive_event_type::error, nullptr);
     }
 
     return button;
 }
 
-std::shared_ptr<beam_button_control>
-beam_control_builder::build_button_control()
+std::shared_ptr<interactive_button_control>
+interactive_control_builder::build_button_control()
 {
-    std::shared_ptr<beam_button_control> button = std::shared_ptr<beam_button_control>(new beam_button_control());
+    std::shared_ptr<interactive_button_control> button = std::shared_ptr<interactive_button_control>(new interactive_button_control());
     
-    beam_manager::get_singleton_instance()->m_impl->add_control_to_map(button);
+    interactivity_manager::get_singleton_instance()->m_impl->add_control_to_map(button);
 
     return button;
 }
 
-std::shared_ptr<beam_button_control>
-beam_control_builder::build_button_control(
+std::shared_ptr<interactive_button_control>
+interactive_control_builder::build_button_control(
     _In_ string_t parentSceneId,
     _In_ string_t controlId,
     _In_ bool enabled,
@@ -62,46 +62,46 @@ beam_control_builder::build_button_control(
     _In_ uint32_t sparkCost
 )
 {
-    std::shared_ptr<beam_button_control> button = std::shared_ptr<beam_button_control>(new beam_button_control(parentSceneId, controlId, enabled, progress, cooldownDeadline, buttonText, sparkCost));
+    std::shared_ptr<interactive_button_control> button = std::shared_ptr<interactive_button_control>(new interactive_button_control(parentSceneId, controlId, enabled, progress, cooldownDeadline, buttonText, sparkCost));
     
-    beam_manager::get_singleton_instance()->m_impl->add_control_to_map(button);
+    interactivity_manager::get_singleton_instance()->m_impl->add_control_to_map(button);
 
     return button;
 }
 
 
-std::shared_ptr<beam_joystick_control>
-beam_control_builder::build_joystick_control()
+std::shared_ptr<interactive_joystick_control>
+interactive_control_builder::build_joystick_control()
 {
-    std::shared_ptr<beam_joystick_control> joystick = std::shared_ptr<beam_joystick_control>(new beam_joystick_control());
+    std::shared_ptr<interactive_joystick_control> joystick = std::shared_ptr<interactive_joystick_control>(new interactive_joystick_control());
     
-    beam_manager::get_singleton_instance()->m_impl->add_control_to_map(joystick);
+    interactivity_manager::get_singleton_instance()->m_impl->add_control_to_map(joystick);
 
     return joystick;
 }
 
-std::shared_ptr<beam_joystick_control>
-beam_control_builder::build_joystick_control(string_t parentSceneId, web::json::value json)
+std::shared_ptr<interactive_joystick_control>
+interactive_control_builder::build_joystick_control(string_t parentSceneId, web::json::value json)
 {
-    std::shared_ptr<beam_joystick_control> joystick = std::shared_ptr<beam_joystick_control>(new beam_joystick_control());
+    std::shared_ptr<interactive_joystick_control> joystick = std::shared_ptr<interactive_joystick_control>(new interactive_joystick_control());
     bool success = joystick->init_from_json(json);
 
     if (success)
     {
         joystick->m_parentScene = parentSceneId;
-        beam_manager::get_singleton_instance()->m_impl->add_control_to_map(joystick);
+        interactivity_manager::get_singleton_instance()->m_impl->add_control_to_map(joystick);
     }
     else
     {
         joystick = nullptr;
-        beam_manager::get_singleton_instance()->m_impl->queue_beam_event_for_client(L"Failed to initialize joystick control from json", std::make_error_code(std::errc::invalid_argument), beam_event_type::error, nullptr);
+        interactivity_manager::get_singleton_instance()->m_impl->queue_interactive_event_for_client(L"Failed to initialize joystick control from json", std::make_error_code(std::errc::invalid_argument), interactive_event_type::error, nullptr);
     }
 
     return joystick;
 }
 
-std::shared_ptr<beam_joystick_control>
-beam_control_builder::build_joystick_control(
+std::shared_ptr<interactive_joystick_control>
+interactive_control_builder::build_joystick_control(
     _In_ string_t parentSceneId,
     _In_ string_t controlId,
     _In_ bool enabled,
@@ -109,8 +109,8 @@ beam_control_builder::build_joystick_control(
     _In_ double y
 )
 {
-    std::shared_ptr<beam_joystick_control> joystick = std::shared_ptr<beam_joystick_control>(new beam_joystick_control(parentSceneId, controlId, enabled, x, y));
-    beam_manager::get_singleton_instance()->m_impl->add_control_to_map(joystick);
+    std::shared_ptr<interactive_joystick_control> joystick = std::shared_ptr<interactive_joystick_control>(new interactive_joystick_control(parentSceneId, controlId, enabled, x, y));
+    interactivity_manager::get_singleton_instance()->m_impl->add_control_to_map(joystick);
 
     return joystick;
 }
@@ -119,25 +119,25 @@ beam_control_builder::build_joystick_control(
 // Control base class
 //
 
-const beam_control_type&
-beam_control::control_type() const
+const interactive_control_type&
+interactive_control::control_type() const
 {
     return m_type;
 }
 
 const string_t&
-beam_control::control_id() const
+interactive_control::control_id() const
 {
     return m_controlId;
 }
 
 
-beam_control::beam_control()
+interactive_control::interactive_control()
 {
 
 }
 
-beam_control::beam_control(
+interactive_control::interactive_control(
     _In_ string_t parentScene,
     _In_ string_t controlId,
     _In_ bool disabled
@@ -150,24 +150,24 @@ beam_control::beam_control(
 
 
 bool
-beam_button_state::is_pressed()
+interactive_button_state::is_pressed()
 {
     return m_isPressed;
 }
 
 bool
-beam_button_state::is_down()
+interactive_button_state::is_down()
 {
     return m_isDown;
 }
 
 bool
-beam_button_state::is_up()
+interactive_button_state::is_up()
 {
     return m_isUp;
 }
 
-beam_button_state::beam_button_state() :
+interactive_button_state::interactive_button_state() :
     m_isUp(false),
     m_isDown(false),
     m_isPressed(false)
@@ -175,32 +175,32 @@ beam_button_state::beam_button_state() :
 }
 
 uint32_t
-beam_button_count::count_of_button_presses()
+interactive_button_count::count_of_button_presses()
 {
     return m_buttonPresses;
 }
 
 uint32_t
-beam_button_count::count_of_button_downs()
+interactive_button_count::count_of_button_downs()
 {
     return m_buttonDowns;
 }
 
 uint32_t
-beam_button_count::count_of_button_ups()
+interactive_button_count::count_of_button_ups()
 {
     return m_buttonUps;
 }
 
 void
-beam_button_count::clear()
+interactive_button_count::clear()
 {
     m_buttonDowns = 0;
     m_buttonPresses = 0;
     m_buttonUps = 0;
 }
 
-beam_button_count::beam_button_count() :
+interactive_button_count::interactive_button_count() :
     m_buttonPresses(0),
     m_buttonDowns(0),
     m_buttonUps(0)
@@ -212,44 +212,44 @@ beam_button_count::beam_button_count() :
 //
 
 bool
-beam_button_control::disabled() const
+interactive_button_control::disabled() const
 {
     return m_disabled;
 }
 
 #if 0
 void
-beam_button_control::set_disabled(bool disabled)
+interactive_button_control::set_disabled(bool disabled)
 {
     m_disabled = disabled;
 }
 #endif
 
 const string_t&
-beam_button_control::button_text() const
+interactive_button_control::button_text() const
 {
     return m_buttonText;
 }
 
 
 uint32_t
-beam_button_control::cost() const
+interactive_button_control::cost() const
 {
     return m_sparkCost;
 }
 
 void
-beam_button_control::trigger_cooldown(std::chrono::milliseconds cooldown) const
+interactive_button_control::trigger_cooldown(std::chrono::milliseconds cooldown) const
 {
-    m_beamManager->trigger_cooldown(m_controlId, cooldown);
+    m_interactivityManager->trigger_cooldown(m_controlId, cooldown);
     return;
 }
 
 
 std::chrono::milliseconds
-beam_button_control::remaining_cooldown() const
+interactive_button_control::remaining_cooldown() const
 {
-    auto remaining = m_cooldownDeadline - m_beamManager->get_server_time();
+    auto remaining = m_cooldownDeadline - m_interactivityManager->get_server_time();
 
     if (remaining.count() < 0)
     { 
@@ -262,7 +262,7 @@ beam_button_control::remaining_cooldown() const
 
 #if 0
 float
-beam_button_control::progress() const
+interactive_button_control::progress() const
 {
     return m_progress;
 }
@@ -271,7 +271,7 @@ beam_button_control::progress() const
 
 #if 0
 void
-beam_button_control::set_progress(_In_ float progress)
+interactive_button_control::set_progress(_In_ float progress)
 {
     m_progress = progress;
 }
@@ -279,7 +279,7 @@ beam_button_control::set_progress(_In_ float progress)
 
 
 uint32_t
-beam_button_control::count_of_button_downs()
+interactive_button_control::count_of_button_downs()
 {
     return m_buttonCount->count_of_button_downs();
 }
@@ -287,7 +287,7 @@ beam_button_control::count_of_button_downs()
 
 #if 0
 uint32_t
-beam_button_control::count_of_button_downs(_In_ uint32_t beamId)
+interactive_button_control::count_of_button_downs(_In_ uint32_t mixerId)
 {
     return 0;
 }
@@ -295,7 +295,7 @@ beam_button_control::count_of_button_downs(_In_ uint32_t beamId)
 
 
 uint32_t
-beam_button_control::count_of_button_presses()
+interactive_button_control::count_of_button_presses()
 {
     return m_buttonCount->count_of_button_presses();
 }
@@ -303,7 +303,7 @@ beam_button_control::count_of_button_presses()
 
 #if 0
 uint32_t
-beam_button_control::count_of_button_presses(_In_ uint32_t beamId)
+interactive_button_control::count_of_button_presses(_In_ uint32_t mixerId)
 {
     return 0;
 }
@@ -311,7 +311,7 @@ beam_button_control::count_of_button_presses(_In_ uint32_t beamId)
 
 
 uint32_t
-beam_button_control::count_of_button_ups()
+interactive_button_control::count_of_button_ups()
 {
     return m_buttonCount->count_of_button_ups();
 }
@@ -319,7 +319,7 @@ beam_button_control::count_of_button_ups()
 
 #if 0
 uint32_t
-beam_button_control::count_of_button_ups(_In_ uint32_t beamId)
+interactive_button_control::count_of_button_ups(_In_ uint32_t mixerId)
 {
     return 0;
 }
@@ -327,7 +327,7 @@ beam_button_control::count_of_button_ups(_In_ uint32_t beamId)
 
 
 bool
-beam_button_control::is_pressed()
+interactive_button_control::is_pressed()
 {
     return m_buttonCount->count_of_button_ups() > 0;
 }
@@ -335,51 +335,51 @@ beam_button_control::is_pressed()
 
 #if 0
 bool
-beam_button_control::is_pressed(_In_ uint32_t beamId)
+interactive_button_control::is_pressed(_In_ uint32_t mixerId)
 {
-    return m_buttonStateByBeamId[beamId]->is_pressed();
+    return m_buttonStateBymixerId[mixerId]->is_pressed();
 }
 #endif
 
 
 bool
-beam_button_control::is_down()
+interactive_button_control::is_down()
 {
     return (m_buttonCount->count_of_button_ups() < m_buttonCount->count_of_button_downs());
 }
 
 #if 0
 bool
-beam_button_control::is_down(_In_ uint32_t beamId)
+interactive_button_control::is_down(_In_ uint32_t mixerId)
 {
-    return m_buttonStateByBeamId[beamId]->is_down();
+    return m_buttonStateBymixerId[mixerId]->is_down();
 }
 #endif
 
 
 bool
-beam_button_control::is_up()
+interactive_button_control::is_up()
 {
     return (m_buttonCount->count_of_button_ups() > m_buttonCount->count_of_button_downs());
 }
 
 #if 0
 bool
-beam_button_control::is_up(_In_ uint32_t beamId)
+interactive_button_control::is_up(_In_ uint32_t mixerId)
 {
-    return m_buttonStateByBeamId[beamId]->is_up();
+    return m_buttonStateBymixerId[mixerId]->is_up();
 }
 #endif
 
 
 bool
-beam_button_control::init_from_json(web::json::value json)
+interactive_button_control::init_from_json(web::json::value json)
 {
     return update(json, true);
 }
 
 bool
-xbox::services::beam::beam_button_control::update(web::json::value json, bool overwrite)
+MICROSOFT_MIXER_NAMESPACE::interactive_button_control::update(web::json::value json, bool overwrite)
 {
     string_t errorString;
     bool success = true;
@@ -450,28 +450,28 @@ xbox::services::beam::beam_button_control::update(web::json::value json, bool ov
     }
     catch (std::exception e)
     {
-        LOGS_ERROR << "Failed to parse json in beam_button_control::update()";
+        LOGS_ERROR << "Failed to parse json in interactive_button_control::update()";
     }
 
     return success;
 }
 
 void
-beam_button_control::clear_state()
+interactive_button_control::clear_state()
 {
-    m_buttonStateByBeamId.clear();
+    m_buttonStateBymixerId.clear();
     m_buttonCount->clear();
 }
 
-beam_button_control::beam_button_control()
+interactive_button_control::interactive_button_control()
 {
-    m_beamManager = beam_manager::get_singleton_instance();
+    m_interactivityManager = interactivity_manager::get_singleton_instance();
     m_disabled = true;
-    m_type = beam_control_type::button;
-    m_buttonCount = std::shared_ptr<beam_button_count>(new beam_button_count());
+    m_type = interactive_control_type::button;
+    m_buttonCount = std::shared_ptr<interactive_button_count>(new interactive_button_count());
 }
 
-beam_button_control::beam_button_control(
+interactive_button_control::interactive_button_control(
     _In_ string_t parentSceneId,
     _In_ string_t controlId,
     _In_ bool disabled,
@@ -481,16 +481,16 @@ beam_button_control::beam_button_control(
     _In_ uint32_t sparkCost
 )
 {
-    m_beamManager = beam_manager::get_singleton_instance();
+    m_interactivityManager = interactivity_manager::get_singleton_instance();
     m_parentScene = std::move(parentSceneId);
-    m_type = beam_control_type::button;
+    m_type = interactive_control_type::button;
     m_controlId = std::move(controlId);
     m_disabled = disabled;
     m_progress = progress;
     m_buttonText = std::move(buttonText);
     m_cooldownDeadline = std::move(cooldownDeadline);
     m_sparkCost = sparkCost;
-    m_buttonCount = std::shared_ptr<beam_button_count>(new beam_button_count());
+    m_buttonCount = std::shared_ptr<interactive_button_count>(new interactive_button_count());
 }
 
 //
@@ -498,32 +498,32 @@ beam_button_control::beam_button_control(
 //
   
  double
- beam_joystick_control::x() const
+ interactive_joystick_control::x() const
  {
      return m_x;
  }
 
  double
- beam_joystick_control::y() const
+ interactive_joystick_control::y() const
  {
      return m_y;
  }
 
 void
-beam_joystick_control::clear_state()
+interactive_joystick_control::clear_state()
 {
 }
 
-beam_joystick_control::beam_joystick_control()
+interactive_joystick_control::interactive_joystick_control()
 {
-    m_beamManager = beam_manager::get_singleton_instance();
+    m_interactivityManager = interactivity_manager::get_singleton_instance();
     m_disabled = true;
-    m_type = beam_control_type::joystick;
+    m_type = interactive_control_type::joystick;
     m_x = 0.0;
     m_y = 0.0;
 }
 
-beam_joystick_control::beam_joystick_control(
+interactive_joystick_control::interactive_joystick_control(
     _In_ string_t parentSceneId,
     _In_ string_t controlId,
     _In_ bool disabled,
@@ -531,9 +531,9 @@ beam_joystick_control::beam_joystick_control(
     _In_ double y
 )
 {
-    m_beamManager = beam_manager::get_singleton_instance();
+    m_interactivityManager = interactivity_manager::get_singleton_instance();
     m_parentScene = std::move(parentSceneId);
-    m_type = beam_control_type::joystick;
+    m_type = interactive_control_type::joystick;
     m_controlId = std::move(controlId);
     m_disabled = disabled;
     m_x = x;
@@ -541,13 +541,13 @@ beam_joystick_control::beam_joystick_control(
 }
 
 bool
-beam_joystick_control::init_from_json(web::json::value json)
+interactive_joystick_control::init_from_json(web::json::value json)
 {
     return update(json, true);
 }
 
 bool
-xbox::services::beam::beam_joystick_control::update(web::json::value json, bool overwrite)
+MICROSOFT_MIXER_NAMESPACE::interactive_joystick_control::update(web::json::value json, bool overwrite)
 {
     string_t errorString;
     bool success = true;
@@ -590,4 +590,4 @@ xbox::services::beam::beam_joystick_control::update(web::json::value json, bool 
     return success;
 }
 
-NAMESPACE_MICROSOFT_XBOX_BEAM_END
+NAMESPACE_MICROSOFT_MIXER_END

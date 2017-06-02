@@ -9,7 +9,7 @@
 //*********************************************************
 #pragma once
 
-#define XBOX_BEAM_NAMESPACE xbox::services::beam
+#define MICROSOFT_MIXER_NAMESPACE Microsoft::mixer
 
-#define NAMESPACE_MICROSOFT_XBOX_BEAM_BEGIN                     namespace xbox { namespace services { namespace beam {
-#define NAMESPACE_MICROSOFT_XBOX_BEAM_END                       }}}
+#define NAMESPACE_MICROSOFT_MIXER_BEGIN                     namespace Microsoft { namespace mixer {
+#define NAMESPACE_MICROSOFT_MIXER_END                       }}

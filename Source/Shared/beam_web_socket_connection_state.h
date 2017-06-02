@@ -9,9 +9,9 @@
 //*********************************************************
 #pragma once
 
-NAMESPACE_MICROSOFT_XBOX_BEAM_BEGIN
+NAMESPACE_MICROSOFT_MIXER_BEGIN
 
-enum class beam_web_socket_connection_state : int32_t
+enum class mixer_web_socket_connection_state : int32_t
 {
     disconnected,
     activated,
@@ -19,4 +19,4 @@ enum class beam_web_socket_connection_state : int32_t
     connected,
 };
 
-NAMESPACE_MICROSOFT_XBOX_BEAM_END
+NAMESPACE_MICROSOFT_MIXER_END

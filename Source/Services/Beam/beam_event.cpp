@@ -11,15 +11,15 @@
 #include "beam.h"
 #include "beam_internal.h"
 
-NAMESPACE_MICROSOFT_XBOX_BEAM_BEGIN
+NAMESPACE_MICROSOFT_MIXER_BEGIN
 static std::mutex s_singletonLock;
 
-beam_event::beam_event(
+interactive_event::interactive_event(
     std::chrono::milliseconds time,
     std::error_code errorCode,
     string_t errorMessage,
-    beam_event_type eventType,
-    std::shared_ptr<beam_event_args> eventArgs
+    interactive_event_type eventType,
+    std::shared_ptr<interactive_event_args> eventArgs
     ) :
     m_time(std::move(time)),
     m_errorCode(std::move(errorCode)),
@@ -30,33 +30,33 @@ beam_event::beam_event(
 }
 
 const std::chrono::milliseconds&
-beam_event::time() const
+interactive_event::time() const
 {
     return m_time;
 }
 
 
 const std::error_code&
-beam_event::err() const
+interactive_event::err() const
 {
     return m_errorCode;
 }
 
 
 const string_t&
-beam_event::err_message() const
+interactive_event::err_message() const
 {
     return m_errorMessage;
 }
 
-beam_event_type
-beam_event::event_type() const
+interactive_event_type
+interactive_event::event_type() const
 {
     return m_eventType;
 }
 
-const std::shared_ptr<beam_event_args>&
-beam_event::event_args() const
+const std::shared_ptr<interactive_event_args>&
+interactive_event::event_args() const
 {
     return m_eventArgs;
 }
@@ -64,16 +64,16 @@ beam_event::event_args() const
 //
 // State change event args
 //
-const beam_interactivity_state
-beam_interactivity_state_change_event_args::new_state() const
+const interactivity_state
+interactivity_state_change_event_args::new_state() const
 {
     return m_newState;
 }
 
-beam_interactivity_state_change_event_args::beam_interactivity_state_change_event_args(
-    _In_ beam_interactivity_state new_state
+interactivity_state_change_event_args::interactivity_state_change_event_args(
+    _In_ interactivity_state new_state
     ) :
-    beam_event_args(),
+    interactive_event_args(),
     m_newState(new_state)
 {
 }
@@ -82,7 +82,7 @@ beam_interactivity_state_change_event_args::beam_interactivity_state_change_even
 // Button control event args
 //
 
-beam_button_event_args::beam_button_event_args(string_t controlId, string_t transaction_id, uint32_t cost, std::shared_ptr<beam_participant> participant, bool isPressed)
+interactive_button_event_args::interactive_button_event_args(string_t controlId, string_t transaction_id, uint32_t cost, std::shared_ptr<interactive_participant> participant, bool isPressed)
 {
     m_controlId = std::move(controlId);
     m_transactionId = std::move(transaction_id);
@@ -91,27 +91,27 @@ beam_button_event_args::beam_button_event_args(string_t controlId, string_t tran
     m_isPressed = isPressed;
 }
 
-const std::shared_ptr<xbox::services::beam::beam_participant>& beam_button_event_args::participant() const
+const std::shared_ptr<MICROSOFT_MIXER_NAMESPACE::interactive_participant>& interactive_button_event_args::participant() const
 {
     return m_participant;
 }
 
-const string_t& beam_button_event_args::control_id() const
+const string_t& interactive_button_event_args::control_id() const
 {
     return m_controlId;
 }
 
-const string_t & beam_button_event_args::transaction_id() const
+const string_t & interactive_button_event_args::transaction_id() const
 {
     return m_transactionId;
 }
 
-uint32_t beam_button_event_args::cost() const
+uint32_t interactive_button_event_args::cost() const
 {
     return m_cost;
 }
 
-bool beam_button_event_args::is_pressed() const
+bool interactive_button_event_args::is_pressed() const
 {
     return m_isPressed;
 }
@@ -120,28 +120,28 @@ bool beam_button_event_args::is_pressed() const
 // Joystick control event args
 //
 
-const string_t& beam_joystick_event_args::control_id() const
+const string_t& interactive_joystick_event_args::control_id() const
 {
     return m_controlId;
 }
 
-double beam_joystick_event_args::x() const
+double interactive_joystick_event_args::x() const
 {
     return m_x;
 }
 
-double beam_joystick_event_args::y() const
+double interactive_joystick_event_args::y() const
 {
     return m_y;
 }
 
-const std::shared_ptr<beam_participant>& beam_joystick_event_args::participant() const
+const std::shared_ptr<interactive_participant>& interactive_joystick_event_args::participant() const
 {
     return m_participant;
 }
 
-beam_joystick_event_args::beam_joystick_event_args(
-    std::shared_ptr<beam_participant> participant,
+interactive_joystick_event_args::interactive_joystick_event_args(
+    std::shared_ptr<interactive_participant> participant,
     double x,
     double y,
     string_t control_id
@@ -158,25 +158,25 @@ beam_joystick_event_args::beam_joystick_event_args(
 // Participant state change event args
 //
 
-beam_participant_state_change_event_args::beam_participant_state_change_event_args(
-    std::shared_ptr<beam_participant> participant,
-    beam_participant_state state
+interactive_participant_state_change_event_args::interactive_participant_state_change_event_args(
+    std::shared_ptr<interactive_participant> participant,
+    interactive_participant_state state
     ) :
     m_participant(std::move(participant)),
     m_state(state)
 {
 }
 
-const std::shared_ptr<beam_participant>&
-beam_participant_state_change_event_args::participant() const
+const std::shared_ptr<interactive_participant>&
+interactive_participant_state_change_event_args::participant() const
 {
     return m_participant;
 }
 
-const beam_participant_state&
-beam_participant_state_change_event_args::state() const
+const interactive_participant_state&
+interactive_participant_state_change_event_args::state() const
 {
     return m_state;
 }
 
-NAMESPACE_MICROSOFT_XBOX_BEAM_END
+NAMESPACE_MICROSOFT_MIXER_END

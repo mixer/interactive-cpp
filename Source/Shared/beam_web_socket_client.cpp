@@ -13,28 +13,28 @@
 
 using namespace web::websockets::client;
 
-NAMESPACE_MICROSOFT_XBOX_BEAM_BEGIN
+NAMESPACE_MICROSOFT_MIXER_BEGIN
  
-beam_web_socket_client::beam_web_socket_client()
+mixer_web_socket_client::mixer_web_socket_client()
 {
 }
 
 pplx::task<void>
-beam_web_socket_client::connect(
+mixer_web_socket_client::connect(
     _In_ const web::uri& uri,
     _In_ const string_t& bearerToken,
     _In_ const string_t& interactiveVersion,
     _In_ const string_t& protocolVersion
     )
 {
-    std::weak_ptr<beam_web_socket_client> thisWeakPtr = shared_from_this();
+    std::weak_ptr<mixer_web_socket_client> thisWeakPtr = shared_from_this();
 
     auto task = pplx::create_task([uri, bearerToken, interactiveVersion, protocolVersion, thisWeakPtr]
     {
-        std::shared_ptr<beam_web_socket_client> pThis(thisWeakPtr.lock());
+        std::shared_ptr<mixer_web_socket_client> pThis(thisWeakPtr.lock());
         if (pThis == nullptr)
         {
-            throw std::runtime_error("beam_web_socket_client shutting down");
+            throw std::runtime_error("mixer_web_socket_client shutting down");
         }
 
         websocket_client_config config;
@@ -49,7 +49,7 @@ beam_web_socket_client::connect(
         {
             try
             {
-                std::shared_ptr<beam_web_socket_client> pThis2(thisWeakPtr.lock());
+                std::shared_ptr<mixer_web_socket_client> pThis2(thisWeakPtr.lock());
                 if (pThis2 == nullptr)
                 {
                     throw std::runtime_error("xbox_web_socket_client shutting down");
@@ -77,11 +77,11 @@ beam_web_socket_client::connect(
 
             try
             {
-                std::shared_ptr<beam_web_socket_client> pThis2(thisWeakPtr.lock());
+                std::shared_ptr<mixer_web_socket_client> pThis2(thisWeakPtr.lock());
                 if (pThis2 == nullptr)
                 {
-                    LOG_DEBUG("beam_web_socket_client shutting down");
-                    throw std::runtime_error("beam_web_socket_client shutting down");
+                    LOG_DEBUG("mixer_web_socket_client shutting down");
+                    throw std::runtime_error("mixer_web_socket_client shutting down");
                 }
 
                 if (pThis2->m_closeHandler)
@@ -102,7 +102,7 @@ beam_web_socket_client::connect(
 }
 
 pplx::task<void>
-beam_web_socket_client::send(
+mixer_web_socket_client::send(
     _In_ const string_t& message
     )
 {
@@ -115,7 +115,7 @@ beam_web_socket_client::send(
 }
 
 pplx::task<void>
-beam_web_socket_client::close()
+mixer_web_socket_client::close()
 {
     if (m_client == nullptr)
         return pplx::task_from_exception<void>(std::runtime_error("web socket is not created yet."));
@@ -124,7 +124,7 @@ beam_web_socket_client::close()
 }
 
 void 
-beam_web_socket_client::set_received_handler(
+mixer_web_socket_client::set_received_handler(
     _In_ std::function<void(string_t)> handler
     )
 {
@@ -132,11 +132,11 @@ beam_web_socket_client::set_received_handler(
 }
 
 void 
-beam_web_socket_client::set_closed_handler(
+mixer_web_socket_client::set_closed_handler(
     _In_ std::function<void(uint16_t closeStatus, string_t closeReason)> handler
     )
 {
     m_closeHandler = handler;
 }
 
-NAMESPACE_MICROSOFT_XBOX_BEAM_END
+NAMESPACE_MICROSOFT_MIXER_END

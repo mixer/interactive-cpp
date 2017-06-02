@@ -11,7 +11,7 @@
 #include "log.h"
 #include <iomanip>
 
-NAMESPACE_MICROSOFT_XBOX_BEAM_BEGIN
+NAMESPACE_MICROSOFT_MIXER_BEGIN
 
 log_output::log_output(log_output_level_setting setting, log_level level):
     m_levelSetting(setting),
@@ -46,9 +46,6 @@ log_output::format_log(_In_ const log_entry& entry)
 #endif
 
     // format : "<time> [<thread id>] <level> <category> - <msg>"
-#if !BEAM_A // TODO: Why put_time isn't found
-    stream << std::put_time(&tm_snapshot, "%c") << " [" << std::this_thread::get_id() << "] ";
-#endif
     stream << entry.level_to_string() << " " << entry.category() << " - ";
     stream << entry.msg_stream().str() << std::endl;
 
@@ -56,4 +53,4 @@ log_output::format_log(_In_ const log_entry& entry)
 
 }
 
-NAMESPACE_MICROSOFT_XBOX_BEAM_END
+NAMESPACE_MICROSOFT_MIXER_END

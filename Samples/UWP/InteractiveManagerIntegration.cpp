@@ -10,7 +10,7 @@ using namespace Windows::Foundation::Collections;
 using namespace Windows::Foundation;
 using namespace xbox::services;
 using namespace xbox::services::stats::manager;
-using namespace xbox::services::beam;
+using namespace MICROSOFT_MIXER_NAMESPACE;
 
 namespace
 {
@@ -43,9 +43,9 @@ namespace
 
 void Sample::InitializeInteractiveManager()
 {
-    m_beamManager = beam_manager::get_singleton_instance();
+    m_interactivityManager = interactivity_manager::get_singleton_instance();
 
-    m_currentInteractiveState = beam_interactivity_state::not_initialized;
+    m_currentInteractiveState = interactivity_state::not_initialized;
     m_voteYesCount = 0;
     m_voteNoCount = 0;
 
@@ -104,7 +104,7 @@ void Sample::AddUserToInteractiveManager(_In_ std::shared_ptr<xbox::services::sy
 
             if (!token.empty())
             {
-                m_beamManager->set_xtoken(token);
+                m_interactivityManager->set_xtoken(token);
             }
         }
         catch (Platform::Exception^ ex)
@@ -114,32 +114,32 @@ void Sample::AddUserToInteractiveManager(_In_ std::shared_ptr<xbox::services::sy
     });
 }
 
-void Sample::UpdateBeamManager()
+void Sample::UpdateInteractivityManager()
 {
     // Process events from the stats manager
     // This should be called each frame update
 
-    auto beamEvents = m_beamManager->do_work();
+    auto interactiveEvents = m_interactivityManager->do_work();
 
-    for (const auto& evt : beamEvents)
+    for (const auto& evt : interactiveEvents)
     {
-        beam_event_type eventType = evt.event_type();
+        interactive_event_type eventType = evt.event_type();
 
         switch (eventType)
         {
-        case beam_event_type::interactivity_state_changed:
+        case interactive_event_type::interactivity_state_changed:
             HandleInteractivityStateChange(evt);
             break;
-        case beam_event_type::participant_state_changed:
+        case interactive_event_type::participant_state_changed:
             HandleParticipantStateChange(evt);
             break;
-        case beam_event_type::error:
+        case interactive_event_type::error:
             HandleInteractivityError(evt);
             break;
         }
 
         // If you want to handle the interactive input manually:
-        if (eventType == beam_event_type::button || eventType == beam_event_type::joystick)
+        if (eventType == interactive_event_type::button || eventType == interactive_event_type::joystick)
         {
             HandleInteractiveControlEvent(evt);
             break;
@@ -149,26 +149,26 @@ void Sample::UpdateBeamManager()
 
 void Sample::InitializeInteractivity()
 {
-    m_beamManager->initialize(s_interactiveVersion, false /*goInteractive*/);
+    m_interactivityManager->initialize(s_interactiveVersion, false /*goInteractive*/);
 }
 
 
 void Sample::ToggleInteractivity()
 {
-    auto currentInteractiveState = m_beamManager->interactivity_state();
-    if (beam_interactivity_state::not_initialized == currentInteractiveState)
+    auto currentInteractiveState = m_interactivityManager->interactivity_state();
+    if (interactivity_state::not_initialized == currentInteractiveState)
     {
         InitializeInteractivity();
     }
-    else if (beam_interactivity_state::interactivity_enabled == currentInteractiveState ||
-        beam_interactivity_state::interactivity_pending == currentInteractiveState)
+    else if (interactivity_state::interactivity_enabled == currentInteractiveState ||
+        interactivity_state::interactivity_pending == currentInteractiveState)
     {
-        m_beamManager->stop_interactive();
+        m_interactivityManager->stop_interactive();
         m_interactivityBtn->SetText(L"Go Interactive");
     }
-    else if (beam_interactivity_state::interactivity_disabled == currentInteractiveState)
+    else if (interactivity_state::interactivity_disabled == currentInteractiveState)
     {
-        m_beamManager->start_interactive();
+        m_interactivityManager->start_interactive();
     }
     else
     {
@@ -178,7 +178,7 @@ void Sample::ToggleInteractivity()
 
 void Sample::SwitchScenes()
 {
-    auto groupsList = m_beamManager->groups();
+    auto groupsList = m_interactivityManager->groups();
 
     for (auto iter = groupsList.begin(); iter != groupsList.end(); iter++)
     {
@@ -200,7 +200,7 @@ void Sample::SwitchScenes()
                     }
 
                     string_t newSceneId = currentGroupsSceneList[i];
-                    auto sceneToSet = m_beamManager->scene(newSceneId);
+                    auto sceneToSet = m_interactivityManager->scene(newSceneId);
 
                     m_console->Write(L"Updating scene for group ");
                     m_console->Write(currentGroup->group_id().c_str());
@@ -220,8 +220,8 @@ void Sample::SwitchScenes()
 
 void Sample::InitializeGroupsAndScenes()
 {
-    auto scenesList = m_beamManager->scenes();
-    auto groupsList = m_beamManager->groups();
+    auto scenesList = m_interactivityManager->scenes();
+    auto groupsList = m_interactivityManager->groups();
 
     if (groupsList.size() == 0 || scenesList.size() == 0)
     {
@@ -231,8 +231,8 @@ void Sample::InitializeGroupsAndScenes()
 
     if (groupsList.size() == 1)
     {
-        auto redScene = m_beamManager->scene(s_redLasersScene);
-        auto blueScene = m_beamManager->scene(s_blueLasersScene);
+        auto redScene = m_interactivityManager->scene(s_redLasersScene);
+        auto blueScene = m_interactivityManager->scene(s_blueLasersScene);
 
         if (nullptr == redScene)
         {
@@ -250,11 +250,11 @@ void Sample::InitializeGroupsAndScenes()
             return;
         }
 
-        std::shared_ptr<beam_group> groupRedTeam = std::make_shared<beam_group>(s_redGroup, redScene);
+        std::shared_ptr<interactive_group> groupRedTeam = std::make_shared<interactive_group>(s_redGroup, redScene);
 
-        std::shared_ptr<beam_group> groupBlueTeam = std::make_shared<beam_group>(s_blueGroup, blueScene);
+        std::shared_ptr<interactive_group> groupBlueTeam = std::make_shared<interactive_group>(s_blueGroup, blueScene);
 
-        m_groupsList = m_beamManager->groups();
+        m_groupsList = m_interactivityManager->groups();
 
         if (m_groupsList.size() != 3)
         {
@@ -266,15 +266,15 @@ void Sample::InitializeGroupsAndScenes()
 
 void Sample::AddParticipantToGroup()
 {
-    auto beamState = m_beamManager->interactivity_state();
+    auto interactiveState = m_interactivityManager->interactivity_state();
 
-    if (beam_interactivity_state::not_initialized == beamState || beam_interactivity_state::initializing == beamState)
+    if (interactivity_state::not_initialized == interactiveState || interactivity_state::initializing == interactiveState)
     {
         m_console->WriteLine(L"Wait for interactivity to initialize.");
         return;
     }
 
-    auto groupsList = m_beamManager->groups();
+    auto groupsList = m_interactivityManager->groups();
 
     if (groupsList.size() == 0)
     {
@@ -283,7 +283,7 @@ void Sample::AddParticipantToGroup()
     }
     else
     {
-        auto defaultGroup = m_beamManager->group(s_defaultGroup);
+        auto defaultGroup = m_interactivityManager->group(s_defaultGroup);
         auto remainingParticipants = defaultGroup->participants();
 
         if (remainingParticipants.size() > 0)
@@ -316,7 +316,7 @@ void Sample::AddParticipantToGroup()
 
             string_t newSceneId = smallestGroup->scene()->scene_id();
             m_console->Write(L"Added participant ");
-            m_console->Write(participant->beam_username().c_str());
+            m_console->Write(participant->username().c_str());
             m_console->Write(L" to group ");
             m_console->Write(smallestGroup->group_id().c_str());
             m_console->Write(L" (displaying scene ");
@@ -333,15 +333,15 @@ void Sample::AddParticipantToGroup()
 void Sample::DisbandGroups()
 {
     m_console->WriteLine(L"Disbanding groups");
-    auto beamState = m_beamManager->interactivity_state();
+    auto interactiveState = m_interactivityManager->interactivity_state();
 
-    if (beam_interactivity_state::not_initialized == beamState || beam_interactivity_state::initializing == beamState)
+    if (interactivity_state::not_initialized == interactiveState || interactivity_state::initializing == interactiveState)
     {
         m_console->WriteLine(L"Wait for interactivity to initialize.");
         return;
     }
 
-    auto groupsList = m_beamManager->groups();
+    auto groupsList = m_interactivityManager->groups();
 
     if (groupsList.size() == 0)
     {
@@ -350,7 +350,7 @@ void Sample::DisbandGroups()
     }
     else
     {
-        auto defaultGroup = m_beamManager->group(s_defaultGroup);
+        auto defaultGroup = m_interactivityManager->group(s_defaultGroup);
         for (auto groupsIter = groupsList.begin(); groupsIter != groupsList.end(); groupsIter++)
         {
             auto currentGroup = (*groupsIter);
@@ -369,7 +369,7 @@ void Sample::DisbandGroups()
                     participant->set_group(defaultGroup);
 
                     m_console->Write(L"Moved participant ");
-                    m_console->Write(participant->beam_username().c_str());
+                    m_console->Write(participant->username().c_str());
                     m_console->Write(L" back to the default group");
                     m_console->Write(L"\n");
                 }
@@ -384,7 +384,7 @@ void Sample::TriggerCooldownOnButtons(string_t groupId)
     m_console->Write(groupId.c_str());
     m_console->Write(L"\n");
 
-    auto currentScene = m_beamManager->group(groupId)->scene();
+    auto currentScene = m_interactivityManager->group(groupId)->scene();
 
     auto buttons = currentScene->buttons();
 
@@ -398,28 +398,28 @@ void Sample::TriggerCooldownOnButtons(string_t groupId)
     }
 }
 
-void Sample::ProcessInteractiveEvents(std::vector<beam_event> events)
+void Sample::ProcessInteractiveEvents(std::vector<interactive_event> events)
 {
     for (int i = 0; i < events.size(); i++)
     {
-        beam_event event = events[i];
-        beam_event_type eventType = event.event_type();
+        interactive_event event = events[i];
+        interactive_event_type eventType = event.event_type();
 
         switch (eventType)
         {
-        case beam_event_type::interactivity_state_changed:
+        case interactive_event_type::interactivity_state_changed:
             HandleInteractivityStateChange(event);
             break;
-        case beam_event_type::participant_state_changed:
+        case interactive_event_type::participant_state_changed:
             HandleParticipantStateChange(event);
             break;
-        case beam_event_type::error:
+        case interactive_event_type::error:
             HandleInteractivityError(event);
             break;
         }
 
         // If you want to handle the interactive input manually:
-        if (eventType == beam_event_type::button || eventType == beam_event_type::joystick)
+        if (eventType == interactive_event_type::button || eventType == interactive_event_type::joystick)
         {
             HandleInteractiveControlEvent(event);
             break;
@@ -427,7 +427,7 @@ void Sample::ProcessInteractiveEvents(std::vector<beam_event> events)
     }
 }
 
-void Sample::HandleInteractivityError(beam_event event)
+void Sample::HandleInteractivityError(interactive_event event)
 {
     m_console->Write(L"Interactivity error!\n");
     m_console->Write(event.err_message().c_str());
@@ -435,12 +435,12 @@ void Sample::HandleInteractivityError(beam_event event)
     return;
 }
 
-void Sample::HandleInteractivityStateChange(beam_event event)
+void Sample::HandleInteractivityStateChange(interactive_event event)
 {
-    std::shared_ptr<beam_interactivity_state_change_event_args> eventArgs = std::dynamic_pointer_cast<beam_interactivity_state_change_event_args>(event.event_args());
-    if (eventArgs->new_state() == beam_interactivity_state::interactivity_disabled)
+    std::shared_ptr<interactivity_state_change_event_args> eventArgs = std::dynamic_pointer_cast<interactivity_state_change_event_args>(event.event_args());
+    if (eventArgs->new_state() == interactivity_state::interactivity_disabled)
     {
-        if (m_currentInteractiveState == beam_interactivity_state::initializing)
+        if (m_currentInteractiveState == interactivity_state::initializing)
         {
             m_console->WriteLine(L"Interactivity initialized");
 
@@ -452,12 +452,12 @@ void Sample::HandleInteractivityStateChange(beam_event event)
         }
         m_interactivityBtn->SetText(L"Go Interactive");
     }
-    else if (eventArgs->new_state() == beam_interactivity_state::interactivity_pending)
+    else if (eventArgs->new_state() == interactivity_state::interactivity_pending)
     {
         m_console->WriteLine(L"Interactivity pending");
         m_interactivityBtn->SetText(L"Pending...");
     }
-    else if (eventArgs->new_state() == beam_interactivity_state::interactivity_enabled)
+    else if (eventArgs->new_state() == interactivity_state::interactivity_enabled)
     {
         m_console->WriteLine(L"Interactivity enabled");
         m_interactivityBtn->SetText(L"Stop Interactive");
@@ -466,11 +466,11 @@ void Sample::HandleInteractivityStateChange(beam_event event)
     return;
 }
 
-void Sample::HandleParticipantStateChange(beam_event event)
+void Sample::HandleParticipantStateChange(interactive_event event)
 {
-    if (beam_event_type::participant_state_changed == event.event_type())
+    if (interactive_event_type::participant_state_changed == event.event_type())
     {
-        std::shared_ptr<beam_participant_state_change_event_args> participantStateArgs = std::dynamic_pointer_cast<beam_participant_state_change_event_args>(event.event_args());
+        std::shared_ptr<interactive_participant_state_change_event_args> participantStateArgs = std::dynamic_pointer_cast<interactive_participant_state_change_event_args>(event.event_args());
 
         if (nullptr == participantStateArgs)
         {
@@ -478,15 +478,15 @@ void Sample::HandleParticipantStateChange(beam_event event)
             return;
         }
 
-        if (beam_participant_state::joined == participantStateArgs->state())
+        if (interactive_participant_state::joined == participantStateArgs->state())
         {
-            m_console->Write(participantStateArgs->participant()->beam_username().c_str());
+            m_console->Write(participantStateArgs->participant()->username().c_str());
             m_console->Write(L" is now participating\n");
             return;
         }
-        else if (beam_participant_state::left == participantStateArgs->state())
+        else if (interactive_participant_state::left == participantStateArgs->state())
         {
-            m_console->Write(participantStateArgs->participant()->beam_username().c_str());
+            m_console->Write(participantStateArgs->participant()->username().c_str());
             m_console->Write(L" is no longer participating :(\n");
             return;
         }
@@ -494,22 +494,22 @@ void Sample::HandleParticipantStateChange(beam_event event)
     return;
 }
 
-void Sample::HandleInteractiveControlEvent(beam_event event)
+void Sample::HandleInteractiveControlEvent(interactive_event event)
 {
-    if (beam_event_type::button == event.event_type())
+    if (interactive_event_type::button == event.event_type())
     {
-        std::shared_ptr<beam_button_event_args> buttonArgs = std::dynamic_pointer_cast<beam_button_event_args>(event.event_args());
+        std::shared_ptr<interactive_button_event_args> buttonArgs = std::dynamic_pointer_cast<interactive_button_event_args>(event.event_args());
         HandleButtonEvents(buttonArgs);
     }
-    else if (beam_event_type::joystick == event.event_type())
+    else if (interactive_event_type::joystick == event.event_type())
     {
-        std::shared_ptr<beam_joystick_event_args> joystickArgs = std::dynamic_pointer_cast<beam_joystick_event_args>(event.event_args());
+        std::shared_ptr<interactive_joystick_event_args> joystickArgs = std::dynamic_pointer_cast<interactive_joystick_event_args>(event.event_args());
         HandleJoystickEvents(joystickArgs);
     }
     return;
 }
 
-void Sample::HandleButtonEvents(std::shared_ptr<beam_button_event_args> buttonEventArgs)
+void Sample::HandleButtonEvents(std::shared_ptr<interactive_button_event_args> buttonEventArgs)
 {
     if (nullptr != buttonEventArgs)
     {
@@ -518,13 +518,13 @@ void Sample::HandleButtonEvents(std::shared_ptr<beam_button_event_args> buttonEv
         {
             if (!buttonEventArgs->transaction_id().empty())
             {
-                m_beamManager->capture_transaction(buttonEventArgs->transaction_id());
+                m_interactivityManager->capture_transaction(buttonEventArgs->transaction_id());
             }
 
             m_console->Write(L"Button ");
             m_console->Write(buttonId.c_str());
             m_console->Write(L" is down (charged ");
-            m_console->Write(buttonEventArgs->participant()->beam_username().c_str());
+            m_console->Write(buttonEventArgs->participant()->username().c_str());
             m_console->Write(L" ");
             m_console->Write(std::to_wstring(buttonEventArgs->cost()).c_str());
             m_console->Write(L" spark(s))\n");
@@ -534,7 +534,7 @@ void Sample::HandleButtonEvents(std::shared_ptr<beam_button_event_args> buttonEv
             m_console->Write(L"Button ");
             m_console->Write(buttonId.c_str());
             m_console->Write(L" is up (");
-            m_console->Write(buttonEventArgs->participant()->beam_username().c_str());
+            m_console->Write(buttonEventArgs->participant()->username().c_str());
             m_console->Write(L")\n");
 
             if (0 == buttonId.compare(L"btnVoteYes"))
@@ -551,17 +551,17 @@ void Sample::HandleButtonEvents(std::shared_ptr<beam_button_event_args> buttonEv
     }
     else
     {
-        m_console->WriteLine(L"Invalid beam_button_event_args");
+        m_console->WriteLine(L"Invalid interactive_button_event_args");
     }
 }
 
-void Sample::HandleJoystickEvents(std::shared_ptr<beam_joystick_event_args> joystickEventArgs)
+void Sample::HandleJoystickEvents(std::shared_ptr<interactive_joystick_event_args> joystickEventArgs)
 {
     m_console->Write(L"Received joystick event for control ");
     m_console->Write(joystickEventArgs->control_id().c_str());
     m_console->Write(L":\n");
     m_console->Write(L"    participant: ");
-    m_console->Write(joystickEventArgs->participant()->beam_username().c_str());
+    m_console->Write(joystickEventArgs->participant()->username().c_str());
     m_console->Write(L"\n");
     m_console->Write(L"              x: ");
     m_console->Write(std::to_wstring(joystickEventArgs->x()).c_str());

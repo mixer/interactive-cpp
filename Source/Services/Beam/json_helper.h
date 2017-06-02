@@ -110,17 +110,17 @@
 
 // participants
 #define RPC_SESSION_ID      L"sessionID"
-#define RPC_BEAM_ID         L"userID"
+#define RPC_USER_ID         L"userID"
 #define RPC_PARTICIPANT_ID  L"participantID"
 #define RPC_XUID            L"xuid"
-#define RPC_BEAM_USERNAME   L"username"
-#define RPC_BEAM_LEVEL      L"level"
+#define RPC_USERNAME        L"username"
+#define RPC_LEVEL           L"level"
 #define RPC_PART_LAST_INPUT L"lastInputAt"
 #define RPC_PART_CONNECTED  L"connectedAt"
 #define RPC_GROUP_ID        L"groupID"
 #define RPC_GROUP_DEFAULT   L"default"
 
-namespace xbox { namespace services { namespace beam {
+namespace Microsoft { namespace mixer {
 
 
     static std::chrono::milliseconds unix_timestamp_in_ms()
@@ -128,7 +128,7 @@ namespace xbox { namespace services { namespace beam {
         return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch());
     }
 
-    static std::shared_ptr<beam_rpc_message> build_mediator_rpc_message(uint32_t messageId, const string_t& methodName, web::json::value params, bool discard)
+    static std::shared_ptr<interactive_rpc_message> build_mediator_rpc_message(uint32_t messageId, const string_t& methodName, web::json::value params, bool discard)
     {
         web::json::value messageJson;
 
@@ -138,25 +138,25 @@ namespace xbox { namespace services { namespace beam {
         messageJson[RPC_PARAMS] = params;
         messageJson[RPC_DISCARD] = web::json::value::boolean(discard);
 
-        std::shared_ptr<beam_rpc_message> message = std::shared_ptr<beam_rpc_message>(new beam_rpc_message(messageId, messageJson, unix_timestamp_in_ms()));
+        std::shared_ptr<interactive_rpc_message> message = std::shared_ptr<interactive_rpc_message>(new interactive_rpc_message(messageId, messageJson, unix_timestamp_in_ms()));
 
         return message;
     }
 
-    static web::json::value build_participant_state_change_mock_data(uint32_t messageId, uint32_t beamId, string_t beamUsername, string_t participantSessionId, bool isJoin, bool discard)
+    static web::json::value build_participant_state_change_mock_data(uint32_t messageId, uint32_t mixerId, string_t username, string_t participantSessionId, bool isJoin, bool discard)
     {
         web::json::value messageJson;
         web::json::value params;
         web::json::value participants;
         web::json::value participant;
 
-        participant[RPC_BEAM_ID] = web::json::value::number(beamId);
-        participant[RPC_BEAM_USERNAME] = web::json::value::string(beamUsername);
+        participant[RPC_ID] = web::json::value::number(mixerId);
+        participant[RPC_USERNAME] = web::json::value::string(username);
         participant[RPC_SESSION_ID] = web::json::value::string(participantSessionId);
         participant[RPC_ETAG] = web::json::value::string(L"0");
         participant[RPC_GROUP_ID] = web::json::value::string(RPC_GROUP_DEFAULT);
         participant[RPC_PART_LAST_INPUT] = web::json::value::number(0);
-        participant[RPC_BEAM_LEVEL] = web::json::value::number(0);
+        participant[RPC_LEVEL] = web::json::value::number(0);
 
         if (isJoin)
         {
@@ -219,4 +219,4 @@ namespace xbox { namespace services { namespace beam {
 
         return mockInput;
     }
-}}}
+}}

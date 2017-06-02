@@ -12,58 +12,58 @@
 #include "beam_internal.h"
 #include "json_helper.h"
 
-NAMESPACE_MICROSOFT_XBOX_BEAM_BEGIN
+NAMESPACE_MICROSOFT_MIXER_BEGIN
 static std::mutex s_singletonLock;
 
 const string_t&
-beam_scene::scene_id() const
+interactive_scene::scene_id() const
 {
     return m_impl->scene_id();
 }
 
 const std::vector<string_t>
-beam_scene::groups()
+interactive_scene::groups()
 {
     return m_impl->groups();
 }
 
-const std::vector<std::shared_ptr<beam_button_control>>
-beam_scene::buttons()
+const std::vector<std::shared_ptr<interactive_button_control>>
+interactive_scene::buttons()
 {
     return m_impl->buttons();
 }
 
-const std::shared_ptr<beam_button_control>
-beam_scene::button(_In_ const string_t& controlId)
+const std::shared_ptr<interactive_button_control>
+interactive_scene::button(_In_ const string_t& controlId)
 {
     return m_impl->button(controlId);
 }
 
-const std::vector<std::shared_ptr<beam_joystick_control>>
-beam_scene::joysticks()
+const std::vector<std::shared_ptr<interactive_joystick_control>>
+interactive_scene::joysticks()
 {
     return m_impl->joysticks();
 }
 
-const std::shared_ptr<beam_joystick_control>
-beam_scene::joystick(_In_ const string_t& controlId)
+const std::shared_ptr<interactive_joystick_control>
+interactive_scene::joystick(_In_ const string_t& controlId)
 {
     return m_impl->joystick(controlId);
 }
 
-beam_scene::beam_scene() {
-    m_beamManager = beam_manager::get_singleton_instance();
-    m_impl = std::make_shared<beam_scene_impl>();
+interactive_scene::interactive_scene() {
+    m_interactivityManager = interactivity_manager::get_singleton_instance();
+    m_impl = std::make_shared<interactive_scene_impl>();
 }
 
-beam_scene::beam_scene(
+interactive_scene::interactive_scene(
     _In_ string_t sceneId,
     _In_ bool enabled,
     _In_ const std::vector<const string_t&>& controls
 )
 {
-    m_beamManager = beam_manager::get_singleton_instance();
-    m_impl = std::make_shared<beam_scene_impl>(sceneId, L"" /*etag filled in by service call*/, enabled, controls);
+    m_interactivityManager = interactivity_manager::get_singleton_instance();
+    m_impl = std::make_shared<interactive_scene_impl>(sceneId, L"" /*etag filled in by service call*/, enabled, controls);
 }
 
 //
@@ -71,25 +71,25 @@ beam_scene::beam_scene(
 //
 
 const string_t&
-beam_scene_impl::scene_id() const
+interactive_scene_impl::scene_id() const
 {
     return m_sceneId;
 }
 
 const bool&
-beam_scene_impl::disabled() const
+interactive_scene_impl::disabled() const
 {
     return m_disabled;
 }
 
 void
-beam_scene_impl::set_disabled(bool disabled)
+interactive_scene_impl::set_disabled(bool disabled)
 {
     m_disabled = disabled;
 }
 
 const std::vector<string_t>
-beam_scene_impl::groups()
+interactive_scene_impl::groups()
 {
     std::vector<string_t> groups;
     groups.reserve(m_groupIds.size());
@@ -103,31 +103,31 @@ beam_scene_impl::groups()
     return groups;
 }
 
-const std::vector<std::shared_ptr<beam_button_control>>
-beam_scene_impl::buttons()
+const std::vector<std::shared_ptr<interactive_button_control>>
+interactive_scene_impl::buttons()
 {
-    std::vector<std::shared_ptr<beam_button_control>> buttons;
+    std::vector<std::shared_ptr<interactive_button_control>> buttons;
     buttons.reserve(m_buttonIds.size());
 
     for (auto iter = m_buttonIds.begin(); iter != m_buttonIds.end(); iter++)
     {
         string_t currButtonId = (*iter);
-        buttons.push_back(m_beamManager->m_impl->m_buttons[currButtonId]);
+        buttons.push_back(m_interactivityManager->m_impl->m_buttons[currButtonId]);
     }
 
     return buttons;
 }
 
-const std::shared_ptr<beam_button_control>
-beam_scene_impl::button(_In_ const string_t& controlId)
+const std::shared_ptr<interactive_button_control>
+interactive_scene_impl::button(_In_ const string_t& controlId)
 {
-    std::shared_ptr<beam_button_control> currControl = nullptr;
+    std::shared_ptr<interactive_button_control> currControl = nullptr;
     for (auto iter = m_buttonIds.begin(); iter != m_buttonIds.end(); iter++)
     {
         string_t currButtonId = (*iter);
         if (0 == currButtonId.compare(controlId))
         {
-            currControl = m_beamManager->m_impl->m_buttons[currButtonId];
+            currControl = m_interactivityManager->m_impl->m_buttons[currButtonId];
             break;
         }
     }
@@ -136,32 +136,32 @@ beam_scene_impl::button(_In_ const string_t& controlId)
 }
 
 
-const std::vector<std::shared_ptr<beam_joystick_control>>
-beam_scene_impl::joysticks()
+const std::vector<std::shared_ptr<interactive_joystick_control>>
+interactive_scene_impl::joysticks()
 {
-    std::vector<std::shared_ptr<beam_joystick_control>> joysticks;
+    std::vector<std::shared_ptr<interactive_joystick_control>> joysticks;
     joysticks.reserve(m_joystickIds.size());
 
     for (auto iter = m_joystickIds.begin(); iter != m_joystickIds.end(); iter++)
     {
         string_t currControlId = (*iter);
-        joysticks.push_back(m_beamManager->m_impl->m_joysticks[currControlId]);
+        joysticks.push_back(m_interactivityManager->m_impl->m_joysticks[currControlId]);
     }
 
     return joysticks;
 }
 
 
-const std::shared_ptr<beam_joystick_control>
-beam_scene_impl::joystick(_In_ const string_t& controlId)
+const std::shared_ptr<interactive_joystick_control>
+interactive_scene_impl::joystick(_In_ const string_t& controlId)
 {
-    std::shared_ptr<beam_joystick_control> currControl = nullptr;
+    std::shared_ptr<interactive_joystick_control> currControl = nullptr;
     for (auto iter = m_joystickIds.begin(); iter != m_joystickIds.end(); iter++)
     {
         string_t currControlId = (*iter);
         if (0 == currControlId.compare(controlId))
         {
-            currControl = m_beamManager->m_impl->m_joysticks[currControlId];
+            currControl = m_interactivityManager->m_impl->m_joysticks[currControlId];
             break;
         }
     }
@@ -170,7 +170,7 @@ beam_scene_impl::joystick(_In_ const string_t& controlId)
 }
 
 void
-beam_scene_impl::init_from_json(web::json::value json)
+interactive_scene_impl::init_from_json(web::json::value json)
 {
     string_t errorString;
     bool success = true;
@@ -208,7 +208,7 @@ beam_scene_impl::init_from_json(web::json::value json)
                     auto control = *iter;
                     if (0 == control[RPC_CONTROL_KIND].as_string().compare(RPC_CONTROL_BUTTON))
                     {
-                        std::shared_ptr<beam_button_control> newButton = beam_control_builder::build_button_control(m_sceneId, control);
+                        std::shared_ptr<interactive_button_control> newButton = interactive_control_builder::build_button_control(m_sceneId, control);
 
                         if (nullptr != newButton)
                         {
@@ -217,7 +217,7 @@ beam_scene_impl::init_from_json(web::json::value json)
                     }
                     else if (0 == control[RPC_CONTROL_KIND].as_string().compare(RPC_CONTROL_JOYSTICK))
                     {
-                        std::shared_ptr<beam_joystick_control> newJoystick = beam_control_builder::build_joystick_control(m_sceneId, control);
+                        std::shared_ptr<interactive_joystick_control> newJoystick = interactive_control_builder::build_joystick_control(m_sceneId, control);
 
                         if (nullptr != newJoystick)
                         {
@@ -244,16 +244,16 @@ beam_scene_impl::init_from_json(web::json::value json)
     if (!success)
     {
         LOGS_ERROR << errorString;
-        // TODO: return beam_error
+        // TODO: return error
     }
 }
 
-beam_scene_impl::beam_scene_impl()
+interactive_scene_impl::interactive_scene_impl()
 {
-    m_beamManager = beam_manager::get_singleton_instance();
+    m_interactivityManager = interactivity_manager::get_singleton_instance();
 }
 
-beam_scene_impl::beam_scene_impl(
+interactive_scene_impl::interactive_scene_impl(
     _In_ string_t sceneId,
     _In_ string_t etag,
     _In_ bool disabled,
@@ -263,8 +263,8 @@ beam_scene_impl::beam_scene_impl(
     m_etag(std::move(etag)),
     m_disabled(std::move(disabled))
 {
-    m_beamManager = beam_manager::get_singleton_instance();
+    m_interactivityManager = interactivity_manager::get_singleton_instance();
 }
 
-NAMESPACE_MICROSOFT_XBOX_BEAM_END
+NAMESPACE_MICROSOFT_MIXER_END
 

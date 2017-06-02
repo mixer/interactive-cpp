@@ -11,7 +11,7 @@ using namespace Platform;
 using namespace xbox::services;
 using namespace xbox::services::leaderboard;
 using namespace concurrency;
-using namespace xbox::services::beam;
+using namespace MICROSOFT_MIXER_NAMESPACE;
 
 namespace
 {
@@ -280,9 +280,9 @@ void Sample::Update(DX::StepTimer const& timer)
         m_liveResources->TrySignInCurrentUser();
     }
 
-    if (m_beamManager != nullptr)
+    if (m_interactivityManager != nullptr)
     {
-        UpdateBeamManager();
+        UpdateInteractivityManager();
     }
 
     PIXEndEvent();

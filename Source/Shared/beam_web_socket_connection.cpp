@@ -14,7 +14,7 @@
 
 using namespace web::websockets::client;
 
-NAMESPACE_MICROSOFT_XBOX_BEAM_BEGIN
+NAMESPACE_MICROSOFT_MIXER_BEGIN
 
 web_socket_connection::web_socket_connection(
     _In_ string_t bearerToken,
@@ -24,8 +24,8 @@ web_socket_connection::web_socket_connection(
     m_bearerToken(std::move(bearerToken)),
     m_interactiveVersion(std::move(interactiveVersion)),
     m_protocolVersion(std::move(protocolVersion)),
-    m_state(beam_web_socket_connection_state::disconnected),
-    m_client(std::make_shared<beam_web_socket_client>()),
+    m_state(mixer_web_socket_connection_state::disconnected),
+    m_client(std::make_shared<mixer_web_socket_client>()),
     m_closeCallbackSet(false),
     m_closeRequested(false),
     m_connectionAttempts(0)
@@ -39,14 +39,14 @@ web_socket_connection::ensure_connected()
     // As soon as this API gets called, move away from disconnected state
     if (m_connectingTask == pplx::task<void>())
     {
-        set_state_helper(beam_web_socket_connection_state::activated);
+        set_state_helper(mixer_web_socket_connection_state::activated);
         m_connectingTask = pplx::task_from_result();
     }
 
     std::lock_guard<std::recursive_mutex> lock(m_stateLocker);
 
     // If it's still connecting or connected return.
-    if (!m_connectingTask.is_done() || m_state == beam_web_socket_connection_state::connected)
+    if (!m_connectingTask.is_done() || m_state == mixer_web_socket_connection_state::connected)
     {
         return;
     }
@@ -54,11 +54,11 @@ web_socket_connection::ensure_connected()
     if (m_connectionAttempts > 6)
     {
         //retry didn't help, notify caller, we're in stable disconnected state
-        set_state_helper(beam_web_socket_connection_state::disconnected);
+        set_state_helper(mixer_web_socket_connection_state::disconnected);
         return;
     }
 
-    set_state_helper(beam_web_socket_connection_state::connecting);
+    set_state_helper(mixer_web_socket_connection_state::connecting);
 
     m_closeRequested = false;
 
@@ -115,7 +115,7 @@ web_socket_connection::connect_async()
                 //We've connected, reset retries
                 pThis->m_connectionAttempts = 0;
 
-                pThis->set_state_helper(beam_web_socket_connection_state::connected);
+                pThis->set_state_helper(mixer_web_socket_connection_state::connected);
 
                 if (!pThis->m_closeCallbackSet)
                 {
@@ -141,7 +141,7 @@ web_socket_connection::connect_async()
     });
 }
 
-beam_web_socket_connection_state
+mixer_web_socket_connection_state
 web_socket_connection::state()
 {
     std::lock_guard<std::recursive_mutex> lock(m_stateLocker);
@@ -196,33 +196,33 @@ web_socket_connection::on_close(uint16_t code, string_t reason)
     {
         LOG_INFO("web_socket_connection on close, not requested");
         // try to reconnect
-        set_state_helper(beam_web_socket_connection_state::connecting);
+        set_state_helper(mixer_web_socket_connection_state::connecting);
         ensure_connected();
     }
     else
     {
         LOG_INFO("web_socket_connection on close, requested");
-        set_state_helper(beam_web_socket_connection_state::disconnected);
+        set_state_helper(mixer_web_socket_connection_state::disconnected);
     }
 }
 
 void
 web_socket_connection::set_connection_state_change_handler(
-    _In_ std::function<void(beam_web_socket_connection_state oldState, beam_web_socket_connection_state newState)> handler
+    _In_ std::function<void(mixer_web_socket_connection_state oldState, mixer_web_socket_connection_state newState)> handler
     )
 {
     std::lock_guard<std::recursive_mutex> lock(m_stateLocker);
     m_externalStateChangeHandler = handler;
 }
 
-void web_socket_connection::set_state_helper(_In_ beam_web_socket_connection_state newState)
+void web_socket_connection::set_state_helper(_In_ mixer_web_socket_connection_state newState)
 {
-    beam_web_socket_connection_state oldState;
-    std::function<void(beam_web_socket_connection_state oldState, beam_web_socket_connection_state newState)> externalStateChangeHandlerCopy;
+    mixer_web_socket_connection_state oldState;
+    std::function<void(mixer_web_socket_connection_state oldState, mixer_web_socket_connection_state newState)> externalStateChangeHandlerCopy;
     {
         std::lock_guard<std::recursive_mutex> lock(m_stateLocker);
         // Can only set state to activated if current state is disconnected
-        if (newState == beam_web_socket_connection_state::activated && m_state != beam_web_socket_connection_state::disconnected)
+        if (newState == mixer_web_socket_connection_state::activated && m_state != mixer_web_socket_connection_state::disconnected)
         {
             return;
         }
@@ -251,16 +251,16 @@ void web_socket_connection::set_state_helper(_In_ beam_web_socket_connection_sta
 }
 
 const string_t
-web_socket_connection::convert_web_socket_connection_state_to_string(_In_ beam_web_socket_connection_state state)
+web_socket_connection::convert_web_socket_connection_state_to_string(_In_ mixer_web_socket_connection_state state)
 {
     switch (state)
     {
-    case beam_web_socket_connection_state::disconnected: return _T("disconnected");
-    case beam_web_socket_connection_state::activated: return _T("activated");
-    case beam_web_socket_connection_state::connecting: return _T("connecting");
-    case beam_web_socket_connection_state::connected: return _T("connected");
+    case mixer_web_socket_connection_state::disconnected: return _T("disconnected");
+    case mixer_web_socket_connection_state::activated: return _T("activated");
+    case mixer_web_socket_connection_state::connecting: return _T("connecting");
+    case mixer_web_socket_connection_state::connected: return _T("connected");
     default: return _T("unknownState");
     }
 }
 
-NAMESPACE_MICROSOFT_XBOX_BEAM_END
+NAMESPACE_MICROSOFT_MIXER_END

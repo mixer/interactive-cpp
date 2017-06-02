@@ -9,11 +9,11 @@
 #include "LiveResources.h"
 
 #include "namespaces.h"
-#define _BEAMIMP_EXPORT
+#define _MIXERIMP_EXPORT
 #include "beam_types.h"
 #include "beam.h"
 
-using namespace xbox::services::beam;
+using namespace MICROSOFT_MIXER_NAMESPACE;
 
 // A basic sample implementation that creates a D3D11 device and
 // provides a render loop.
@@ -48,13 +48,13 @@ private:
     void AddParticipantToGroup();
     void DisbandGroups();
     void TriggerCooldownOnButtons(string_t groupId);
-    void ProcessInteractiveEvents(std::vector<beam_event> events);
-    void HandleInteractivityError(beam_event event);
-    void HandleInteractivityStateChange(beam_event event);
-    void HandleParticipantStateChange(beam_event event);
-    void HandleInteractiveControlEvent(beam_event event);
-    void HandleButtonEvents(std::shared_ptr<beam_button_event_args> buttonEventArgs);
-    void HandleJoystickEvents(std::shared_ptr<beam_joystick_event_args> joystickEventArgs);
+    void ProcessInteractiveEvents(std::vector<interactive_event> events);
+    void HandleInteractivityError(interactive_event event);
+    void HandleInteractivityStateChange(interactive_event event);
+    void HandleParticipantStateChange(interactive_event event);
+    void HandleInteractiveControlEvent(interactive_event event);
+    void HandleButtonEvents(std::shared_ptr<interactive_button_event_args> buttonEventArgs);
+    void HandleJoystickEvents(std::shared_ptr<interactive_joystick_event_args> joystickEventArgs);
 
     void SetupUI();
     void Update(DX::StepTimer const& timer);
@@ -81,10 +81,10 @@ private:
     std::unique_ptr<ATG::LiveResources>         m_liveResources;
 
     // Interactivity objects
-    std::shared_ptr<xbox::services::beam::beam_manager> m_beamManager;
-    xbox::services::beam::beam_interactivity_state      m_currentInteractiveState;
-    std::vector<std::shared_ptr<beam_scene>>            m_scenesList;
-    std::vector<std::shared_ptr<beam_group>>            m_groupsList;
+    std::shared_ptr<interactivity_manager> m_interactivityManager;
+    interactivity_state      m_currentInteractiveState;
+    std::vector<std::shared_ptr<interactive_scene>>            m_scenesList;
+    std::vector<std::shared_ptr<interactive_group>>            m_groupsList;
     uint32_t                                            m_voteYesCount;
     uint32_t                                            m_voteNoCount;
     std::map<string_t, std::vector<string_t>>           m_groupToSceneMap;

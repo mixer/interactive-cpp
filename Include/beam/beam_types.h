@@ -1,9 +1,4 @@
 
-#ifdef BEAM_API
-#undef BEAM_API
-#endif
-#define BEAM_API 1
-
 #ifdef _WIN32
 #include <Windows.h>
 #include <system_error>
@@ -32,7 +27,7 @@
 #include <regex>
 #include <chrono>
 
-#endif //#ifdef _WIN32
+#endif //_WIN32
 
 #ifndef _WIN32
 #ifdef _In_
@@ -58,25 +53,25 @@
 #endif
 
 #if defined _WIN32
-#ifdef _NO_BEAMIMP
-#define _BEAMIMP
-#define _BEAMIMP_DEPRECATED __declspec(deprecated)
+#ifdef _NO_MIXERIMP
+#define _MIXERIMP
+#define _MIXERIMP_DEPRECATED __declspec(deprecated)
 #else
-#ifdef _BEAMIMP_EXPORT
-#define _BEAMIMP __declspec(dllexport)
-#define _BEAMIMP_DEPRECATED __declspec(dllexport, deprecated)
+#ifdef _MIXERIMP_EXPORT
+#define _MIXERIMP __declspec(dllexport)
+#define _MIXERIMP_DEPRECATED __declspec(dllexport, deprecated)
 #else
-#define _BEAMIMP __declspec(dllimport)
-#define _BEAMIMP_DEPRECATED __declspec(dllimport, deprecated)
+#define _MIXERIMP __declspec(dllimport)
+#define _MIXERIMP_DEPRECATED __declspec(dllimport, deprecated)
 #endif
 #endif
 #else
-#if defined _NO_BEAMIMP || __GNUC__ < 4
-#define _BEAMIMP
-#define _BEAMIMP_DEPRECATED __attribute__ ((deprecated))
+#if defined _NO_MIXERIMP || __GNUC__ < 4
+#define _MIXERIMP
+#define _MIXERIMP_DEPRECATED __attribute__ ((deprecated))
 #else
-#define _BEAMIMP __attribute__ ((visibility ("default")))
-#define _BEAMIMP_DEPRECATED __attribute__ ((visibility ("default"), deprecated))
+#define _MIXERIMP __attribute__ ((visibility ("default")))
+#define _MIXERIMP_DEPRECATED __attribute__ ((visibility ("default"), deprecated))
 #endif
 #endif
 
@@ -108,6 +103,6 @@ typedef std::chrono::system_clock chrono_clock_t;
 typedef std::chrono::steady_clock chrono_clock_t;
 #endif
 
-// for beam streamlined build
+// for streamlined build
 #include <sstream>
 #include "namespaces.h"

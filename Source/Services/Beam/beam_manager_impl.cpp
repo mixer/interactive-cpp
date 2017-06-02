@@ -18,28 +18,28 @@ const string_t requestServerUri = L"https://beam.pro/api/v1/interactive/hosts";
 const string_t localServiceUri = L"ws://127.0.0.1:3000/gameClient";
 const string_t protocolVersion = L"2.0";
 
-NAMESPACE_MICROSOFT_XBOX_BEAM_BEGIN
+NAMESPACE_MICROSOFT_MIXER_BEGIN
 
-std::shared_ptr<beam_event> create_beam_event(string_t errorMessage, std::error_code errorCode, beam_event_type type, std::shared_ptr<beam_event_args> args)
+std::shared_ptr<interactive_event> create_interactive_event(string_t errorMessage, std::error_code errorCode, interactive_event_type type, std::shared_ptr<interactive_event_args> args)
 {
-    std::shared_ptr<beam_event> event = std::make_shared<beam_event>(unix_timestamp_in_ms(), errorCode, errorMessage, type, args);
+    std::shared_ptr<interactive_event> event = std::make_shared<interactive_event>(unix_timestamp_in_ms(), errorCode, errorMessage, type, args);
     return event;
 }
 
 
-string_t beam_rpc_message::to_string()
+string_t interactive_rpc_message::to_string()
 {
     return m_json.serialize();
 }
 
-uint32_t beam_rpc_message::id() { return m_id; }
+uint32_t interactive_rpc_message::id() { return m_id; }
 
-std::chrono::milliseconds beam_rpc_message::timestamp()
+std::chrono::milliseconds interactive_rpc_message::timestamp()
 {
     return m_timestamp;
 }
 
-beam_rpc_message::beam_rpc_message(uint32_t id, web::json::value jsonMessage, std::chrono::milliseconds timestamp) :
+interactive_rpc_message::interactive_rpc_message(uint32_t id, web::json::value jsonMessage, std::chrono::milliseconds timestamp) :
     m_retries(0),
     m_id(id),
     m_json(std::move(jsonMessage)),
@@ -47,9 +47,9 @@ beam_rpc_message::beam_rpc_message(uint32_t id, web::json::value jsonMessage, st
 {
 }
 
-beam_manager_impl::beam_manager_impl() :
-    m_connectionState(beam_interactivity_connection_state::disconnected),
-    m_interactivityState(beam_interactivity_state::not_initialized),
+interactivity_manager_impl::interactivity_manager_impl() :
+    m_connectionState(interactivity_connection_state::disconnected),
+    m_interactivityState(interactivity_state::not_initialized),
     m_initRetryAttempt(0),
     m_maxInitRetries(10),
     m_initRetryInterval(std::chrono::milliseconds(100)),
@@ -68,19 +68,19 @@ beam_manager_impl::beam_manager_impl() :
     m_initializingTask = pplx::task_from_result();
 }
 
-beam_manager_impl::~beam_manager_impl()
+interactivity_manager_impl::~interactivity_manager_impl()
 {
     close_websocket();
 }
 
-void beam_manager_impl::close_websocket()
+void interactivity_manager_impl::close_websocket()
 {
-    std::shared_ptr<XBOX_BEAM_NAMESPACE::web_socket_connection> socketToClean;
+    std::shared_ptr<MICROSOFT_MIXER_NAMESPACE::web_socket_connection> socketToClean;
     {
         std::lock_guard<std::recursive_mutex> lock(m_lock);
         socketToClean = m_webSocketConnection;
         m_webSocketConnection = nullptr;
-        m_connectionState = beam_interactivity_connection_state::disconnected;
+        m_connectionState = interactivity_connection_state::disconnected;
     }
 
     if (socketToClean != nullptr)
@@ -108,13 +108,13 @@ void beam_manager_impl::close_websocket()
 }
 
 bool
-beam_manager_impl::initialize(
+interactivity_manager_impl::initialize(
     _In_ string_t interactiveVersion,
     _In_ bool goInteractive
 )
 {
     std::lock_guard<std::recursive_mutex> lock(m_lock);
-    if (beam_interactivity_state::not_initialized != m_interactivityState)
+    if (interactivity_state::not_initialized != m_interactivityState)
     {
         return true;
     }
@@ -122,13 +122,13 @@ beam_manager_impl::initialize(
     m_interactiveVersion = interactiveVersion;
 
     // Create long-running initialization task
-    std::weak_ptr<beam_manager_impl> thisWeakPtr = shared_from_this();
+    std::weak_ptr<interactivity_manager_impl> thisWeakPtr = shared_from_this();
 
     if (m_initializingTask.is_done())
     {
         m_initializingTask = pplx::create_task([thisWeakPtr, interactiveVersion, goInteractive]()
         {
-            std::shared_ptr<beam_manager_impl> pThis;
+            std::shared_ptr<interactivity_manager_impl> pThis;
             pThis = thisWeakPtr.lock();
             if (nullptr != pThis)
             {
@@ -138,7 +138,7 @@ beam_manager_impl::initialize(
     }
     else
     {
-        LOGS_DEBUG << "beam_manager initialization already in progress";
+        LOGS_DEBUG << "interactivity_manager initialization already in progress";
         return false;
     }
 
@@ -147,7 +147,7 @@ beam_manager_impl::initialize(
     {
         pplx::create_task([thisWeakPtr]()
         {
-            std::shared_ptr<beam_manager_impl> pThis;
+            std::shared_ptr<interactivity_manager_impl> pThis;
             pThis = thisWeakPtr.lock();
             if (nullptr != pThis)
             {
@@ -161,22 +161,22 @@ beam_manager_impl::initialize(
 }
 
 #if TV_API | XBOX_UWP
-std::shared_ptr<beam_event>
-beam_manager_impl::set_local_user(xbox_live_user_t user)
+std::shared_ptr<interactive_event>
+interactivity_manager_impl::set_local_user(xbox_live_user_t user)
 {
     std::lock_guard<std::recursive_mutex> lock(m_lock);
 
     auto duration = std::chrono::steady_clock::now().time_since_epoch();
     std::chrono::milliseconds currTime = std::chrono::duration_cast<std::chrono::milliseconds>(duration);
-    std::shared_ptr<beam_event> event = nullptr;
+    std::shared_ptr<interactive_event> event = nullptr;
     
-    if (beam_interactivity_state::interactivity_enabled == m_interactivityState || beam_interactivity_state::interactivity_pending == m_interactivityState)
+    if (interactivity_state::interactivity_enabled == m_interactivityState || interactivity_state::interactivity_pending == m_interactivityState)
     {
-        event = std::make_shared<xbox::services::beam::beam_event>(currTime, std::error_code(0, std::generic_category()), L"Cannot change local user while in an interactive state", beam_event_type::error, nullptr);
+        event = std::make_shared<MICROSOFT_MIXER_NAMESPACE::interactive_event>(currTime, std::error_code(0, std::generic_category()), L"Cannot change local user while in an interactive state", interactive_event_type::error, nullptr);
     }
-    else if (beam_interactivity_state::initializing == m_interactivityState)
+    else if (interactivity_state::initializing == m_interactivityState)
     {
-        event = std::make_shared<xbox::services::beam::beam_event>(currTime, std::error_code(0, std::generic_category()), L"Cannot change local user while initialization is in progress", beam_event_type::error, nullptr);
+        event = std::make_shared<MICROSOFT_MIXER_NAMESPACE::interactive_event>(currTime, std::error_code(0, std::generic_category()), L"Cannot change local user while initialization is in progress", interactive_event_type::error, nullptr);
     }
     else
     {
@@ -190,29 +190,29 @@ beam_manager_impl::set_local_user(xbox_live_user_t user)
         if (m_localUserInitialized)
         {
             m_localUserInitialized = false;
-            set_interactivity_state(beam_interactivity_state::not_initialized);
+            set_interactivity_state(interactivity_state::not_initialized);
         }
     }
 
     return event;
 }
 #else
-std::shared_ptr<beam_event>
-beam_manager_impl::set_xtoken(_In_ string_t token)
+std::shared_ptr<interactive_event>
+interactivity_manager_impl::set_xtoken(_In_ string_t token)
 {
     std::lock_guard<std::recursive_mutex> lock(m_lock);
 
     auto duration = std::chrono::steady_clock::now().time_since_epoch();
     std::chrono::milliseconds currTime = std::chrono::duration_cast<std::chrono::milliseconds>(duration);
-    std::shared_ptr<beam_event> event = nullptr;
+    std::shared_ptr<interactive_event> event = nullptr;
 
-    if (beam_interactivity_state::interactivity_enabled == m_interactivityState || beam_interactivity_state::interactivity_pending == m_interactivityState)
+    if (interactivity_state::interactivity_enabled == m_interactivityState || interactivity_state::interactivity_pending == m_interactivityState)
     {
-        event = std::make_shared<xbox::services::beam::beam_event>(currTime, std::error_code(0, std::generic_category()), L"Cannot set token while in an interactive state", beam_event_type::error, nullptr);
+        event = std::make_shared<MICROSOFT_MIXER_NAMESPACE::interactive_event>(currTime, std::error_code(0, std::generic_category()), L"Cannot set token while in an interactive state", interactive_event_type::error, nullptr);
     }
-    else if (beam_interactivity_state::initializing == m_interactivityState)
+    else if (interactivity_state::initializing == m_interactivityState)
     {
-        event = std::make_shared<xbox::services::beam::beam_event>(currTime, std::error_code(0, std::generic_category()), L"Cannot set token while initialization is in progress", beam_event_type::error, nullptr);
+        event = std::make_shared<MICROSOFT_MIXER_NAMESPACE::interactive_event>(currTime, std::error_code(0, std::generic_category()), L"Cannot set token while initialization is in progress", interactive_event_type::error, nullptr);
     }
     else
     {
@@ -224,15 +224,15 @@ beam_manager_impl::set_xtoken(_In_ string_t token)
 #endif
 
 void
-beam_manager_impl::init_worker(
+interactivity_manager_impl::init_worker(
     _In_ string_t interactiveVersion,
     _In_ bool goInteractive
 )
 {
     bool success = true;
-    std::shared_ptr<beam_event> errorEvent;
+    std::shared_ptr<interactive_event> errorEvent;
 
-    set_interactivity_state(beam_interactivity_state::initializing);
+    set_interactivity_state(interactivity_state::initializing);
 
     success = get_auth_token(errorEvent);
 
@@ -241,7 +241,7 @@ beam_manager_impl::init_worker(
         success = get_interactive_host();
         if (!success)
         {
-            errorEvent = create_beam_event(L"beam_manager::initialize failed", std::make_error_code(std::errc::operation_canceled), beam_event_type::error, nullptr);
+            errorEvent = create_interactive_event(L"interactivity_manager::initialize failed", std::make_error_code(std::errc::operation_canceled), interactive_event_type::error, nullptr);
         }
     }
 
@@ -256,7 +256,7 @@ beam_manager_impl::init_worker(
         {
             if (m_initScenesComplete && m_initGroupsComplete && m_initServerTimeComplete)
             {
-                set_interactivity_state(beam_interactivity_state::interactivity_disabled);
+                set_interactivity_state(interactivity_state::interactivity_disabled);
                 break;
             }
 
@@ -275,7 +275,7 @@ beam_manager_impl::init_worker(
     if (success && goInteractive)
     {
         // If initialization succeeded, start interactivity
-        if (m_interactivityState == beam_interactivity_state::interactivity_disabled)
+        if (m_interactivityState == interactivity_state::interactivity_disabled)
         {
             start_interactive();
         }
@@ -283,12 +283,12 @@ beam_manager_impl::init_worker(
     
     if (!success)
     {
-        LOGS_DEBUG << L"Failed to initialize beam_manager.";
-        set_interactivity_state(beam_interactivity_state::not_initialized);
+        LOGS_DEBUG << L"Failed to initialize interactivity_manager.";
+        set_interactivity_state(interactivity_state::not_initialized);
 
         if (nullptr == errorEvent)
         {
-            errorEvent = create_beam_event(L"beam_manager::initialize failed", std::make_error_code(std::errc::operation_canceled), beam_event_type::error, nullptr);
+            errorEvent = create_interactive_event(L"interactivity_manager::initialize failed", std::make_error_code(std::errc::operation_canceled), interactive_event_type::error, nullptr);
         }
 
         {
@@ -301,7 +301,7 @@ beam_manager_impl::init_worker(
 }
 
 
-void xbox::services::beam::beam_manager_impl::process_messages_worker()
+void MICROSOFT_MIXER_NAMESPACE::interactivity_manager_impl::process_messages_worker()
 {
     static const int chunkSize = 10;
     while (m_processing)
@@ -310,7 +310,7 @@ void xbox::services::beam::beam_manager_impl::process_messages_worker()
             std::lock_guard<std::recursive_mutex> lock(m_messagesLock);
             for (int i = 0; i < chunkSize && !m_unhandledFromService.empty(); i++)
             {
-                std::shared_ptr<beam_rpc_message> currentMessage = m_unhandledFromService.front();
+                std::shared_ptr<interactive_rpc_message> currentMessage = m_unhandledFromService.front();
                 m_unhandledFromService.pop();
                 try
                 {
@@ -339,12 +339,12 @@ void xbox::services::beam::beam_manager_impl::process_messages_worker()
             }
         }
 
-        if (m_webSocketConnection && m_webSocketConnection->state() == beam_web_socket_connection_state::connected)
+        if (m_webSocketConnection && m_webSocketConnection->state() == mixer_web_socket_connection_state::connected)
         {
             std::lock_guard<std::recursive_mutex> lock(m_messagesLock);
             for (int i = 0; i < chunkSize && !m_pendingSend.empty(); i++)
             {
-                std::shared_ptr<beam_rpc_message> currentMessage = m_pendingSend.front();
+                std::shared_ptr<interactive_rpc_message> currentMessage = m_pendingSend.front();
                 m_pendingSend.pop();
                 send_message(currentMessage);
             }
@@ -357,7 +357,7 @@ void xbox::services::beam::beam_manager_impl::process_messages_worker()
             std::lock_guard<std::recursive_mutex> lock(m_messagesLock);
             for (int i = 0; i < chunkSize && i < m_awaitingReply.size(); i++)
             {
-                std::shared_ptr<beam_rpc_message> currentMessage = m_awaitingReply[i];
+                std::shared_ptr<interactive_rpc_message> currentMessage = m_awaitingReply[i];
 
                 auto currentTime = unix_timestamp_in_ms();
                 auto messageElapsedTime = currentTime - currentMessage->m_timestamp;
@@ -383,28 +383,28 @@ void xbox::services::beam::beam_manager_impl::process_messages_worker()
 
 
 bool
-beam_manager_impl::get_auth_token(_Out_ std::shared_ptr<beam_event> &errorEvent)
+interactivity_manager_impl::get_auth_token(_Out_ std::shared_ptr<interactive_event> &errorEvent)
 {
 #if TV_API | XBOX_UWP
     if (0 == m_localUsers.size())
     {
-        errorEvent = create_beam_event(L"No local users registered, cannot complete initialization", std::make_error_code(std::errc::operation_canceled), beam_event_type::error, nullptr);
+        errorEvent = create_interactive_event(L"No local users registered, cannot complete initialization", std::make_error_code(std::errc::operation_canceled), interactive_event_type::error, nullptr);
         return false;
     }
     else
     {
-        string_t beamUri = L"https://mixer.com";
+        string_t mixerUri = L"https://mixer.com";
         string_t authRequestHeaders = L"";
         auto platformHttp = ref new Platform::String(L"POST");
-        auto platformUrl = ref new Platform::String(beamUri.c_str());
+        auto platformUrl = ref new Platform::String(mixerUri.c_str());
         auto platformHeaders = ref new Platform::String(authRequestHeaders.c_str());
 
         pplx::task<Windows::Xbox::System::GetTokenAndSignatureResult^> asyncTask;
 
-        std::weak_ptr<beam_manager_impl> thisWeakPtr = shared_from_this();
+        std::weak_ptr<interactivity_manager_impl> thisWeakPtr = shared_from_this();
         asyncTask = pplx::create_task([thisWeakPtr, platformHttp, platformUrl, platformHeaders]()
         {
-            std::shared_ptr<beam_manager_impl> pThis;
+            std::shared_ptr<interactivity_manager_impl> pThis;
             pThis = thisWeakPtr.lock();
             return pThis->m_localUsers[0]->GetTokenAndSignatureAsync(
                 platformHttp,
@@ -420,7 +420,7 @@ beam_manager_impl::get_auth_token(_Out_ std::shared_ptr<beam_event> &errorEvent)
             if (token.empty())
             {
                 LOGS_INFO << "Failed to retrieve token from local user";
-                errorEvent = create_beam_event(L"Failed to retrieve token from local user", std::make_error_code(std::errc::operation_canceled), beam_event_type::error, nullptr);
+                errorEvent = create_interactive_event(L"Failed to retrieve token from local user", std::make_error_code(std::errc::operation_canceled), interactive_event_type::error, nullptr);
                 return false;
             }
 
@@ -437,7 +437,7 @@ beam_manager_impl::get_auth_token(_Out_ std::shared_ptr<beam_event> &errorEvent)
     if (m_accessToken.empty())
     {
         LOGS_INFO << "Token empty";
-        errorEvent = create_beam_event(L"Token empty", std::make_error_code(std::errc::operation_canceled), beam_event_type::error, nullptr);
+        errorEvent = create_interactive_event(L"Token empty", std::make_error_code(std::errc::operation_canceled), interactive_event_type::error, nullptr);
         return false;
     }
 #endif
@@ -446,7 +446,7 @@ beam_manager_impl::get_auth_token(_Out_ std::shared_ptr<beam_event> &errorEvent)
 }
 
 bool
-beam_manager_impl::get_interactive_host()
+interactivity_manager_impl::get_interactive_host()
 {
     bool success = true;
 
@@ -457,7 +457,7 @@ beam_manager_impl::get_interactive_host()
         auto response = result.get();
         if (response.status_code() == web::http::status_codes::OK)
         {
-            std::weak_ptr<beam_manager_impl> thisWeakPtr = shared_from_this();
+            std::weak_ptr<interactivity_manager_impl> thisWeakPtr = shared_from_this();
             auto jsonTask = response.extract_json();
 
             try
@@ -489,22 +489,22 @@ beam_manager_impl::get_interactive_host()
 
 
 void
-beam_manager_impl::initialize_websockets_helper()
+interactivity_manager_impl::initialize_websockets_helper()
 {
-    if (m_interactivityState == beam_interactivity_state::initializing)
+    if (m_interactivityState == interactivity_state::initializing)
     {
         if (m_webSocketConnection != nullptr)
         {
             close_websocket();
         }
 
-        m_webSocketConnection = std::make_shared<XBOX_BEAM_NAMESPACE::web_socket_connection>(m_accessToken, m_interactiveVersion, protocolVersion);
+        m_webSocketConnection = std::make_shared<MICROSOFT_MIXER_NAMESPACE::web_socket_connection>(m_accessToken, m_interactiveVersion, protocolVersion);
 
         // We will reset these event handlers on destructor, so it's safe to pass in 'this' here.
-        std::weak_ptr<beam_manager_impl> thisWeakPtr = shared_from_this();
-        m_webSocketConnection->set_connection_state_change_handler([thisWeakPtr](beam_web_socket_connection_state oldState, beam_web_socket_connection_state newState)
+        std::weak_ptr<interactivity_manager_impl> thisWeakPtr = shared_from_this();
+        m_webSocketConnection->set_connection_state_change_handler([thisWeakPtr](mixer_web_socket_connection_state oldState, mixer_web_socket_connection_state newState)
         {
-            std::shared_ptr<beam_manager_impl> pThis(thisWeakPtr.lock());
+            std::shared_ptr<interactivity_manager_impl> pThis(thisWeakPtr.lock());
             if (pThis != nullptr)
             {
                 pThis->on_socket_connection_state_change(oldState, newState);
@@ -513,7 +513,7 @@ beam_manager_impl::initialize_websockets_helper()
 
         m_webSocketConnection->set_received_handler([thisWeakPtr](string_t message)
         {
-            std::shared_ptr<beam_manager_impl> pThis(thisWeakPtr.lock());
+            std::shared_ptr<interactivity_manager_impl> pThis(thisWeakPtr.lock());
             if (pThis != nullptr)
             {
                 pThis->on_socket_message_received(message);
@@ -528,7 +528,7 @@ beam_manager_impl::initialize_websockets_helper()
 }
 
 uint32_t
-beam_manager_impl::get_next_message_id()
+interactivity_manager_impl::get_next_message_id()
 {
     static uint32_t nextMessageId = 0;
     return nextMessageId++;
@@ -536,11 +536,11 @@ beam_manager_impl::get_next_message_id()
 
 
 bool
-beam_manager_impl::initialize_server_state_helper()
+interactivity_manager_impl::initialize_server_state_helper()
 {
     while (m_initRetryAttempt < m_maxInitRetries)
     {
-        if (beam_interactivity_connection_state::connected == m_connectionState)
+        if (interactivity_connection_state::connected == m_connectionState)
         {
             break;
         }
@@ -555,104 +555,104 @@ beam_manager_impl::initialize_server_state_helper()
     if (m_initRetryAttempt < m_maxInitRetries)
     {
         // request service time, for synchronization purposes
-        std::shared_ptr<beam_rpc_message> getTimeMessage = build_mediator_rpc_message(get_next_message_id(), RPC_METHOD_GET_TIME, web::json::value(), false);
+        std::shared_ptr<interactive_rpc_message> getTimeMessage = build_mediator_rpc_message(get_next_message_id(), RPC_METHOD_GET_TIME, web::json::value(), false);
         queue_message_for_service(getTimeMessage);
 
         // request groups
-        std::shared_ptr<beam_rpc_message> getGroupsMessage = build_mediator_rpc_message(get_next_message_id(), RPC_METHOD_GET_GROUPS, web::json::value(), false);
+        std::shared_ptr<interactive_rpc_message> getGroupsMessage = build_mediator_rpc_message(get_next_message_id(), RPC_METHOD_GET_GROUPS, web::json::value(), false);
         queue_message_for_service(getGroupsMessage);
 
         // request scenes
-        std::shared_ptr<beam_rpc_message> getScenesMessage = build_mediator_rpc_message(get_next_message_id(), RPC_METHOD_GET_SCENES, web::json::value(), false);
+        std::shared_ptr<interactive_rpc_message> getScenesMessage = build_mediator_rpc_message(get_next_message_id(), RPC_METHOD_GET_SCENES, web::json::value(), false);
         queue_message_for_service(getScenesMessage);
 
         return true;
     }
     else
     {
-        LOG_ERROR("Beam manager initialization failed - websocket connection timed out");
+        LOG_ERROR("Interactivity manager initialization failed - websocket connection timed out");
         return false;
     }
 }
 
 const std::chrono::milliseconds
-beam_manager_impl::get_server_time()
+interactivity_manager_impl::get_server_time()
 {
     std::chrono::milliseconds serverTime = unix_timestamp_in_ms() - m_serverTimeOffset;
 
     return serverTime;
 }
 
-const beam_interactivity_state
-beam_manager_impl::interactivity_state()
+const interactivity_state
+interactivity_manager_impl::interactivity_state()
 {
     return m_interactivityState;
 }
 
 bool
-beam_manager_impl::start_interactive()
+interactivity_manager_impl::start_interactive()
 {
     std::lock_guard<std::recursive_mutex> lock(m_lock);
 
-    if (!m_webSocketConnection || (m_webSocketConnection && m_webSocketConnection->state() != beam_web_socket_connection_state::connected))
+    if (!m_webSocketConnection || (m_webSocketConnection && m_webSocketConnection->state() != mixer_web_socket_connection_state::connected))
     {
-        queue_beam_event_for_client(L"Websocket connection has not been established, please wait for the initialized state", std::make_error_code(std::errc::not_connected), beam_event_type::error, nullptr);
+        queue_interactive_event_for_client(L"Websocket connection has not been established, please wait for the initialized state", std::make_error_code(std::errc::not_connected), interactive_event_type::error, nullptr);
         return false;
     }
 
-    if (m_interactivityState == beam_interactivity_state::not_initialized)
+    if (m_interactivityState == interactivity_state::not_initialized)
     {
-        queue_beam_event_for_client(L"Interactivity not initialized. Must call beam_manager::initialize before requesting start_interactive", std::make_error_code(std::errc::not_connected), beam_event_type::error, nullptr);
+        queue_interactive_event_for_client(L"Interactivity not initialized. Must call interactivity_manager::initialize before requesting start_interactive", std::make_error_code(std::errc::not_connected), interactive_event_type::error, nullptr);
         return false;
     }
 
-    if (m_interactivityState == beam_interactivity_state::initializing)
+    if (m_interactivityState == interactivity_state::initializing)
     {
-        queue_beam_event_for_client(L"Interactivity initialization is pending. Please wait for initialize to complete", std::make_error_code(std::errc::not_connected), beam_event_type::error, nullptr);
+        queue_interactive_event_for_client(L"Interactivity initialization is pending. Please wait for initialize to complete", std::make_error_code(std::errc::not_connected), interactive_event_type::error, nullptr);
         return false;
     }
 
-    set_interactivity_state(beam_interactivity_state::interactivity_pending);
+    set_interactivity_state(interactivity_state::interactivity_pending);
 
     web::json::value params;
     params[RPC_PARAM_IS_READY] = web::json::value::boolean(true);
-    std::shared_ptr<beam_rpc_message> sendInteractiveReadyMessage = build_mediator_rpc_message(get_next_message_id(), RPC_METHOD_READY, params, true);
+    std::shared_ptr<interactive_rpc_message> sendInteractiveReadyMessage = build_mediator_rpc_message(get_next_message_id(), RPC_METHOD_READY, params, true);
     queue_message_for_service(sendInteractiveReadyMessage);
 
     return true;
 }
 
 bool
-beam_manager_impl::stop_interactive()
+interactivity_manager_impl::stop_interactive()
 {
     std::lock_guard<std::recursive_mutex> lock(m_lock);
 
-    if (m_interactivityState == beam_interactivity_state::not_initialized || m_interactivityState == beam_interactivity_state::interactivity_disabled)
+    if (m_interactivityState == interactivity_state::not_initialized || m_interactivityState == interactivity_state::interactivity_disabled)
     {
         return true;
     }
 
-    set_interactivity_state(beam_interactivity_state::interactivity_pending);
+    set_interactivity_state(interactivity_state::interactivity_pending);
 
     web::json::value params;
     params[RPC_PARAM_IS_READY] = web::json::value::boolean(false);
-    std::shared_ptr<beam_rpc_message> sendInteractiveReadyMessage = build_mediator_rpc_message(get_next_message_id(), RPC_METHOD_READY, params, false);
+    std::shared_ptr<interactive_rpc_message> sendInteractiveReadyMessage = build_mediator_rpc_message(get_next_message_id(), RPC_METHOD_READY, params, false);
     queue_message_for_service(sendInteractiveReadyMessage);
 
     return true;
 }
 
-const std::shared_ptr<beam_participant>&
-beam_manager_impl::participant(_In_ uint32_t beamId)
+const std::shared_ptr<interactive_participant>&
+interactivity_manager_impl::participant(_In_ uint32_t mixerId)
 {
-    return m_participants[beamId];
+    return m_participants[mixerId];
 }
 
 
-std::vector<std::shared_ptr<beam_participant>>
-beam_manager_impl::participants()
+std::vector<std::shared_ptr<interactive_participant>>
+interactivity_manager_impl::participants()
 {
-    std::vector<std::shared_ptr<beam_participant>> participantsCopy;
+    std::vector<std::shared_ptr<interactive_participant>> participantsCopy;
     participantsCopy.reserve(m_participants.size());
 
     for (auto iter = m_participants.begin(); iter != m_participants.end(); iter++)
@@ -664,16 +664,16 @@ beam_manager_impl::participants()
 }
 
 
-std::vector<std::shared_ptr<beam_group>>
-beam_manager_impl::groups()
+std::vector<std::shared_ptr<interactive_group>>
+interactivity_manager_impl::groups()
 {
-    std::vector<std::shared_ptr<beam_group>> groupsCopy;
+    std::vector<std::shared_ptr<interactive_group>> groupsCopy;
     groupsCopy.reserve(m_groupsInternal.size());
 
     for (auto iter = m_groupsInternal.begin(); iter != m_groupsInternal.end(); iter++)
     {
         auto groupImpl = iter->second;
-        std::shared_ptr<beam_group> newGroup = std::make_shared<beam_group>(groupImpl->group_id());
+        std::shared_ptr<interactive_group> newGroup = std::make_shared<interactive_group>(groupImpl->group_id());
         newGroup->m_impl = groupImpl;
         groupsCopy.push_back(newGroup);
     }
@@ -681,25 +681,25 @@ beam_manager_impl::groups()
     return groupsCopy;
 }
 
-std::shared_ptr<beam_group>
-beam_manager_impl::group(_In_ const string_t& group_id)
+std::shared_ptr<interactive_group>
+interactivity_manager_impl::group(_In_ const string_t& group_id)
 {
     auto groupImpl = m_groupsInternal[group_id];
-    std::shared_ptr<beam_group> groupPtr = std::make_shared<beam_group>(groupImpl->group_id());
+    std::shared_ptr<interactive_group> groupPtr = std::make_shared<interactive_group>(groupImpl->group_id());
     groupPtr->m_impl = groupImpl;
     return groupPtr;
 }
 
-const std::shared_ptr<beam_scene>&
-beam_manager_impl::scene(_In_ const string_t& sceneId)
+const std::shared_ptr<interactive_scene>&
+interactivity_manager_impl::scene(_In_ const string_t& sceneId)
 {
     return m_scenes[sceneId];
 }
 
-std::vector<std::shared_ptr<beam_scene>>
-beam_manager_impl::scenes()
+std::vector<std::shared_ptr<interactive_scene>>
+interactivity_manager_impl::scenes()
 {
-    std::vector<std::shared_ptr<beam_scene>> scenesCopy;
+    std::vector<std::shared_ptr<interactive_scene>> scenesCopy;
     scenesCopy.reserve(m_scenes.size());
 
     for (auto iter = m_scenes.begin(); iter != m_scenes.end(); iter++)
@@ -711,25 +711,25 @@ beam_manager_impl::scenes()
 }
 
 
-std::shared_ptr<beam_event>
-beam_manager_impl::try_set_current_scene(_In_ const string_t& scene_id, _In_ const string_t& group_id)
+std::shared_ptr<interactive_event>
+interactivity_manager_impl::try_set_current_scene(_In_ const string_t& scene_id, _In_ const string_t& group_id)
 {
-    std::shared_ptr<beam_event> result;
+    std::shared_ptr<interactive_event> result;
 
-    if (m_interactivityState == beam_interactivity_state::not_initialized || m_interactivityState == beam_interactivity_state::initializing)
+    if (m_interactivityState == interactivity_state::not_initialized || m_interactivityState == interactivity_state::initializing)
     {
-        result = create_beam_event(L"Interactivity not yet initialized.", std::make_error_code(std::errc::not_connected), beam_event_type::error, nullptr);
+        result = create_interactive_event(L"Interactivity not yet initialized.", std::make_error_code(std::errc::not_connected), interactive_event_type::error, nullptr);
         return result;
     }
 
     if (m_scenes.end() == m_scenes.find(scene_id))
     {
-        result = create_beam_event(L"Unknown scene ID specified.", std::make_error_code(std::errc::no_such_file_or_directory), beam_event_type::error, nullptr);
+        result = create_interactive_event(L"Unknown scene ID specified.", std::make_error_code(std::errc::no_such_file_or_directory), interactive_event_type::error, nullptr);
         return result;
     }
 
     auto group = m_groupsInternal[group_id];
-    std::vector<std::shared_ptr<beam_group_impl>> groupToUpdate;
+    std::vector<std::shared_ptr<interactive_group_impl>> groupToUpdate;
     groupToUpdate.push_back(group);
 
     send_update_groups(groupToUpdate);
@@ -737,14 +737,14 @@ beam_manager_impl::try_set_current_scene(_In_ const string_t& scene_id, _In_ con
     return result;
 }
 
-std::shared_ptr<beam_button_control> xbox::services::beam::beam_manager_impl::button(const string_t & control_id)
+std::shared_ptr<interactive_button_control> MICROSOFT_MIXER_NAMESPACE::interactivity_manager_impl::button(const string_t & control_id)
 {
     return m_buttons[control_id];
 }
 
 
 void 
-beam_manager_impl::send_update_participants(std::vector<uint32_t> participantIds)
+interactivity_manager_impl::send_update_participants(std::vector<uint32_t> participantIds)
 {
     web::json::value params;
     web::json::value participantsToUpdateJson;
@@ -764,7 +764,7 @@ beam_manager_impl::send_update_participants(std::vector<uint32_t> participantIds
         {
             currParticipantJson[RPC_DISABLED] = web::json::value::boolean(currParticipant->m_impl->m_disabled);
         }
-        currParticipantJson[RPC_BEAM_USERNAME] = web::json::value::string(currParticipant->m_impl->m_username);
+        currParticipantJson[RPC_USERNAME] = web::json::value::string(currParticipant->m_impl->m_username);
         currParticipantJson[RPC_SESSION_ID] = web::json::value::string(currParticipant->m_impl->m_sessionId);
         currParticipantJson[RPC_ETAG] = web::json::value::string(currParticipant->m_impl->m_etag);
 
@@ -774,7 +774,7 @@ beam_manager_impl::send_update_participants(std::vector<uint32_t> participantIds
 
     params[RPC_PARAM_PARTICIPANTS] = participantsToUpdateJson;
 
-    std::shared_ptr<beam_rpc_message> sendCreateGroupMsg = build_mediator_rpc_message(get_next_message_id(), RPC_METHOD_UPDATE_PARTICIPANTS, params, false);
+    std::shared_ptr<interactive_rpc_message> sendCreateGroupMsg = build_mediator_rpc_message(get_next_message_id(), RPC_METHOD_UPDATE_PARTICIPANTS, params, false);
 
     queue_message_for_service(sendCreateGroupMsg);
 
@@ -782,7 +782,7 @@ beam_manager_impl::send_update_participants(std::vector<uint32_t> participantIds
 }
 
 void
-beam_manager_impl::send_create_groups(std::vector<std::shared_ptr<beam_group_impl>> groupsToCreate)
+interactivity_manager_impl::send_create_groups(std::vector<std::shared_ptr<interactive_group_impl>> groupsToCreate)
 {
     web::json::value params;
     web::json::value groupsToUpdateJson;
@@ -803,7 +803,7 @@ beam_manager_impl::send_create_groups(std::vector<std::shared_ptr<beam_group_imp
 
     params[RPC_PARAM_GROUPS] = groupsToUpdateJson;
 
-    std::shared_ptr<beam_rpc_message> sendCreateGroupMsg = build_mediator_rpc_message(get_next_message_id(), RPC_METHOD_CREATE_GROUPS, params, false);
+    std::shared_ptr<interactive_rpc_message> sendCreateGroupMsg = build_mediator_rpc_message(get_next_message_id(), RPC_METHOD_CREATE_GROUPS, params, false);
 
     queue_message_for_service(sendCreateGroupMsg);
 
@@ -811,7 +811,7 @@ beam_manager_impl::send_create_groups(std::vector<std::shared_ptr<beam_group_imp
 }
 
 void
-beam_manager_impl::send_update_groups(std::vector<std::shared_ptr<beam_group_impl>> groupsToUpdate)
+interactivity_manager_impl::send_update_groups(std::vector<std::shared_ptr<interactive_group_impl>> groupsToUpdate)
 {
     web::json::value params;
     web::json::value groupsToUpdateJson;
@@ -833,7 +833,7 @@ beam_manager_impl::send_update_groups(std::vector<std::shared_ptr<beam_group_imp
 
     params[RPC_PARAM_GROUPS] = groupsToUpdateJson;
 
-    std::shared_ptr<beam_rpc_message> sendUpdateGroupsMsg = build_mediator_rpc_message(get_next_message_id(), RPC_METHOD_UPDATE_GROUPS, params, false);
+    std::shared_ptr<interactive_rpc_message> sendUpdateGroupsMsg = build_mediator_rpc_message(get_next_message_id(), RPC_METHOD_UPDATE_GROUPS, params, false);
 
     queue_message_for_service(sendUpdateGroupsMsg);
 
@@ -841,9 +841,9 @@ beam_manager_impl::send_update_groups(std::vector<std::shared_ptr<beam_group_imp
 }
 
 void
-beam_manager_impl::move_participant_group(uint32_t participantId, string_t oldGroupId, string_t newGroupId)
+interactivity_manager_impl::move_participant_group(uint32_t participantId, string_t oldGroupId, string_t newGroupId)
 {
-    std::shared_ptr<beam_participant> participant = m_participants[participantId];
+    std::shared_ptr<interactive_participant> participant = m_participants[participantId];
 
     if (nullptr == participant)
     {
@@ -851,8 +851,8 @@ beam_manager_impl::move_participant_group(uint32_t participantId, string_t oldGr
         return;
     }
 
-    std::shared_ptr<beam_group_impl> oldGroup = m_groupsInternal[oldGroupId];
-    std::shared_ptr<beam_group_impl> newGroup = m_groupsInternal[newGroupId];
+    std::shared_ptr<interactive_group_impl> oldGroup = m_groupsInternal[oldGroupId];
+    std::shared_ptr<interactive_group_impl> newGroup = m_groupsInternal[newGroupId];
 
     auto oldGroupParticipants = m_participantsByGroupId[oldGroup->m_groupId];
     oldGroupParticipants.erase(std::remove(oldGroupParticipants.begin(), oldGroupParticipants.end(), participantId), oldGroupParticipants.end());
@@ -863,15 +863,15 @@ beam_manager_impl::move_participant_group(uint32_t participantId, string_t oldGr
     m_participantsByGroupId[newGroup->m_groupId] = newGroupParticipants;
 
     std::vector<uint32_t> participantsToUpdate;
-    participantsToUpdate.push_back(participant->beam_id());
+    participantsToUpdate.push_back(participant->mixer_id());
     send_update_participants(participantsToUpdate);
 }
 
 // This should only be used when a participant leaves the channel.
 void
-beam_manager_impl::participant_leave_group(uint32_t participantId, string_t groupId)
+interactivity_manager_impl::participant_leave_group(uint32_t participantId, string_t groupId)
 {
-    std::shared_ptr<beam_participant> participant = m_participants[participantId];
+    std::shared_ptr<interactive_participant> participant = m_participants[participantId];
 
     if (nullptr == participant)
     {
@@ -883,17 +883,17 @@ beam_manager_impl::participant_leave_group(uint32_t participantId, string_t grou
     oldGroupParticipants.erase(std::remove(oldGroupParticipants.begin(), oldGroupParticipants.end(), participantId), oldGroupParticipants.end());
     m_participantsByGroupId[groupId] = oldGroupParticipants;
 
-    std::shared_ptr<beam_group_impl> oldGroup = m_groupsInternal[groupId];
-    std::vector<std::shared_ptr<beam_group_impl>> groupsToUpdate;
+    std::shared_ptr<interactive_group_impl> oldGroup = m_groupsInternal[groupId];
+    std::vector<std::shared_ptr<interactive_group_impl>> groupsToUpdate;
     groupsToUpdate.push_back(oldGroup);
 
     send_update_groups(groupsToUpdate);
 }
 
-std::vector<std::shared_ptr<beam_button_control>>
-beam_manager_impl::buttons()
+std::vector<std::shared_ptr<interactive_button_control>>
+interactivity_manager_impl::buttons()
 {
-    std::vector<std::shared_ptr<beam_button_control>> buttonsCopy;
+    std::vector<std::shared_ptr<interactive_button_control>> buttonsCopy;
     buttonsCopy.reserve(m_buttons.size());
 
     for (auto iter = m_buttons.begin(); iter != m_buttons.end(); iter++)
@@ -904,15 +904,15 @@ beam_manager_impl::buttons()
     return buttonsCopy;
 }
 
-std::shared_ptr<beam_joystick_control> xbox::services::beam::beam_manager_impl::joystick(const string_t & control_id)
+std::shared_ptr<interactive_joystick_control> MICROSOFT_MIXER_NAMESPACE::interactivity_manager_impl::joystick(const string_t & control_id)
 {
     return m_joysticks[control_id];
 }
 
-std::vector<std::shared_ptr<beam_joystick_control>>
-beam_manager_impl::joysticks()
+std::vector<std::shared_ptr<interactive_joystick_control>>
+interactivity_manager_impl::joysticks()
 {
-    std::vector<std::shared_ptr<beam_joystick_control>> joysticksCopy;
+    std::vector<std::shared_ptr<interactive_joystick_control>> joysticksCopy;
     joysticksCopy.reserve(m_joysticks.size());
 
     for (auto iter = m_joysticks.begin(); iter != m_joysticks.end(); iter++)
@@ -925,12 +925,12 @@ beam_manager_impl::joysticks()
 
 
 void
-beam_manager_impl::trigger_cooldown(_In_ const string_t& control_id, _In_ const std::chrono::milliseconds& cooldown)
+interactivity_manager_impl::trigger_cooldown(_In_ const string_t& control_id, _In_ const std::chrono::milliseconds& cooldown)
 {
-    std::shared_ptr<beam_control> control = m_controls[control_id];
+    std::shared_ptr<interactive_control> control = m_controls[control_id];
     if (nullptr != control)
     {
-        std::shared_ptr<beam_button_control> buttonControl = std::dynamic_pointer_cast<beam_button_control>(control);
+        std::shared_ptr<interactive_button_control> buttonControl = std::dynamic_pointer_cast<interactive_button_control>(control);
 
         if (nullptr != buttonControl)
         {
@@ -946,30 +946,30 @@ beam_manager_impl::trigger_cooldown(_In_ const string_t& control_id, _In_ const 
             params[RPC_SCENE_ID] = web::json::value::string(buttonControl->m_parentScene);
             params[RPC_SCENE_CONTROLS][0] = controlJson;
 
-            std::shared_ptr<beam_rpc_message> updateControlMessage = build_mediator_rpc_message(get_next_message_id(), RPC_METHOD_UPDATE_CONTROLS, params, false);
+            std::shared_ptr<interactive_rpc_message> updateControlMessage = build_mediator_rpc_message(get_next_message_id(), RPC_METHOD_UPDATE_CONTROLS, params, false);
             queue_message_for_service(updateControlMessage);
         }
     }
 }
 
-void xbox::services::beam::beam_manager_impl::capture_transaction(const string_t & transaction_id)
+void MICROSOFT_MIXER_NAMESPACE::interactivity_manager_impl::capture_transaction(const string_t & transaction_id)
 {
     web::json::value params;
     params[RPC_TRANSACTION_ID] = web::json::value::string(transaction_id);
 
-    std::shared_ptr<beam_rpc_message> captureTransactionMessage = build_mediator_rpc_message(get_next_message_id(), RPC_METHOD_CAPTURE, params, false);
+    std::shared_ptr<interactive_rpc_message> captureTransactionMessage = build_mediator_rpc_message(get_next_message_id(), RPC_METHOD_CAPTURE, params, false);
     queue_message_for_service(captureTransactionMessage);
 }
 
-std::vector<beam_event>
-beam_manager_impl::do_work()
+std::vector<interactive_event>
+interactivity_manager_impl::do_work()
 {
-    std::vector<beam_event> eventsForClient;
+    std::vector<interactive_event> eventsForClient;
     std::lock_guard<std::recursive_mutex> lock(m_lock);
 
     if (m_eventsForClient.size() > 0)
     {
-        if (m_webSocketConnection != nullptr && m_webSocketConnection->state() != beam_web_socket_connection_state::disconnected)
+        if (m_webSocketConnection != nullptr && m_webSocketConnection->state() != mixer_web_socket_connection_state::disconnected)
         {
             m_webSocketConnection->ensure_connected();
         }
@@ -987,7 +987,7 @@ beam_manager_impl::do_work()
 }
 
 void
-beam_manager_impl::set_interactivity_state(beam_interactivity_state newState)
+interactivity_manager_impl::set_interactivity_state(MICROSOFT_MIXER_NAMESPACE::interactivity_state newState)
 {
     if (m_interactivityState == newState)
     {
@@ -995,34 +995,34 @@ beam_manager_impl::set_interactivity_state(beam_interactivity_state newState)
     }
 
     bool validStateChange = true;
-    beam_interactivity_state oldState = m_interactivityState;
-    std::shared_ptr<beam_interactivity_state_change_event_args> eventArgs;
+    MICROSOFT_MIXER_NAMESPACE::interactivity_state oldState = m_interactivityState;
+    std::shared_ptr<interactivity_state_change_event_args> eventArgs;
 
     switch (newState)
     {
-    case beam_interactivity_state::not_initialized:
+    case MICROSOFT_MIXER_NAMESPACE::interactivity_state::not_initialized:
         // can revert to not_initialized from any state
         break;
-    case beam_interactivity_state::initializing:
-        if (m_interactivityState != beam_interactivity_state::not_initialized)
+    case MICROSOFT_MIXER_NAMESPACE::interactivity_state::initializing:
+        if (m_interactivityState != MICROSOFT_MIXER_NAMESPACE::interactivity_state::not_initialized)
         {
             validStateChange = false;
         }
         break;
-    case beam_interactivity_state::interactivity_disabled:
-        if (m_interactivityState == beam_interactivity_state::not_initialized || m_interactivityState == beam_interactivity_state::interactivity_enabled)
+    case MICROSOFT_MIXER_NAMESPACE::interactivity_state::interactivity_disabled:
+        if (m_interactivityState == MICROSOFT_MIXER_NAMESPACE::interactivity_state::not_initialized || m_interactivityState == MICROSOFT_MIXER_NAMESPACE::interactivity_state::interactivity_enabled)
         {
             validStateChange = false;
         }
         break;
-    case beam_interactivity_state::interactivity_pending:
-        if (m_interactivityState != beam_interactivity_state::interactivity_disabled && m_interactivityState != beam_interactivity_state::interactivity_enabled)
+    case MICROSOFT_MIXER_NAMESPACE::interactivity_state::interactivity_pending:
+        if (m_interactivityState != MICROSOFT_MIXER_NAMESPACE::interactivity_state::interactivity_disabled && m_interactivityState != MICROSOFT_MIXER_NAMESPACE::interactivity_state::interactivity_enabled)
         {
             validStateChange = false;
         }
         break;
-    case beam_interactivity_state::interactivity_enabled:
-        if (m_interactivityState != beam_interactivity_state::interactivity_pending)
+    case MICROSOFT_MIXER_NAMESPACE::interactivity_state::interactivity_enabled:
+        if (m_interactivityState != MICROSOFT_MIXER_NAMESPACE::interactivity_state::interactivity_pending)
         {
             validStateChange = false;
         }
@@ -1036,8 +1036,8 @@ beam_manager_impl::set_interactivity_state(beam_interactivity_state newState)
     {
         m_interactivityState = newState;
      
-        std::shared_ptr<beam_interactivity_state_change_event_args> args = std::make_shared<beam_interactivity_state_change_event_args>(m_interactivityState);
-        queue_beam_event_for_client(L"", std::error_code(0, std::generic_category()), beam_event_type::interactivity_state_changed, args);
+        std::shared_ptr<interactivity_state_change_event_args> args = std::make_shared<interactivity_state_change_event_args>(m_interactivityState);
+        queue_interactive_event_for_client(L"", std::error_code(0, std::generic_category()), interactive_event_type::interactivity_state_changed, args);
 
         LOGS_DEBUG << L"Interactivity state change from " << oldState << L" to " << newState;
     }
@@ -1048,9 +1048,9 @@ beam_manager_impl::set_interactivity_state(beam_interactivity_state newState)
 }
 
 void
-beam_manager_impl::on_socket_connection_state_change(
-    _In_ beam_web_socket_connection_state oldState,
-    _In_ beam_web_socket_connection_state newState
+interactivity_manager_impl::on_socket_connection_state_change(
+    _In_ mixer_web_socket_connection_state oldState,
+    _In_ mixer_web_socket_connection_state newState
 )
 {
     if (oldState == newState)
@@ -1058,31 +1058,31 @@ beam_manager_impl::on_socket_connection_state_change(
         return;
     }
 
-    if (beam_web_socket_connection_state::activated == newState)
+    if (mixer_web_socket_connection_state::activated == newState)
     {
         return;
     }
 
     std::lock_guard<std::recursive_mutex> lock(m_lock);
     {
-        if (newState == beam_web_socket_connection_state::disconnected)
+        if (newState == mixer_web_socket_connection_state::disconnected)
         {
             LOGS_INFO << "Websocket disconnected";
-            m_connectionState = beam_interactivity_connection_state::disconnected;
+            m_connectionState = interactivity_connection_state::disconnected;
         }
 
         // On connecting, set subscriptions state accordingly.
-        if (newState == beam_web_socket_connection_state::connecting)
+        if (newState == mixer_web_socket_connection_state::connecting)
         {
             LOGS_INFO << "Websocket connecting";
-            m_connectionState = beam_interactivity_connection_state::connecting;
+            m_connectionState = interactivity_connection_state::connecting;
         }
 
         // Socket reconnected, re-subscribe everything
-        if (newState == beam_web_socket_connection_state::connected)
+        if (newState == mixer_web_socket_connection_state::connected)
         {
             LOGS_INFO << "Websocket connected";
-            m_connectionState = beam_interactivity_connection_state::connected;
+            m_connectionState = interactivity_connection_state::connected;
         }
     }
 
@@ -1091,15 +1091,15 @@ beam_manager_impl::on_socket_connection_state_change(
 
 
 void
-beam_manager_impl::on_socket_message_received(
+interactivity_manager_impl::on_socket_message_received(
     _In_ const string_t& message
 )
 {
-    std::shared_ptr<beam_rpc_message> rpcMessage = std::shared_ptr<beam_rpc_message>(new beam_rpc_message(get_next_message_id(), web::json::value::parse(message), unix_timestamp_in_ms()));
+    std::shared_ptr<interactive_rpc_message> rpcMessage = std::shared_ptr<interactive_rpc_message>(new interactive_rpc_message(get_next_message_id(), web::json::value::parse(message), unix_timestamp_in_ms()));
     m_unhandledFromService.push(rpcMessage);
 }
 
-void beam_manager_impl::process_reply(const web::json::value& jsonReply)
+void interactivity_manager_impl::process_reply(const web::json::value& jsonReply)
 {
     LOGS_INFO << "Received a reply from the service";
 
@@ -1108,7 +1108,7 @@ void beam_manager_impl::process_reply(const web::json::value& jsonReply)
         if (jsonReply.has_field(L"id"))
         {
             std::lock_guard<std::recursive_mutex> lock(m_messagesLock);
-            std::shared_ptr<beam_rpc_message> message = remove_awaiting_reply(jsonReply.at(RPC_ID).as_integer());
+            std::shared_ptr<interactive_rpc_message> message = remove_awaiting_reply(jsonReply.at(RPC_ID).as_integer());
 
             if (jsonReply.has_field(RPC_ERROR))
             {
@@ -1165,7 +1165,7 @@ void beam_manager_impl::process_reply(const web::json::value& jsonReply)
     }
 }
 
-void beam_manager_impl::process_reply_error(const web::json::value& jsonReply)
+void interactivity_manager_impl::process_reply_error(const web::json::value& jsonReply)
 {
     try
     {
@@ -1196,7 +1196,7 @@ void beam_manager_impl::process_reply_error(const web::json::value& jsonReply)
     }
 }
 
-void beam_manager_impl::process_get_time_reply(std::shared_ptr<beam_rpc_message> message, const web::json::value& jsonReply)
+void interactivity_manager_impl::process_get_time_reply(std::shared_ptr<interactive_rpc_message> message, const web::json::value& jsonReply)
 {
     try
     {
@@ -1220,7 +1220,7 @@ void beam_manager_impl::process_get_time_reply(std::shared_ptr<beam_rpc_message>
     }
 }
 
-void beam_manager_impl::process_get_groups_reply(const web::json::value& jsonReply)
+void interactivity_manager_impl::process_get_groups_reply(const web::json::value& jsonReply)
 {
     try
     {
@@ -1230,7 +1230,7 @@ void beam_manager_impl::process_get_groups_reply(const web::json::value& jsonRep
 
             for (auto iter = groups.begin(); iter != groups.end(); ++iter)
             {
-                std::shared_ptr<beam_group_impl> newGroup = std::shared_ptr<beam_group_impl>(new beam_group_impl(*iter));
+                std::shared_ptr<interactive_group_impl> newGroup = std::shared_ptr<interactive_group_impl>(new interactive_group_impl(*iter));
                 m_groupsInternal[newGroup->group_id()] = newGroup;
             }
 
@@ -1244,7 +1244,7 @@ void beam_manager_impl::process_get_groups_reply(const web::json::value& jsonRep
     }
 }
 
-void beam_manager_impl::process_create_groups_reply(const web::json::value& jsonReply)
+void interactivity_manager_impl::process_create_groups_reply(const web::json::value& jsonReply)
 {
     try
     {
@@ -1257,7 +1257,7 @@ void beam_manager_impl::process_create_groups_reply(const web::json::value& json
     }
 }
 
-void beam_manager_impl::process_update_groups_reply(const web::json::value& jsonReply)
+void interactivity_manager_impl::process_update_groups_reply(const web::json::value& jsonReply)
 {
     try
     {
@@ -1269,7 +1269,7 @@ void beam_manager_impl::process_update_groups_reply(const web::json::value& json
             {
                 if ((*iter).has_field(RPC_GROUP_ID))
                 {
-                    std::shared_ptr<beam_group_impl> groupToUpdate = m_groupsInternal[(*iter)[RPC_GROUP_ID].as_string()];
+                    std::shared_ptr<interactive_group_impl> groupToUpdate = m_groupsInternal[(*iter)[RPC_GROUP_ID].as_string()];
                     groupToUpdate->update((*iter));
                 }
             }
@@ -1281,7 +1281,7 @@ void beam_manager_impl::process_update_groups_reply(const web::json::value& json
     }
 }
 
-void beam_manager_impl::process_on_group_create(const web::json::value& onGroupCreateMethod)
+void interactivity_manager_impl::process_on_group_create(const web::json::value& onGroupCreateMethod)
 {
     try
     {
@@ -1293,14 +1293,14 @@ void beam_manager_impl::process_on_group_create(const web::json::value& onGroupC
             {
                 if ((*iter).has_field(RPC_GROUP_ID))
                 {
-                    std::shared_ptr<beam_group_impl> groupToUpdate = m_groupsInternal[(*iter)[RPC_GROUP_ID].as_string()];
+                    std::shared_ptr<interactive_group_impl> groupToUpdate = m_groupsInternal[(*iter)[RPC_GROUP_ID].as_string()];
                     if (nullptr != groupToUpdate)
                     {
                         groupToUpdate->update((*iter), false);
                     }
                     else
                     {
-                        std::shared_ptr<beam_group_impl> newGroup = std::shared_ptr<beam_group_impl>(new beam_group_impl(*iter));
+                        std::shared_ptr<interactive_group_impl> newGroup = std::shared_ptr<interactive_group_impl>(new interactive_group_impl(*iter));
                         m_groupsInternal[newGroup->scene_id()] = newGroup;
                     }
                 }
@@ -1313,7 +1313,7 @@ void beam_manager_impl::process_on_group_create(const web::json::value& onGroupC
     }
 }
 
-void beam_manager_impl::process_on_group_update(const web::json::value& onGroupUpdateMethod)
+void interactivity_manager_impl::process_on_group_update(const web::json::value& onGroupUpdateMethod)
 {
     try
     {
@@ -1325,7 +1325,7 @@ void beam_manager_impl::process_on_group_update(const web::json::value& onGroupU
             {
                 if ((*iter).has_field(RPC_GROUP_ID))
                 {
-                    std::shared_ptr<beam_group_impl> groupToUpdate = m_groupsInternal[(*iter)[RPC_GROUP_ID].as_string()];
+                    std::shared_ptr<interactive_group_impl> groupToUpdate = m_groupsInternal[(*iter)[RPC_GROUP_ID].as_string()];
                     groupToUpdate->update((*iter));
                 }
             }
@@ -1337,7 +1337,7 @@ void beam_manager_impl::process_on_group_update(const web::json::value& onGroupU
     }
 }
 
-void beam_manager_impl::process_update_controls_reply(const web::json::value& jsonReply)
+void interactivity_manager_impl::process_update_controls_reply(const web::json::value& jsonReply)
 {
     try
     {
@@ -1356,7 +1356,7 @@ void beam_manager_impl::process_update_controls_reply(const web::json::value& js
     }
 }
 
-void beam_manager_impl::process_on_control_update(const web::json::value& onControlUpdateMethod)
+void interactivity_manager_impl::process_on_control_update(const web::json::value& onControlUpdateMethod)
 {
     try
     {
@@ -1376,7 +1376,7 @@ void beam_manager_impl::process_on_control_update(const web::json::value& onCont
 }
 
 // Update controls based on replies from the service and explicit onUpdateControl RPC method call
-void beam_manager_impl::process_update_controls(web::json::array controlsToUpdate)
+void interactivity_manager_impl::process_update_controls(web::json::array controlsToUpdate)
 {
     try
     {
@@ -1389,21 +1389,21 @@ void beam_manager_impl::process_update_controls(web::json::array controlsToUpdat
         {
             if ((*iter).has_field(RPC_CONTROL_ID))
             {
-                std::shared_ptr<beam_control> controlToUpdate = m_controls[(*iter)[RPC_CONTROL_ID].as_string()];
+                std::shared_ptr<interactive_control> controlToUpdate = m_controls[(*iter)[RPC_CONTROL_ID].as_string()];
 
                 if (nullptr == controlToUpdate)
                 {
                     LOGS_DEBUG << L"Unexpected update received for control " << (*iter)[RPC_CONTROL_ID].as_string();
                 }
 
-                if (beam_control_type::button == controlToUpdate->control_type())
+                if (interactive_control_type::button == controlToUpdate->control_type())
                 {
-                    std::shared_ptr<beam_button_control> buttonToUpdate = std::dynamic_pointer_cast<beam_button_control>(controlToUpdate);
+                    std::shared_ptr<interactive_button_control> buttonToUpdate = std::dynamic_pointer_cast<interactive_button_control>(controlToUpdate);
                     buttonToUpdate->update((*iter), false);
                 }
-                else if (beam_control_type::joystick == controlToUpdate->control_type())
+                else if (interactive_control_type::joystick == controlToUpdate->control_type())
                 {
-                    std::shared_ptr<beam_joystick_control> joystickToUpdate = std::dynamic_pointer_cast<beam_joystick_control>(controlToUpdate);
+                    std::shared_ptr<interactive_joystick_control> joystickToUpdate = std::dynamic_pointer_cast<interactive_joystick_control>(controlToUpdate);
                     joystickToUpdate->update((*iter), false);
                 }
             }
@@ -1416,7 +1416,7 @@ void beam_manager_impl::process_update_controls(web::json::array controlsToUpdat
 }
 
 
-void beam_manager_impl::process_get_scenes_reply(const web::json::value& jsonReply)
+void interactivity_manager_impl::process_get_scenes_reply(const web::json::value& jsonReply)
 {
     try
     {
@@ -1426,8 +1426,8 @@ void beam_manager_impl::process_get_scenes_reply(const web::json::value& jsonRep
 
             for (auto iter = scenes.begin(); iter != scenes.end(); ++iter)
             {
-                std::shared_ptr<beam_scene> newScene = std::shared_ptr<beam_scene>(new beam_scene());
-                newScene->m_impl = std::shared_ptr<beam_scene_impl>(new beam_scene_impl());
+                std::shared_ptr<interactive_scene> newScene = std::shared_ptr<interactive_scene>(new interactive_scene());
+                newScene->m_impl = std::shared_ptr<interactive_scene_impl>(new interactive_scene_impl());
                 newScene->m_impl->init_from_json(*iter);
                 m_scenes[newScene->scene_id()] = newScene;
             }
@@ -1442,7 +1442,7 @@ void beam_manager_impl::process_get_scenes_reply(const web::json::value& jsonRep
     }
 }
 
-void beam_manager_impl::process_update_participants_reply(const web::json::value& jsonReply)
+void interactivity_manager_impl::process_update_participants_reply(const web::json::value& jsonReply)
 {
     try
     {
@@ -1452,9 +1452,9 @@ void beam_manager_impl::process_update_participants_reply(const web::json::value
 
             for (auto iter = participants.begin(); iter != participants.end(); ++iter)
             {
-                if ((*iter).has_field(RPC_BEAM_ID))
+                if ((*iter).has_field(RPC_USER_ID))
                 {
-                    std::shared_ptr<beam_participant> participantToUpdate = m_participants[(*iter)[RPC_BEAM_ID].as_number().to_int32()];
+                    std::shared_ptr<interactive_participant> participantToUpdate = m_participants[(*iter)[RPC_USER_ID].as_number().to_int32()];
                     if (nullptr != participantToUpdate)
                     {
                         participantToUpdate->m_impl->update((*iter), false);
@@ -1469,7 +1469,7 @@ void beam_manager_impl::process_update_participants_reply(const web::json::value
     }
 }
 
-void beam_manager_impl::process_method(const web::json::value& methodJson)
+void interactivity_manager_impl::process_method(const web::json::value& methodJson)
 {
     LOGS_DEBUG << "Received an RPC call from the service";
     try
@@ -1526,7 +1526,7 @@ void beam_manager_impl::process_method(const web::json::value& methodJson)
 }
 
 
-void beam_manager_impl::process_participant_joined(const web::json::value& participantJoinedJson)
+void interactivity_manager_impl::process_participant_joined(const web::json::value& participantJoinedJson)
 {
     LOGS_INFO << "Received a participant joined event";
     try
@@ -1536,28 +1536,28 @@ void beam_manager_impl::process_participant_joined(const web::json::value& parti
             web::json::array currParticipants = participantJoinedJson.at(RPC_PARAMS).at(RPC_PARAM_PARTICIPANTS).as_array();
             for (auto iter = currParticipants.begin(); iter != currParticipants.end(); ++iter)
             {
-                std::shared_ptr<beam_participant> currParticipant = std::shared_ptr<beam_participant>(new beam_participant());
-                currParticipant->m_impl = std::shared_ptr<beam_participant_impl>(new beam_participant_impl());
+                std::shared_ptr<interactive_participant> currParticipant = std::shared_ptr<interactive_participant>(new interactive_participant());
+                currParticipant->m_impl = std::shared_ptr<interactive_participant_impl>(new interactive_participant_impl());
 
                 bool success = currParticipant->m_impl->init_from_json(*iter);
 
                 if (success)
                 {
-                    currParticipant->m_impl->m_state = beam_participant_state::joined;
-                    m_participants[currParticipant->beam_id()] = currParticipant;
-                    m_participantToBeamId[currParticipant->m_impl->m_sessionId] = currParticipant->beam_id();
+                    currParticipant->m_impl->m_state = interactive_participant_state::joined;
+                    m_participants[currParticipant->mixer_id()] = currParticipant;
+                    m_participantTomixerId[currParticipant->m_impl->m_sessionId] = currParticipant->mixer_id();
 
-                    m_participantsByGroupId[currParticipant->m_impl->m_groupId].push_back(currParticipant->beam_id());
+                    m_participantsByGroupId[currParticipant->m_impl->m_groupId].push_back(currParticipant->mixer_id());
 
-                    LOGS_DEBUG << "Participant " << currParticipant->beam_id() << " joined";
+                    LOGS_DEBUG << "Participant " << currParticipant->mixer_id() << " joined";
 
-                    std::shared_ptr<beam_participant_state_change_event_args> args = std::shared_ptr<beam_participant_state_change_event_args>(new beam_participant_state_change_event_args(currParticipant, beam_participant_state::joined));
+                    std::shared_ptr<interactive_participant_state_change_event_args> args = std::shared_ptr<interactive_participant_state_change_event_args>(new interactive_participant_state_change_event_args(currParticipant, interactive_participant_state::joined));
 
-                    queue_beam_event_for_client(L"", std::error_code(0, std::generic_category()), beam_event_type::participant_state_changed, args);
+                    queue_interactive_event_for_client(L"", std::error_code(0, std::generic_category()), interactive_event_type::participant_state_changed, args);
                 }
                 else
                 {
-                    queue_beam_event_for_client(L"Failed to initialize participant, onParticipantJoin", std::make_error_code(std::errc::not_supported), beam_event_type::error, nullptr);
+                    queue_interactive_event_for_client(L"Failed to initialize participant, onParticipantJoin", std::make_error_code(std::errc::not_supported), interactive_event_type::error, nullptr);
                 }
             }
         }
@@ -1569,7 +1569,7 @@ void beam_manager_impl::process_participant_joined(const web::json::value& parti
 }
 
 
-void beam_manager_impl::process_participant_left(const web::json::value& participantLeftJson)
+void interactivity_manager_impl::process_participant_left(const web::json::value& participantLeftJson)
 {
     LOGS_INFO << "Received a participant left event";
     try
@@ -1579,24 +1579,24 @@ void beam_manager_impl::process_participant_left(const web::json::value& partici
             web::json::array currParticipants = participantLeftJson.at(RPC_PARAMS).at(RPC_PARAM_PARTICIPANTS).as_array();
             for (auto iter = currParticipants.begin(); iter != currParticipants.end(); ++iter)
             {
-                if (iter->has_field(RPC_BEAM_ID))
+                if (iter->has_field(RPC_USER_ID))
                 {
-                    uint32_t beamId = iter->at(RPC_BEAM_ID).as_number().to_uint32();
-                    std::shared_ptr<beam_participant> currParticipant = m_participants[beamId];
-                    currParticipant->m_impl->m_state = beam_participant_state::left;
+                    uint32_t mixerId = iter->at(RPC_USER_ID).as_number().to_uint32();
+                    std::shared_ptr<interactive_participant> currParticipant = m_participants[mixerId];
+                    currParticipant->m_impl->m_state = interactive_participant_state::left;
 
                     // update the states of the group - remove the participant entirely
-                    participant_leave_group(currParticipant->beam_id(), currParticipant->m_impl->m_groupId);
+                    participant_leave_group(currParticipant->mixer_id(), currParticipant->m_impl->m_groupId);
 
-                    LOGS_DEBUG << "Participant " << beamId << " left";
+                    LOGS_DEBUG << "Participant " << mixerId << " left";
 
-                    std::shared_ptr<beam_participant_state_change_event_args> args = std::shared_ptr<beam_participant_state_change_event_args>(new beam_participant_state_change_event_args(currParticipant, beam_participant_state::left));
+                    std::shared_ptr<interactive_participant_state_change_event_args> args = std::shared_ptr<interactive_participant_state_change_event_args>(new interactive_participant_state_change_event_args(currParticipant, interactive_participant_state::left));
 
-                    queue_beam_event_for_client(L"", std::error_code(0, std::generic_category()), beam_event_type::participant_state_changed, args);
+                    queue_interactive_event_for_client(L"", std::error_code(0, std::generic_category()), interactive_event_type::participant_state_changed, args);
                 }
                 else
                 {
-                    LOGS_DEBUG << "Failed to parse beam id from participants left";
+                    LOGS_DEBUG << "Failed to parse id from participants left";
                 }
             }
         }
@@ -1607,7 +1607,7 @@ void beam_manager_impl::process_participant_left(const web::json::value& partici
     }
 }
 
-void beam_manager_impl::process_on_participant_update(const web::json::value& participantChangeJson)
+void interactivity_manager_impl::process_on_participant_update(const web::json::value& participantChangeJson)
 {
     LOGS_INFO << "Received a participant update";
     try
@@ -1617,8 +1617,8 @@ void beam_manager_impl::process_on_participant_update(const web::json::value& pa
             web::json::array currParticipants = participantChangeJson.at(RPC_PARAMS).at(RPC_PARAM_PARTICIPANTS).as_array();
             for (auto iter = currParticipants.begin(); iter != currParticipants.end(); ++iter)
             {
-                uint32_t participantBeamId = m_participantToBeamId[(*iter)[RPC_SESSION_ID].as_string()];
-                std::shared_ptr<beam_participant> participantToUpdate = m_participants[participantBeamId];
+                uint32_t participantmixerId = m_participantTomixerId[(*iter)[RPC_SESSION_ID].as_string()];
+                std::shared_ptr<interactive_participant> participantToUpdate = m_participants[participantmixerId];
                 participantToUpdate->m_impl->update(*iter, false);
             }
         }
@@ -1629,7 +1629,7 @@ void beam_manager_impl::process_on_participant_update(const web::json::value& pa
     }
 }
 
-void beam_manager_impl::process_on_ready_changed(const web::json::value& onReadyMethod)
+void interactivity_manager_impl::process_on_ready_changed(const web::json::value& onReadyMethod)
 {
     LOGS_INFO << "Received an interactivity state change from service";
     try
@@ -1640,11 +1640,11 @@ void beam_manager_impl::process_on_ready_changed(const web::json::value& onReady
 
             if (onReadyMethod.at(RPC_PARAMS).at(RPC_PARAM_IS_READY).as_bool() == true)
             {
-                set_interactivity_state(beam_interactivity_state::interactivity_enabled);
+                set_interactivity_state(interactivity_state::interactivity_enabled);
             }
             else
             {
-                set_interactivity_state(beam_interactivity_state::interactivity_disabled);
+                set_interactivity_state(interactivity_state::interactivity_disabled);
             }
         }
     }
@@ -1655,11 +1655,11 @@ void beam_manager_impl::process_on_ready_changed(const web::json::value& onReady
 }
 
 
-void beam_manager_impl::process_input(const web::json::value& inputMethod)
+void interactivity_manager_impl::process_input(const web::json::value& inputMethod)
 {
     LOGS_INFO << "Received an input message";
 
-    if (beam_interactivity_state::interactivity_enabled != m_interactivityState)
+    if (interactivity_state::interactivity_enabled != m_interactivityState)
     {
         LOGS_DEBUG << "Received interactive input from participants while client not in an interactive state.";
         return;
@@ -1717,7 +1717,7 @@ void beam_manager_impl::process_input(const web::json::value& inputMethod)
 }
 
 
-void beam_manager_impl::process_button_input(const web::json::value& inputJson)
+void interactivity_manager_impl::process_button_input(const web::json::value& inputJson)
 {
     LOGS_INFO << "Received a button input message";
     try
@@ -1737,14 +1737,14 @@ void beam_manager_impl::process_button_input(const web::json::value& inputJson)
                 update_button_state(controlId, buttonInputJson);
 
                 // send event out to title
-                std::shared_ptr<beam_participant> currParticipant;
+                std::shared_ptr<interactive_participant> currParticipant;
 
                 bool isPressed = ((0 == buttonInputJson[RPC_PARAM_INPUT_EVENT].as_string().compare(RPC_INPUT_EVENT_BUTTON_DOWN)) ? true : false);
 
                 if (inputJson.at(RPC_PARAMS).has_field(RPC_PARTICIPANT_ID))
                 {
-                    uint32_t beamId = m_participantToBeamId[inputJson.at(RPC_PARAMS).at(RPC_PARTICIPANT_ID).as_string()];
-                    currParticipant = m_participants[beamId];
+                    uint32_t mixerId = m_participantTomixerId[inputJson.at(RPC_PARAMS).at(RPC_PARTICIPANT_ID).as_string()];
+                    currParticipant = m_participants[mixerId];
                 }
                 else
                 {
@@ -1769,9 +1769,9 @@ void beam_manager_impl::process_button_input(const web::json::value& inputJson)
                     }
                 }
                 
-                std::shared_ptr<beam_button_event_args> args = std::shared_ptr<beam_button_event_args>(new beam_button_event_args(controlId, transactionId, cost, currParticipant, isPressed));
+                std::shared_ptr<interactive_button_event_args> args = std::shared_ptr<interactive_button_event_args>(new interactive_button_event_args(controlId, transactionId, cost, currParticipant, isPressed));
 
-                queue_beam_event_for_client(L"", std::error_code(0, std::generic_category()), beam_event_type::button, args);
+                queue_interactive_event_for_client(L"", std::error_code(0, std::generic_category()), interactive_event_type::button, args);
             }
             else
             {
@@ -1790,7 +1790,7 @@ void beam_manager_impl::process_button_input(const web::json::value& inputJson)
 }
 
 
-void beam_manager_impl::process_joystick_input(const web::json::value& joystickInputJson)
+void interactivity_manager_impl::process_joystick_input(const web::json::value& joystickInputJson)
 {
     if (joystickInputJson.has_field(RPC_PARAMS))
     {
@@ -1810,24 +1810,24 @@ void beam_manager_impl::process_joystick_input(const web::json::value& joystickI
 
                     string_t controlId = inputData[RPC_CONTROL_ID].as_string();
                     string_t participantSessionId = joystickParams[RPC_PARTICIPANT_ID].as_string();
-                    uint32_t beamId = m_participantToBeamId[participantSessionId];
+                    uint32_t mixerId = m_participantTomixerId[participantSessionId];
 
-                    if (0 == beamId)
+                    if (0 == mixerId)
                     {
                         LOGS_INFO << "Unexpected input from participant id " << participantSessionId;
                         return;
                     }
 
-                    std::shared_ptr<beam_participant> participant = m_participants[beamId];
+                    std::shared_ptr<interactive_participant> participant = m_participants[mixerId];
                     if (nullptr == participant)
                     {
-                        LOGS_INFO << "No participant record for beam id " << beamId;
+                        LOGS_INFO << "No participant record for mixer id " << mixerId;
                         return;
                     }
 
-                    std::shared_ptr<beam_joystick_event_args> args = std::shared_ptr<beam_joystick_event_args>(new beam_joystick_event_args(participant, x, y, controlId));
+                    std::shared_ptr<interactive_joystick_event_args> args = std::shared_ptr<interactive_joystick_event_args>(new interactive_joystick_event_args(participant, x, y, controlId));
 
-                    queue_beam_event_for_client(L"", std::error_code(0, std::generic_category()), beam_event_type::joystick, args);
+                    queue_interactive_event_for_client(L"", std::error_code(0, std::generic_category()), interactive_event_type::joystick, args);
 
                     return;
                 }
@@ -1846,11 +1846,11 @@ void beam_manager_impl::process_joystick_input(const web::json::value& joystickI
     }
 }
 
-void beam_manager_impl::send_message(std::shared_ptr<beam_rpc_message> rpcMessage)
+void interactivity_manager_impl::send_message(std::shared_ptr<interactive_rpc_message> rpcMessage)
 {
-    if (beam_interactivity_connection_state::connected != m_connectionState)
+    if (interactivity_connection_state::connected != m_connectionState)
     {
-        LOGS_INFO << L"Failed to send message (" << rpcMessage->id() << "), not connected to beam interactivity service";
+        LOGS_INFO << L"Failed to send message (" << rpcMessage->id() << "), not connected to Mixer interactivity experience";
         return;
     }
 
@@ -1878,18 +1878,18 @@ void beam_manager_impl::send_message(std::shared_ptr<beam_rpc_message> rpcMessag
     catch (std::exception e)
     {
         remove_awaiting_reply(rpcMessage->id());
-        LOGS_ERROR << "Failed to serialize and send beam rpc message";
+        LOGS_ERROR << "Failed to serialize and send rpc message";
     }
 }
 
 
-std::shared_ptr<beam_rpc_message>
-beam_manager_impl::remove_awaiting_reply(uint32_t messageId)
+std::shared_ptr<interactive_rpc_message>
+interactivity_manager_impl::remove_awaiting_reply(uint32_t messageId)
 {
     std::lock_guard<std::recursive_mutex> lock(m_messagesLock);
-    std::shared_ptr<beam_rpc_message> message;
+    std::shared_ptr<interactive_rpc_message> message;
 
-    auto msgToRemove = std::find_if(m_awaitingReply.begin(), m_awaitingReply.end(), [&](const std::shared_ptr<beam_rpc_message> & msg) {
+    auto msgToRemove = std::find_if(m_awaitingReply.begin(), m_awaitingReply.end(), [&](const std::shared_ptr<interactive_rpc_message> & msg) {
         return msg->id() == messageId;
     });
 
@@ -1909,14 +1909,14 @@ beam_manager_impl::remove_awaiting_reply(uint32_t messageId)
 }
 
 void
-beam_manager_impl::add_group_to_map(std::shared_ptr<beam_group_impl> group)
+interactivity_manager_impl::add_group_to_map(std::shared_ptr<interactive_group_impl> group)
 {
     auto checkForGroup = m_groupsInternal[group->m_groupId];
     if (nullptr == checkForGroup)
     {
         m_groupsInternal[group->m_groupId] = group;
 
-        std::vector<std::shared_ptr<beam_group_impl>> groupToUpdate;
+        std::vector<std::shared_ptr<interactive_group_impl>> groupToUpdate;
         groupToUpdate.push_back(group);
 
         send_create_groups(groupToUpdate);
@@ -1924,21 +1924,21 @@ beam_manager_impl::add_group_to_map(std::shared_ptr<beam_group_impl> group)
 }
 
 void
-beam_manager_impl::add_control_to_map(std::shared_ptr<beam_control> control)
+interactivity_manager_impl::add_control_to_map(std::shared_ptr<interactive_control> control)
 {
     std::lock_guard<std::recursive_mutex> lock(m_lock);
     m_controls[control->control_id()] = control;
 
-    if (control->control_type() == beam_control_type::joystick)
+    if (control->control_type() == interactive_control_type::joystick)
     {
-        std::shared_ptr<beam_joystick_control> joystick = std::static_pointer_cast <beam_joystick_control>(control);
+        std::shared_ptr<interactive_joystick_control> joystick = std::static_pointer_cast <interactive_joystick_control>(control);
         m_joysticks[joystick->control_id()] = joystick;
 
         LOGS_DEBUG << "Adding joystick to map (" << joystick->control_id() << ")";
     }
-    else if (control->control_type() == beam_control_type::button)
+    else if (control->control_type() == interactive_control_type::button)
     {
-        std::shared_ptr<beam_button_control> button = std::static_pointer_cast <beam_button_control>(control);
+        std::shared_ptr<interactive_button_control> button = std::static_pointer_cast <interactive_button_control>(control);
         m_buttons[button->control_id()] = button;
 
         LOGS_DEBUG << "Adding button to map (" << button->control_id() << ")";
@@ -1948,10 +1948,10 @@ beam_manager_impl::add_control_to_map(std::shared_ptr<beam_control> control)
 
 
 void
-beam_manager_impl::update_button_state(string_t buttonId, web::json::value buttonInputParamsJson)
+interactivity_manager_impl::update_button_state(string_t buttonId, web::json::value buttonInputParamsJson)
 {
     // TODO: lock
-    std::shared_ptr<beam_button_control> button = m_buttons[buttonId];
+    std::shared_ptr<interactive_button_control> button = m_buttons[buttonId];
 
     if (nullptr == button)
     {
@@ -1961,34 +1961,34 @@ beam_manager_impl::update_button_state(string_t buttonId, web::json::value butto
     {
         string_t participantSessionId = buttonInputParamsJson[RPC_PARAMS][RPC_PARTICIPANT_ID].as_string();
 
-        uint32_t beamId = m_participantToBeamId[participantSessionId];
+        uint32_t mixerId = m_participantTomixerId[participantSessionId];
 
-        if (0 == beamId)
+        if (0 == mixerId)
         {
             LOGS_INFO << "Unexpected input from participant id " << participantSessionId;
             return;
         }
 
-        std::shared_ptr<beam_participant> currParticipant = m_participants[beamId];
+        std::shared_ptr<interactive_participant> currParticipant = m_participants[mixerId];
         if (nullptr == currParticipant)
         {
-            LOGS_INFO << "Unexpected input from participant " << currParticipant->beam_username();
+            LOGS_INFO << "Unexpected input from participant " << currParticipant->username();
             return;
         }
 
         if (currParticipant->input_disabled())
         {
-            LOGS_INFO << "Ignoring input from disabled participant " << currParticipant->beam_username();
+            LOGS_INFO << "Ignoring input from disabled participant " << currParticipant->username();
             return;
         }
 
-        std::shared_ptr<beam_button_state> newState = std::shared_ptr<beam_button_state>(new beam_button_state());
-        std::shared_ptr<beam_button_state> oldStateByParticipant = button->m_buttonStateByBeamId[beamId];
+        std::shared_ptr<interactive_button_state> newState = std::shared_ptr<interactive_button_state>(new interactive_button_state());
+        std::shared_ptr<interactive_button_state> oldStateByParticipant = button->m_buttonStateBymixerId[mixerId];
         if (nullptr == oldStateByParticipant)
         {
             // Create initial state entry for this participant
-            button->m_buttonStateByBeamId[beamId] = newState;
-            oldStateByParticipant = button->m_buttonStateByBeamId[beamId];
+            button->m_buttonStateBymixerId[mixerId] = newState;
+            oldStateByParticipant = button->m_buttonStateBymixerId[mixerId];
         }
 
         bool wasPressed = oldStateByParticipant->is_pressed();
@@ -2023,7 +2023,7 @@ beam_manager_impl::update_button_state(string_t buttonId, web::json::value butto
             newState->m_isUp = true;
         }
 
-        button->m_buttonStateByBeamId[beamId] = newState;
+        button->m_buttonStateBymixerId[mixerId] = newState;
 
         if (newState->is_down())
         {
@@ -2042,15 +2042,15 @@ beam_manager_impl::update_button_state(string_t buttonId, web::json::value butto
 
 
 string_t
-beam_manager_impl::find_or_create_participant_session_id(_In_ uint32_t beamId)
+interactivity_manager_impl::find_or_create_participant_session_id(_In_ uint32_t mixerId)
 {
     string_t participantSessionId;
     static string_t baseMockParticipantSessionId = L"mockParticipantId";
     static uint32_t nextParticipantSessionId = 0;
     
-    for (auto iter = m_participantToBeamId.begin(); iter != m_participantToBeamId.end(); iter++)
+    for (auto iter = m_participantTomixerId.begin(); iter != m_participantTomixerId.end(); iter++)
     {
-        if (beamId == iter->second)
+        if (mixerId == iter->second)
         {
             participantSessionId = iter->first;
         }
@@ -2066,9 +2066,9 @@ beam_manager_impl::find_or_create_participant_session_id(_In_ uint32_t beamId)
 }
 
 void
-beam_manager_impl::mock_button_event(_In_ uint32_t beamId, _In_ string_t buttonId, _In_ bool is_down)
+interactivity_manager_impl::mock_button_event(_In_ uint32_t mixerId, _In_ string_t buttonId, _In_ bool is_down)
 {
-    string_t participantSessionId = find_or_create_participant_session_id(beamId);
+    string_t participantSessionId = find_or_create_participant_session_id(mixerId);
     web::json::value mockInputJson = build_mock_button_input(get_next_message_id(), participantSessionId, buttonId, is_down);
 
     on_socket_message_received(mockInputJson.serialize());
@@ -2076,22 +2076,22 @@ beam_manager_impl::mock_button_event(_In_ uint32_t beamId, _In_ string_t buttonI
 
 #if 0
 void
-beam_manager_impl::mock_participant_join(uint32_t beamId, string_t beamUsername)
+interactivity_manager_impl::mock_participant_join(uint32_t mixerId, string_t username)
 {
     uint32_t messageId = get_next_message_id();
-    string_t participantSessionId = find_or_create_participant_session_id(beamId);
-    web::json::value mockParticipantJoinJson = build_participant_state_change_mock_data(messageId, beamId, beamUsername, participantSessionId, true /*isJoin*/, false /*discard*/);
+    string_t participantSessionId = find_or_create_participant_session_id(mixerId);
+    web::json::value mockParticipantJoinJson = build_participant_state_change_mock_data(messageId, mixerId, username, participantSessionId, true /*isJoin*/, false /*discard*/);
     auto mockParticipantJoinMethod = build_mediator_rpc_message(messageId, RPC_METHOD_PARTICIPANTS_JOINED, mockParticipantJoinJson);
 
     process_method(mockParticipantJoinMethod);
 }
 
 void
-beam_manager_impl::mock_participant_leave(uint32_t beamId, string_t beamUsername)
+interactivity_manager_impl::mock_participant_leave(uint32_t mixerId, string_t username)
 {
     uint32_t messageId = get_next_message_id();
-    string_t participantSessionId = find_or_create_participant_session_id(beamId);
-    web::json::value mockParticipantLeaveJson = build_participant_state_change_mock_data(messageId, beamId, beamUsername, participantSessionId, false /*isJoin*/, false /*discard*/);
+    string_t participantSessionId = find_or_create_participant_session_id(mixerId);
+    web::json::value mockParticipantLeaveJson = build_participant_state_change_mock_data(messageId, mixerId, username, participantSessionId, false /*isJoin*/, false /*discard*/);
     auto mockParticipantLeaveMethod = build_mediator_rpc_message(messageId, RPC_METHOD_PARTICIPANTS_LEFT, mockParticipantLeaveJson);
 
     process_method(mockParticipantLeaveMethod);
@@ -2099,16 +2099,16 @@ beam_manager_impl::mock_participant_leave(uint32_t beamId, string_t beamUsername
 #endif
 
 void
-beam_manager_impl::queue_beam_event_for_client(string_t errorMessage, std::error_code errorCode, beam_event_type type, std::shared_ptr<beam_event_args> args)
+interactivity_manager_impl::queue_interactive_event_for_client(string_t errorMessage, std::error_code errorCode, interactive_event_type type, std::shared_ptr<interactive_event_args> args)
 {
     std::lock_guard<std::recursive_mutex> lock(m_lock);
-    m_eventsForClient.push_back(*(create_beam_event(errorMessage, errorCode, type, args)));
+    m_eventsForClient.push_back(*(create_interactive_event(errorMessage, errorCode, type, args)));
     return;
 }
 
-void xbox::services::beam::beam_manager_impl::queue_message_for_service(std::shared_ptr<beam_rpc_message> message)
+void MICROSOFT_MIXER_NAMESPACE::interactivity_manager_impl::queue_message_for_service(std::shared_ptr<interactive_rpc_message> message)
 {
     m_pendingSend.push(message);
 }
 
-NAMESPACE_MICROSOFT_XBOX_BEAM_END
+NAMESPACE_MICROSOFT_MIXER_END

@@ -10,7 +10,7 @@
 #include "pch.h"
 #include "log.h"
 
-NAMESPACE_MICROSOFT_XBOX_BEAM_BEGIN
+NAMESPACE_MICROSOFT_MIXER_BEGIN
 
 std::shared_ptr<logger> logger::s_logger = nullptr;
 
@@ -52,4 +52,4 @@ void logger::operator+=(const log_entry& logEntry)
     add_log(logEntry);
 }
 
-NAMESPACE_MICROSOFT_XBOX_BEAM_END
+NAMESPACE_MICROSOFT_MIXER_END

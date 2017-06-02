@@ -8,10 +8,10 @@
             Version="1.0.0.0" />
   
   <Properties>
-    <DisplayName>Beam SDK Sample - Interactivity</DisplayName>
+    <DisplayName>Mixer Interactive SDK Sample - Interactivity</DisplayName>
     <PublisherDisplayName>Microsoft</PublisherDisplayName>
     <Logo>Assets\StoreLogo.png</Logo>
-    <Description>Sample showing Beam Interactivity API</Description>
+    <Description>Sample showing Mixer Interactivity API</Description>
   </Properties>
   
   <Prerequisites>
@@ -28,7 +28,7 @@
         Executable="$targetnametoken$.exe" 
         EntryPoint="Interactivity.App">
         <VisualElements 
-            DisplayName="Beam SDK Sample - Interactivity"
+            DisplayName="Mixer SDK Sample - Interactivity"
             Logo="Assets\Logo.png"
             SmallLogo="Assets\SmallLogo.png"
             Description="Interactivity"

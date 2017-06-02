@@ -11,7 +11,7 @@
 #include "beam_web_socket_client.h"
 #include "beam_web_socket_connection_state.h"
 
-NAMESPACE_MICROSOFT_XBOX_BEAM_BEGIN
+NAMESPACE_MICROSOFT_MIXER_BEGIN
 
 class web_socket_connection : public std::enable_shared_from_this<web_socket_connection>
 {
@@ -35,14 +35,14 @@ public:
     void set_uri(_In_ web::uri uri);
 
     // current connection state of the web_socket_connection
-    beam_web_socket_connection_state state();
+    mixer_web_socket_connection_state state();
 
     void set_received_handler(
         _In_ std::function<void(string_t)> handler
         );
 
     void set_connection_state_change_handler(
-        _In_ std::function<void(beam_web_socket_connection_state oldState, beam_web_socket_connection_state newState)> handler
+        _In_ std::function<void(mixer_web_socket_connection_state oldState, mixer_web_socket_connection_state newState)> handler
         );
 
     pplx::task<void>& connection_task() { return m_connectingTask; }
@@ -52,14 +52,14 @@ private:
     //Internal connection logic
     pplx::task<void> connect_async();
 
-    void set_state_helper(_In_ beam_web_socket_connection_state newState);
+    void set_state_helper(_In_ mixer_web_socket_connection_state newState);
 
     // Close callback. It could because of client call, network issue or service termination
     void on_close(uint16_t code, string_t reason);
 
-    const string_t convert_web_socket_connection_state_to_string(_In_ beam_web_socket_connection_state state);
+    const string_t convert_web_socket_connection_state_to_string(_In_ mixer_web_socket_connection_state state);
 
-    std::shared_ptr<beam_web_socket_client> m_client;
+    std::shared_ptr<mixer_web_socket_client> m_client;
     web::uri m_uri;
     string_t m_subProtocol;
     string_t m_bearerToken;
@@ -67,11 +67,11 @@ private:
     string_t m_protocolVersion;
 
     std::recursive_mutex m_stateLocker;
-    beam_web_socket_connection_state m_state;
+    mixer_web_socket_connection_state m_state;
 
     pplx::task<void> m_connectingTask;
 
-    std::function<void(beam_web_socket_connection_state oldState, beam_web_socket_connection_state newState)> m_externalStateChangeHandler;
+    std::function<void(mixer_web_socket_connection_state oldState, mixer_web_socket_connection_state newState)> m_externalStateChangeHandler;
     
     int m_connectionAttempts;
 
@@ -80,4 +80,4 @@ private:
     bool m_closeRequested;
 };
 
-NAMESPACE_MICROSOFT_XBOX_BEAM_END
+NAMESPACE_MICROSOFT_MIXER_END

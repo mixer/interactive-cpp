@@ -10,12 +10,12 @@
 #pragma once
 #include <cpprest/ws_client.h>
 
-NAMESPACE_MICROSOFT_XBOX_BEAM_BEGIN
+NAMESPACE_MICROSOFT_MIXER_BEGIN
 
-class beam_web_socket_client : public std::enable_shared_from_this<beam_web_socket_client>
+class mixer_web_socket_client : public std::enable_shared_from_this<mixer_web_socket_client>
 {
 public:
-    beam_web_socket_client();
+    mixer_web_socket_client();
 
     virtual pplx::task<void> connect(
         _In_ const web::uri& uri,
@@ -44,4 +44,4 @@ private:
     std::function<void(uint16_t closeStatus, string_t closeReason)> m_closeHandler;
 };
 
-NAMESPACE_MICROSOFT_XBOX_BEAM_END
+NAMESPACE_MICROSOFT_MIXER_END

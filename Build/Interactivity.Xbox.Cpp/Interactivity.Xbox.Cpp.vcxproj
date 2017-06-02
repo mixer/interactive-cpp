@@ -83,8 +83,8 @@
   <ItemDefinitionGroup>
     <ClCompile>
       <PrecompiledHeader>Use</PrecompiledHeader>
-      <PreprocessorDefinitions Condition="'$(ConfigurationType)'=='StaticLibrary'">_NO_ASYNCRTIMP;_NO_PPLXIMP;_NO_BEAMIMP;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <PreprocessorDefinitions Condition="'$(ConfigurationType)'=='DynamicLibrary'">_BEAMIMP_EXPORT;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions Condition="'$(ConfigurationType)'=='StaticLibrary'">_NO_ASYNCRTIMP;_NO_PPLXIMP;_NO_MIXERIMP;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions Condition="'$(ConfigurationType)'=='DynamicLibrary'">_MIXERIMP_EXPORT;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <PreprocessorDefinitions>_VARIADIC_MAX=10;ENABLE_INTSAFE_SIGNED_FUNCTIONS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
       <PrecompiledHeaderOutputFile>$(IntDir)pch.pch</PrecompiledHeaderOutputFile>

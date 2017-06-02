@@ -11,11 +11,11 @@
 #include "debug_output.h"
 
 
-NAMESPACE_MICROSOFT_XBOX_BEAM_BEGIN
+NAMESPACE_MICROSOFT_MIXER_BEGIN
 
 void debug_output::write(_In_ const std::string& msg)
 {
     OutputDebugStringA(msg.c_str());
 }
 
-NAMESPACE_MICROSOFT_XBOX_BEAM_END
+NAMESPACE_MICROSOFT_MIXER_END

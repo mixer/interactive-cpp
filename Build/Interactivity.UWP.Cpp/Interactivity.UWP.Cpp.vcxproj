@@ -98,8 +98,8 @@
     <ClCompile>
       <PrecompiledHeader>Use</PrecompiledHeader>
       <WarningLevel>Level3</WarningLevel>
-      <PreprocessorDefinitions Condition="'$(ConfigurationType)'=='StaticLibrary'">_NO_ASYNCRTIMP;_NO_PPLXIMP;_NO_BEAMIMP;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <PreprocessorDefinitions Condition="'$(ConfigurationType)'=='DynamicLibrary'">_BEAMIMP_EXPORT;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions Condition="'$(ConfigurationType)'=='StaticLibrary'">_NO_ASYNCRTIMP;_NO_PPLXIMP;_NO_MIXERIMP;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions Condition="'$(ConfigurationType)'=='DynamicLibrary'">_MIXERIMP_EXPORT;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <SDLCheck>true</SDLCheck>
       <AdditionalOptions>/bigobj /Zm300 %(AdditionalOptions)</AdditionalOptions>
       <ProgramDataBaseFileName>$(OutDir)$(ProjectName).pdb</ProgramDataBaseFileName>

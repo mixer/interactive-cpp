@@ -10,7 +10,7 @@
 #pragma once
 #include "log.h"
 
-NAMESPACE_MICROSOFT_XBOX_BEAM_BEGIN
+NAMESPACE_MICROSOFT_MIXER_BEGIN
 
 class debug_output : public log_output
 {
@@ -20,4 +20,4 @@ public:
     void write(_In_ const std::string& msg) override;
 };
 
-NAMESPACE_MICROSOFT_XBOX_BEAM_END
+NAMESPACE_MICROSOFT_MIXER_END

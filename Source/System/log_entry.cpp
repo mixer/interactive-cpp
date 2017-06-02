@@ -10,7 +10,7 @@
 #include "pch.h"
 #include "log.h"
 
-NAMESPACE_MICROSOFT_XBOX_BEAM_BEGIN
+NAMESPACE_MICROSOFT_MIXER_BEGIN
 
 log_entry::log_entry(log_level level, std::string category) :
     m_logLevel(level),
@@ -44,4 +44,4 @@ std::string log_entry::level_to_string() const
 }
 
 
-NAMESPACE_MICROSOFT_XBOX_BEAM_END
+NAMESPACE_MICROSOFT_MIXER_END
