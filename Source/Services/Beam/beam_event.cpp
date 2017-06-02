@@ -82,10 +82,12 @@ beam_interactivity_state_change_event_args::beam_interactivity_state_change_even
 // Button control event args
 //
 
-beam_button_event_args::beam_button_event_args(string_t controlId, std::shared_ptr<beam_participant> participant, bool isPressed)
+beam_button_event_args::beam_button_event_args(string_t controlId, string_t transaction_id, uint32_t cost, std::shared_ptr<beam_participant> participant, bool isPressed)
 {
     m_controlId = std::move(controlId);
+    m_transactionId = std::move(transaction_id);
     m_participant = std::move(participant);
+    m_cost = cost;
     m_isPressed = isPressed;
 }
 
@@ -97,6 +99,16 @@ const std::shared_ptr<xbox::services::beam::beam_participant>& beam_button_event
 const string_t& beam_button_event_args::control_id() const
 {
     return m_controlId;
+}
+
+const string_t & beam_button_event_args::transaction_id() const
+{
+    return m_transactionId;
+}
+
+uint32_t beam_button_event_args::cost() const
+{
+    return m_cost;
 }
 
 bool beam_button_event_args::is_pressed() const

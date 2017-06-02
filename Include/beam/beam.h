@@ -411,6 +411,16 @@ public:
     _BEAMIMP const string_t& control_id() const;
 
     /// <summary>
+    /// Unique string identifier for the spark transaction associated with this control event.
+    /// </summary>
+    _BEAMIMP const string_t& transaction_id() const;
+
+    /// <summary>
+    /// Spark cost assigned to the button control.
+    /// </summary>
+    _BEAMIMP uint32_t cost() const;
+
+    /// <summary>
     /// The user who raised this event.
     /// </summary>
     _BEAMIMP const std::shared_ptr<beam_participant>& participant() const;
@@ -426,6 +436,8 @@ public:
     /// </summary>
     beam_button_event_args::beam_button_event_args(
         _In_ string_t controlId,
+        _In_ string_t transaction_id,
+        _In_ uint32_t cost,
         _In_ std::shared_ptr<beam_participant> participant,
         _In_ bool isPressed
     );
@@ -433,6 +445,8 @@ public:
 private:
 
     string_t m_controlId;
+    string_t m_transactionId;
+    uint32_t m_cost;
     std::shared_ptr<beam_participant> m_participant;
     bool m_isPressed;
 };
@@ -950,11 +964,11 @@ public:
 
 #if TV_API | XBOX_UWP
     /// <summary>
-    /// Authenticates a signed in local user for the Beam interactivity experience.
+    /// Sets the local user to be used for authentication for the Beam interactivity experience.
     /// </summary>
     /// <param name="user">The user's Xbox Live identifier.</param>
     /// <returns>Returns a Beam event to report any potential error. A nullptr is returned if there's no error.</returns>
-    _BEAMIMP std::shared_ptr<beam_event> add_local_user(_In_ xbox_live_user_t user);
+    _BEAMIMP std::shared_ptr<beam_event> set_local_user(_In_ xbox_live_user_t user);
 #else
     /// <summary>
     /// Set an xtoken retrieved from a signed in user. This is used to authenticate into the Beam interactivity experience.
@@ -1038,6 +1052,12 @@ public:
     /// <param name="control_id">The unique string identifier of the control.</param>
     /// <param name="cooldown">Cooldown duration (in milliseconds).</param>
     _BEAMIMP void trigger_cooldown(_In_ const string_t& control_id, _In_ const std::chrono::milliseconds& cooldown) const;
+
+    /// <summary>
+    /// Captures a given interactive event transaction, charging the sparks to the appropriate Participant.
+    /// </summary>
+    /// <param name="transaction_id">The unique string identifier of the transaction to be captured.</param>
+    _BEAMIMP void capture_transaction(_In_ const string_t& transaction_id) const;
 
     /// <summary>
     /// Manages and maintains proper state updates between the title and the Beam Service.

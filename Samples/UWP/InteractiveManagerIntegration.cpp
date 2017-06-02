@@ -90,7 +90,7 @@ void Sample::AddUserToInteractiveManager(_In_ std::shared_ptr<xbox::services::sy
     stringstream_t source;
     source << _T("Adding user ");
     source << user->gamertag();
-    source << _T(" to StatsManager");
+    source << _T(" to Interactive Manager");
     m_console->WriteLine(source.str().c_str());
 
     m_user = user;
@@ -516,11 +516,18 @@ void Sample::HandleButtonEvents(std::shared_ptr<beam_button_event_args> buttonEv
         string_t buttonId = buttonEventArgs->control_id();
         if (true == buttonEventArgs->is_pressed())
         {
+            if (!buttonEventArgs->transaction_id().empty())
+            {
+                m_beamManager->capture_transaction(buttonEventArgs->transaction_id());
+            }
+
             m_console->Write(L"Button ");
             m_console->Write(buttonId.c_str());
-            m_console->Write(L" is down (");
+            m_console->Write(L" is down (charged ");
             m_console->Write(buttonEventArgs->participant()->beam_username().c_str());
-            m_console->Write(L")\n");
+            m_console->Write(L" ");
+            m_console->Write(std::to_wstring(buttonEventArgs->cost()).c_str());
+            m_console->Write(L" spark(s))\n");
         }
         else
         {
