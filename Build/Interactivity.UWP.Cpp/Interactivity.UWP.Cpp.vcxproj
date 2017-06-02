@@ -50,9 +50,6 @@
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
   <ImportGroup Label="PropertySheets">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
-    <Import Project="..\..\External\Packages\Microsoft.Xbox.Live.SDK.Cpp.UWP.v140.ARM.2017.05.20170517.001\build\native\Microsoft.Xbox.Live.SDK.Cpp.UWP.v140.ARM.targets" Condition="Exists('..\..\External\Packages\Microsoft.Xbox.Live.SDK.Cpp.UWP.v140.ARM.2017.05.20170517.001\build\native\Microsoft.Xbox.Live.SDK.Cpp.UWP.v140.ARM.targets')" />
-    <Import Project="..\..\External\Packages\Microsoft.Xbox.Live.SDK.Cpp.UWP.v140.x64.2017.05.20170517.001\build\native\Microsoft.Xbox.Live.SDK.Cpp.UWP.v140.x64.targets" Condition="Exists('..\..\External\Packages\Microsoft.Xbox.Live.SDK.Cpp.UWP.v140.x64.2017.05.20170517.001\build\native\Microsoft.Xbox.Live.SDK.Cpp.UWP.v140.x64.targets')" />
-    <Import Project="..\..\External\Packages\Microsoft.Xbox.Live.SDK.Cpp.UWP.v140.x86.2017.05.20170517.001\build\native\Microsoft.Xbox.Live.SDK.Cpp.UWP.v140.x86.targets" Condition="Exists('..\..\External\Packages\Microsoft.Xbox.Live.SDK.Cpp.UWP.v140.x86.2017.05.20170517.001\build\native\Microsoft.Xbox.Live.SDK.Cpp.UWP.v140.x86.targets')" />
   </ImportGroup>
   <ItemGroup>
     <ClCompile Include="..\..\Source\Services\Beam\beam_control.cpp" />
@@ -156,8 +153,5 @@
     <PropertyGroup>
       <ErrorText>This project references NuGet package(s) that are missing on this computer. Use NuGet Package Restore to download them.  For more information, see http://go.microsoft.com/fwlink/?LinkID=322105. The missing file is {0}.</ErrorText>
     </PropertyGroup>
-    <Error Condition="!Exists('..\..\External\Packages\Microsoft.Xbox.Live.SDK.Cpp.UWP.v140.ARM.2017.05.20170517.001\build\native\Microsoft.Xbox.Live.SDK.Cpp.UWP.v140.ARM.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\..\External\Packages\Microsoft.Xbox.Live.SDK.Cpp.UWP.v140.ARM.2017.05.20170517.001\build\native\Microsoft.Xbox.Live.SDK.Cpp.UWP.v140.ARM.targets'))" />
-    <Error Condition="!Exists('..\..\External\Packages\Microsoft.Xbox.Live.SDK.Cpp.UWP.v140.x64.2017.05.20170517.001\build\native\Microsoft.Xbox.Live.SDK.Cpp.UWP.v140.x64.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\..\External\Packages\Microsoft.Xbox.Live.SDK.Cpp.UWP.v140.x64.2017.05.20170517.001\build\native\Microsoft.Xbox.Live.SDK.Cpp.UWP.v140.x64.targets'))" />
-    <Error Condition="!Exists('..\..\External\Packages\Microsoft.Xbox.Live.SDK.Cpp.UWP.v140.x86.2017.05.20170517.001\build\native\Microsoft.Xbox.Live.SDK.Cpp.UWP.v140.x86.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\..\External\Packages\Microsoft.Xbox.Live.SDK.Cpp.UWP.v140.x86.2017.05.20170517.001\build\native\Microsoft.Xbox.Live.SDK.Cpp.UWP.v140.x86.targets'))" />
   </Target>
 </Project>
