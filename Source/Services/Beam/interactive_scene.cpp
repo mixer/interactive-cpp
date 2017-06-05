@@ -8,8 +8,8 @@
 //
 //*********************************************************
 #include "pch.h"
-#include "beam.h"
-#include "beam_internal.h"
+#include "interactivity.h"
+#include "interactivity_internal.h"
 #include "json_helper.h"
 
 NAMESPACE_MICROSOFT_MIXER_BEGIN

@@ -8,10 +8,10 @@
 //
 //*********************************************************
 #pragma once
-#include "beam.h"
-#include "beam_web_socket_connection.h"
-#include "beam_web_socket_connection_state.h"
-#include "beam_web_socket_client.h"
+#include "interactivity.h"
+#include "mixer_web_socket_connection.h"
+#include "mixer_web_socket_connection_state.h"
+#include "mixer_web_socket_client.h"
 
 
 namespace Microsoft {

@@ -8,8 +8,8 @@
 //
 //*********************************************************
 #include "pch.h"
-#include "beam.h"
-#include "beam_internal.h"
+#include "interactivity.h"
+#include "interactivity_internal.h"
 
 using namespace pplx;
 using namespace MICROSOFT_MIXER_NAMESPACE;

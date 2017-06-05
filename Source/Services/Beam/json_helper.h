@@ -8,8 +8,8 @@
 //
 //*********************************************************
 #pragma once
-#include "beam.h"
-#include "beam_types.h"
+#include "interactivity.h"
+#include "interactivity_types.h"
 #include <chrono>
 
 //

@@ -4,7 +4,7 @@
 #include "pch.h"
 #include "SampleGUI.h"
 #include "ATGColors.h"
-#include "Interactivity.h"
+#include "InteractivitySample.h"
 
 using namespace DirectX;
 using namespace Platform;

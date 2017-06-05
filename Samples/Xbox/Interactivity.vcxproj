@@ -186,7 +186,7 @@
     <ClInclude Include="..\Kits\ATGTK\CSVReader.h" />
     <ClInclude Include="..\Kits\ATGTK\SampleGUI.h" />
     <ClInclude Include="..\Kits\ATGTK\TextConsole.h" />
-    <ClInclude Include="Interactivity.h" />
+    <ClInclude Include="InteractivitySample.h" />
     <ClInclude Include="LiveResources.h" />
     <ClInclude Include="pch.h" />
     <ClInclude Include="StatsSample.h" />
@@ -197,7 +197,7 @@
   <ItemGroup>
     <ClCompile Include="..\Kits\ATGTK\SampleGUI.cpp" />
     <ClCompile Include="..\Kits\ATGTK\TextConsole.cpp" />
-    <ClCompile Include="Interactivity.cpp" />
+    <ClCompile Include="InteractivitySample.cpp" />
     <ClCompile Include="LiveResources.cpp" />
     <ClCompile Include="Main.cpp" />
     <ClCompile Include="DeviceResources.cpp" />

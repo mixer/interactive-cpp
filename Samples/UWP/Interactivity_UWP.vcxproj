@@ -210,7 +210,7 @@
     </FXCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClInclude Include="..\..\Include\beam\beam.h" />
+    <ClInclude Include="..\..\Include\beam\interactivity.h" />
     <ClInclude Include="..\..\Include\beam\beam_types.h" />
     <ClInclude Include="..\..\Include\beam\namespaces.h" />
     <ClInclude Include="..\Kits\ATGTK\ATGColors.h" />
@@ -218,7 +218,7 @@
     <ClInclude Include="..\Kits\ATGTK\CSVReader.h" />
     <ClInclude Include="..\Kits\ATGTK\SampleGUI.h" />
     <ClInclude Include="..\Kits\ATGTK\TextConsole.h" />
-    <ClInclude Include="Interactivity.h" />
+    <ClInclude Include="InteractivitySample.h" />
     <ClInclude Include="LiveResources.h" />
     <ClInclude Include="pch.h" />
     <ClInclude Include="StepTimer.h" />
@@ -228,7 +228,7 @@
     <ClCompile Include="..\Kits\ATGTK\SampleGUI.cpp" />
     <ClCompile Include="..\Kits\ATGTK\TextConsole.cpp" />
     <ClCompile Include="InteractiveManagerIntegration.cpp" />
-    <ClCompile Include="Interactivity.cpp" />
+    <ClCompile Include="InteractivitySample.cpp" />
     <ClCompile Include="LiveResources.cpp" />
     <ClCompile Include="Main.cpp" />
     <ClCompile Include="DeviceResources.cpp" />

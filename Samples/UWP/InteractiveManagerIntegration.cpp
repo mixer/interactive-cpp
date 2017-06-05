@@ -3,7 +3,7 @@
 
 #include "pch.h"
 #include <time.h>
-#include "Interactivity.h"
+#include "InteractivitySample.h"
 
 using namespace Concurrency;
 using namespace Windows::Foundation::Collections;

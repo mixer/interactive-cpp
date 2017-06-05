@@ -3,7 +3,7 @@
 
 #include "pch.h"
 #include "StatsSample.h"
-#include "Interactivity.h"
+#include "InteractivitySample.h"
 #include "ATGColors.h"
 
 using namespace DirectX;

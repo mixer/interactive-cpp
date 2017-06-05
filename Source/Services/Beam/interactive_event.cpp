@@ -8,8 +8,8 @@
 //
 //*********************************************************
 #include "pch.h"
-#include "beam.h"
-#include "beam_internal.h"
+#include "interactivity.h"
+#include "interactivity_internal.h"
 
 NAMESPACE_MICROSOFT_MIXER_BEGIN
 static std::mutex s_singletonLock;

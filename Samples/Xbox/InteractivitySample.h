@@ -10,8 +10,8 @@
 
 #include "namespaces.h"
 #define _MIXERIMP_EXPORT
-#include "beam_types.h"
-#include "beam.h"
+#include "interactivity_types.h"
+#include "interactivity.h"
 
 using namespace MICROSOFT_MIXER_NAMESPACE;
 

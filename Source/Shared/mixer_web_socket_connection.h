@@ -8,8 +8,8 @@
 //
 //*********************************************************
 #pragma once
-#include "beam_web_socket_client.h"
-#include "beam_web_socket_connection_state.h"
+#include "mixer_web_socket_client.h"
+#include "mixer_web_socket_connection_state.h"
 
 NAMESPACE_MICROSOFT_MIXER_BEGIN
 

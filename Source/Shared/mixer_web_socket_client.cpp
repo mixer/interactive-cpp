@@ -8,7 +8,7 @@
 //
 //*********************************************************
 #include "pch.h"
-#include "beam_web_socket_client.h"
+#include "mixer_web_socket_client.h"
 #include <cpprest/uri.h>
 
 using namespace web::websockets::client;

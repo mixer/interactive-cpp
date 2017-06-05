@@ -10,7 +10,7 @@
 #include "pch.h"
 #include <cpprest/ws_client.h>
 #include <thread>
-#include "beam_web_socket_connection.h"
+#include "mixer_web_socket_connection.h"
 
 using namespace web::websockets::client;
 
