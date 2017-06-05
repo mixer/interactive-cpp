@@ -9,95 +9,89 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\..\Include\beam\beam.h">
+    <ClInclude Include="..\..\Source\Util\pch.h">
       <Filter>Includes</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\Source\Shared\beam_web_socket_client.h">
+    <ClInclude Include="..\..\Source\Util\log.h">
       <Filter>C++ Source</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\Source\Shared\beam_web_socket_connection.h">
+    <ClInclude Include="..\..\Source\json_helper.h">
+      <Filter>Includes</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Include\namespaces.h">
+      <Filter>Includes</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Source\Util\debug_output.h">
       <Filter>C++ Source</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\Source\Shared\beam_web_socket_connection_state.h">
+    <ClInclude Include="..\..\Include\interactivity.h">
+      <Filter>Includes</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Source\Util\mixer_web_socket_client.h">
       <Filter>C++ Source</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\Source\Services\Beam\beam_internal.h">
-      <Filter>Includes</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\Source\Shared\pch.h">
-      <Filter>Includes</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\Source\System\log.h">
+    <ClInclude Include="..\..\Source\Util\mixer_web_socket_connection.h">
       <Filter>C++ Source</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\Include\beam\beam_types.h">
-      <Filter>Includes</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\Source\Services\Beam\json_helper.h">
-      <Filter>Includes</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\Include\beam\namespaces.h">
-      <Filter>Includes</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\Source\System\debug_output.h">
+    <ClInclude Include="..\..\Source\Util\mixer_web_socket_connection_state.h">
       <Filter>C++ Source</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Source\interactivity_internal.h">
+      <Filter>Includes</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Include\interactivity_types.h">
+      <Filter>Includes</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\..\Source\Services\Beam\beam_internal.h">
+    <ClInclude Include="..\..\Source\interactivity_internal.h">
       <Filter>C++ Public Includes</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\Source\Shared\pch.h">
+    <ClInclude Include="..\..\Source\Util\pch.h">
       <Filter>C++ Public Includes</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\..\Source\Services\Beam\beam_manager.cpp">
-      <Filter>C++ Source</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\Source\Services\Beam\beam_manager_impl.cpp">
-      <Filter>C++ Source</Filter>
-    </ClCompile>
     <ClCompile Include="pch.cpp">
       <Filter>C++ Source</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\Source\Services\Beam\beam_manager.cpp">
+    <ClCompile Include="..\..\Source\Util\log.cpp">
       <Filter>C++ Source</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\Source\Services\Beam\beam_manager_impl.cpp">
+    <ClCompile Include="..\..\Source\Util\log_entry.cpp">
       <Filter>C++ Source</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\Source\Services\Beam\beam_control.cpp">
+    <ClCompile Include="..\..\Source\Util\log_output.cpp">
       <Filter>C++ Source</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\Source\Services\Beam\beam_event.cpp">
+    <ClCompile Include="..\..\Source\Util\debug_output.cpp">
       <Filter>C++ Source</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\Source\Services\Beam\beam_participant.cpp">
+    <ClCompile Include="..\..\Source\interactive_control.cpp">
       <Filter>C++ Source</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\Source\Services\Beam\beam_scene.cpp">
+    <ClCompile Include="..\..\Source\interactive_event.cpp">
       <Filter>C++ Source</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\Source\Shared\beam_web_socket_client.cpp">
+    <ClCompile Include="..\..\Source\interactive_group.cpp">
       <Filter>C++ Source</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\Source\Shared\beam_web_socket_connection.cpp">
+    <ClCompile Include="..\..\Source\interactive_participant.cpp">
       <Filter>C++ Source</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\Source\System\log.cpp">
+    <ClCompile Include="..\..\Source\interactive_scene.cpp">
       <Filter>C++ Source</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\Source\System\log_entry.cpp">
+    <ClCompile Include="..\..\Source\Util\mixer_web_socket_client.cpp">
       <Filter>C++ Source</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\Source\System\log_output.cpp">
+    <ClCompile Include="..\..\Source\Util\mixer_web_socket_connection.cpp">
       <Filter>C++ Source</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\Source\System\debug_output.cpp">
+    <ClCompile Include="..\..\Source\interactivity_manager.cpp">
       <Filter>C++ Source</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\Source\Services\Beam\beam_group.cpp">
+    <ClCompile Include="..\..\Source\interactivity_manager_impl.cpp">
       <Filter>C++ Source</Filter>
     </ClCompile>
   </ItemGroup>

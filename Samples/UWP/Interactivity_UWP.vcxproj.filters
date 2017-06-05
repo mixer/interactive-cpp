@@ -43,10 +43,10 @@
     <ClInclude Include="pch.h">
       <Filter>Utils</Filter>
     </ClInclude>
-    <ClInclude Include="Interactivity.h" />
-    <ClInclude Include="..\..\Include\beam\beam.h" />
-    <ClInclude Include="..\..\Include\beam\beam_types.h" />
-    <ClInclude Include="..\..\Include\beam\namespaces.h" />
+    <ClInclude Include="..\..\Include\interactivity.h" />
+    <ClInclude Include="..\..\Include\interactivity_types.h" />
+    <ClInclude Include="..\..\Include\namespaces.h" />
+    <ClInclude Include="InteractivitySample.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="DeviceResources.cpp">
@@ -67,8 +67,8 @@
     <ClCompile Include="pch.cpp">
       <Filter>Utils</Filter>
     </ClCompile>
-    <ClCompile Include="Interactivity.cpp" />
     <ClCompile Include="InteractiveManagerIntegration.cpp" />
+    <ClCompile Include="InteractivitySample.cpp" />
   </ItemGroup>
   <ItemGroup>
     <Image Include="Assets\Logo.png">

@@ -13,7 +13,6 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="Interactivity.h" />
     <ClInclude Include="..\Kits\ATGTK\ATGColors.h">
       <Filter>ATG Tool Kit</Filter>
     </ClInclude>
@@ -47,12 +46,9 @@
     <ClInclude Include="StatsSample.h">
       <Filter>ATG Tool Kit</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\Include\beam\beam.h" />
-    <ClInclude Include="..\..\Include\beam\beam_types.h" />
-    <ClInclude Include="..\..\Include\beam\namespaces.h" />
+    <ClInclude Include="InteractivitySample.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="Interactivity.cpp" />
     <ClCompile Include="LiveResources.cpp">
       <Filter>ATG Tool Kit</Filter>
     </ClCompile>
@@ -71,6 +67,7 @@
     <ClCompile Include="..\Kits\ATGTK\TextConsole.cpp">
       <Filter>ATG Tool Kit</Filter>
     </ClCompile>
+    <ClCompile Include="InteractivitySample.cpp" />
   </ItemGroup>
   <ItemGroup>
     <Image Include="Assets\Logo.png">

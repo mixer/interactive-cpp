@@ -2,50 +2,49 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 #include "pch.h"
-#include <time.h>
+#include "StatsSample.h"
 #include "InteractivitySample.h"
+#include "ATGColors.h"
 
-using namespace Concurrency;
-using namespace Windows::Foundation::Collections;
-using namespace Windows::Foundation;
-using namespace xbox::services;
-using namespace xbox::services::stats::manager;
+using namespace DirectX;
 using namespace MICROSOFT_MIXER_NAMESPACE;
 
 namespace
 {
-    const int c_debugLog = 202;
+    const int c_liveHUD                     = 1000;
+    const int c_sampleUIPanel               = 2000;
+    const int c_goInteractiveBtn            = 2101;
+    const int c_placeParticipantBtn         = 2102;
+    const int c_disbandGroupsBtn            = 2103;
+    const int c_cooldownRedBtn              = 2104;
+    const int c_cooldownBlueBtn             = 2105;
+    const int c_switchScenesBtn             = 2106;
+    const int c_voteYesCountLabel           = 1004;
+    const int c_voteNoCountLabel            = 1006;
 
-    const int c_maxLeaderboards = 10;
-    const int c_liveHUD = 1000;
-    const int c_sampleUIPanel = 2000;
-    const int c_goInteractiveBtn = 2101;
-    const int c_placeParticipantBtn = 2102;
-    const int c_disbandGroupsBtn = 2103;
-    const int c_cooldownRedBtn = 2104;
-    const int c_cooldownBlueBtn = 2105;
-    const int c_switchScenesBtn = 2106;
-    const int c_voteYesCountLabel = 1004;
-    const int c_voteNoCountLabel = 1006;
+    const string_t s_interactiveVersion     = L"19005";
 
-    const string_t s_interactiveVersion = L"19005";
+    const string_t s_defaultGroup           = L"default";
+    const string_t s_redGroup               = L"redGroup";
+    const string_t s_blueGroup              = L"blueGroup";
 
-    const string_t s_defaultGroup = L"default";
-    const string_t s_redGroup = L"redGroup";
-    const string_t s_blueGroup = L"blueGroup";
-
-    const string_t s_defaultScene = L"default";
-    const string_t s_redMinesScene = L"red_mines";
-    const string_t s_redLasersScene = L"red_lasers";
-    const string_t s_blueMinesScene = L"blue_mines";
-    const string_t s_blueLasersScene = L"blue_lasers";
+    const string_t s_defaultScene           = L"default";
+    const string_t s_redMinesScene          = L"red_mines";
+    const string_t s_redLasersScene         = L"red_lasers";
+    const string_t s_blueMinesScene         = L"blue_mines";
+    const string_t s_blueLasersScene        = L"blue_lasers";
 }
 
-void Sample::InitializeInteractiveManager()
+Sample::Sample() :
+    m_frame(0)
 {
-    m_interactivityManager = interactivity_manager::get_singleton_instance();
+    m_deviceResources = std::make_unique<DX::DeviceResources>(DXGI_FORMAT_B8G8R8A8_UNORM, DXGI_FORMAT_UNKNOWN);
+    m_liveResources = std::make_unique<ATG::LiveResources>();
 
+    ATG::UIConfig uiconfig;
+    m_ui = std::make_unique<ATG::UIManager>(uiconfig);
     m_currentInteractiveState = interactivity_state::not_initialized;
+    m_interactivityManager = interactivity_manager::get_singleton_instance();
     m_voteYesCount = 0;
     m_voteNoCount = 0;
 
@@ -64,11 +63,22 @@ void Sample::InitializeInteractiveManager()
     m_groupToSceneMap[s_defaultGroup] = defaultScenes;
     m_groupToSceneMap[s_redGroup] = redScenes;
     m_groupToSceneMap[s_blueGroup] = blueScenes;
+}
 
-    // Initialize controls and labels
+// Initialize the Direct3D resources required to run.
+void Sample::Initialize(IUnknown* window)
+{
+    //Register the Stats Sample ETW+ Provider
+    EventRegisterXDKS_0301D082();
+
+    m_gamePad = std::make_unique<GamePad>();
+
+    m_ui->LoadLayout(L".\\Assets\\SampleUI.csv", L".\\Assets");
+
     m_voteYesCountLabel = m_ui->FindControl<ATG::TextLabel>(2000, c_voteYesCountLabel);
     m_voteNoCountLabel = m_ui->FindControl<ATG::TextLabel>(2000, c_voteNoCountLabel);
 
+    // Set up references to buttons in the main scene
     m_interactivityBtn = m_ui->FindControl<ATG::Button>(2000, c_goInteractiveBtn);
     m_buttons.push_back(m_interactivityBtn);
 
@@ -83,75 +93,202 @@ void Sample::InitializeInteractiveManager()
 
     m_switchScenesBtn = m_ui->FindControl<ATG::Button>(2000, c_switchScenesBtn);
     m_buttons.push_back(m_switchScenesBtn);
+
+    m_liveResources->Initialize(m_ui, m_ui->FindPanel<ATG::Overlay>(c_sampleUIPanel));
+    m_deviceResources->SetWindow(window);
+
+    m_deviceResources->CreateDeviceResources();  
+    CreateDeviceDependentResources();
+
+    m_deviceResources->CreateWindowSizeDependentResources();
+    CreateWindowSizeDependentResources();
+    
+    SetupUI();
 }
 
-void Sample::AddUserToInteractiveManager(_In_ std::shared_ptr<xbox::services::system::xbox_live_user> user)
+#pragma region UI Methods
+void Sample::SetupUI()
 {
-    stringstream_t source;
-    source << _T("Adding user ");
-    source << user->gamertag();
-    source << _T(" to Interactive Manager");
-    m_console->WriteLine(source.str().c_str());
+    using namespace ATG;
 
-    m_user = user;
-
-    auto task = m_user->get_token_and_signature(L"GET", L"https://mixer.com", L"")
-    .then([this](XBOX_LIVE_NAMESPACE::xbox_live_result<XBOX_LIVE_NAMESPACE::system::token_and_signature_result> result)
+    // Toggle interactivity
+    m_ui->FindControl<Button>(c_sampleUIPanel, c_goInteractiveBtn)->SetCallback([this](IPanel*, IControl*)
     {
-        try
-        {
-            string_t token = result.payload().token();
+        ToggleInteractivity();
+    });
 
-            if (!token.empty())
-            {
-                m_interactivityManager->set_xtoken(token);
-            }
-        }
-        catch (Platform::Exception^ ex)
-        {
-            this->m_console->WriteLine(ex->Message->Data());
-        }
+    // Add another participant to one of the groups
+    m_ui->FindControl<Button>(c_sampleUIPanel, c_placeParticipantBtn)->SetCallback([this](IPanel*, IControl*)
+    {
+        AddParticipantToGroup();
+    });
+
+    // Move all participants back to the default group
+    m_ui->FindControl<Button>(c_sampleUIPanel, c_disbandGroupsBtn)->SetCallback([this](IPanel*, IControl*)
+    {
+        DisbandGroups();
+    });
+
+    // Trigger cooldowns on red group
+    m_ui->FindControl<Button>(c_sampleUIPanel, c_cooldownRedBtn)->SetCallback([this](IPanel*, IControl*)
+    {
+        TriggerCooldownOnButtons(s_redGroup);
+    });
+
+    // Trigger cooldowns on blue group
+    m_ui->FindControl<Button>(c_sampleUIPanel, c_cooldownBlueBtn)->SetCallback([this](IPanel*, IControl*)
+    {
+        TriggerCooldownOnButtons(s_blueGroup);
+    });
+
+    // Rotate through scenes defined for the groups
+    m_ui->FindControl<Button>(c_sampleUIPanel, c_switchScenesBtn)->SetCallback([this](IPanel*, IControl*)
+    {
+        SwitchScenes();
     });
 }
+#pragma endregion
 
-void Sample::UpdateInteractivityManager()
+#pragma region Frame Update
+// Executes basic render loop.
+void Sample::Tick()
 {
-    // Process events from the stats manager
-    // This should be called each frame update
+    PIXBeginEvent(PIX_COLOR_DEFAULT, L"Frame %I64u", m_frame);
 
-    auto interactiveEvents = m_interactivityManager->do_work();
-
-    for (const auto& evt : interactiveEvents)
+    m_timer.Tick([&]()
     {
-        interactive_event_type eventType = evt.event_type();
+        Update(m_timer);
+    });
 
-        switch (eventType)
-        {
-        case interactive_event_type::interactivity_state_changed:
-            HandleInteractivityStateChange(evt);
-            break;
-        case interactive_event_type::participant_state_changed:
-            HandleParticipantStateChange(evt);
-            break;
-        case interactive_event_type::error:
-            HandleInteractivityError(evt);
-            break;
-        }
+    Render();
 
-        // If you want to handle the interactive input manually:
-        if (eventType == interactive_event_type::button || eventType == interactive_event_type::joystick)
+    PIXEndEvent();
+    m_frame++;
+}
+
+// Updates the world.
+void Sample::Update(DX::StepTimer const& timer)
+{
+    PIXBeginEvent(PIX_COLOR_DEFAULT, L"Update");
+
+    float elapsedTime = float(timer.GetElapsedSeconds());
+
+    auto pad = m_gamePad->GetState(0);
+    if (pad.IsConnected())
+    {
+        m_gamePadButtons.Update(pad);
+
+        if (!m_ui->Update(elapsedTime, pad))
         {
-            HandleInteractiveControlEvent(evt);
-            break;
+            if (pad.IsViewPressed())
+            {
+                Windows::ApplicationModel::Core::CoreApplication::Exit();
+            }
+            if (pad.IsMenuPressed())
+            {
+                Windows::Xbox::UI::SystemUI::ShowAccountPickerAsync(nullptr,Windows::Xbox::UI::AccountPickerOptions::None);
+            }
         }
     }
+    else
+    {
+        m_gamePadButtons.Reset();
+    }
+
+    std::vector<interactive_event> events = m_interactivityManager->do_work();
+    ProcessInteractiveEvents(events);
+
+    PIXEndEvent();
 }
+#pragma endregion
+
+#pragma region Frame Render
+// Draws the scene.
+void Sample::Render()
+{
+    // Don't try to render anything before the first Update.
+    if (m_timer.GetFrameCount() == 0)
+    {
+        return;
+    }
+
+    // Prepare the render target to render a new frame.
+    m_deviceResources->Prepare();
+    Clear();
+
+    auto context = m_deviceResources->GetD3DDeviceContext();
+    PIXBeginEvent(context, PIX_COLOR_DEFAULT, L"Render");
+
+    PIXEndEvent(context);
+
+    m_ui->Render();
+    m_console->Render();
+    // Show the new frame.
+    PIXBeginEvent(context, PIX_COLOR_DEFAULT, L"Present");
+    m_deviceResources->Present();
+    m_graphicsMemory->Commit();
+    PIXEndEvent(context);
+}
+
+// Helper method to clear the back buffers.
+void Sample::Clear()
+{
+    auto context = m_deviceResources->GetD3DDeviceContext();
+    PIXBeginEvent(context, PIX_COLOR_DEFAULT, L"Clear");
+
+    // Clear the views.
+    auto renderTarget = m_deviceResources->GetBackBufferRenderTargetView();
+
+    context->ClearRenderTargetView(renderTarget, ATG::Colors::Background);
+
+    context->OMSetRenderTargets(1, &renderTarget, nullptr);
+
+    // Set the viewport.
+    auto viewport = m_deviceResources->GetScreenViewport();
+    context->RSSetViewports(1, &viewport);
+
+    PIXEndEvent(context);
+}
+#pragma endregion
+
+#pragma region Message Handlers
+// Message handlers
+void Sample::OnSuspending()
+{
+    auto context = m_deviceResources->GetD3DDeviceContext();
+    context->Suspend(0);
+}
+
+void Sample::OnResuming()
+{
+    auto context = m_deviceResources->GetD3DDeviceContext();
+    context->Resume();
+    m_timer.ResetElapsedTime();
+    m_gamePadButtons.Reset();
+    m_ui->Reset();
+    m_liveResources->Refresh();
+}
+
+#pragma endregion
+
+
+#pragma region Interactivity Methods
 
 void Sample::InitializeInteractivity()
 {
-    m_interactivityManager->initialize(s_interactiveVersion, false /*goInteractive*/);
-}
+    auto user = m_liveResources->GetUser();
 
+    if (nullptr != user)
+    {
+        m_interactivityManager->set_local_user(user);
+
+        m_interactivityManager->initialize(s_interactiveVersion, false /*goInteractive*/);
+    }
+    else
+    {
+        m_console->WriteLine(L"ERROR: no signed in local user");
+    }
+}
 
 void Sample::ToggleInteractivity()
 {
@@ -216,6 +353,46 @@ void Sample::SwitchScenes()
             }
         }
     }
+}
+
+void Sample::SimulateUserChange()
+{
+    SetAllButtonsEnabled(false);
+
+    m_interactivityManager->stop_interactive();
+    m_interactivityBtn->SetText(L"Go Interactive");
+
+    while (true)
+    {
+        auto currentInteractiveState = m_interactivityManager->interactivity_state();
+
+        if (interactivity_state::interactivity_disabled == currentInteractiveState)
+        {
+            OutputDebugStringW(L"Interactivity now disabled\n");
+            break;
+        }
+
+        Sleep(100);
+    }
+
+    InitializeInteractivity();
+
+    while (true)
+    {
+        auto currentInteractiveState = m_interactivityManager->interactivity_state();
+
+        if (interactivity_state::interactivity_disabled == currentInteractiveState)
+        {
+            OutputDebugStringW(L"Interactivity now back to disabled\n");
+            break;
+        }
+
+        Sleep(100);
+    }
+
+    m_interactivityManager->start_interactive();
+
+    SetAllButtonsEnabled(true);
 }
 
 void Sample::InitializeGroupsAndScenes()
@@ -285,7 +462,7 @@ void Sample::AddParticipantToGroup()
     {
         auto defaultGroup = m_interactivityManager->group(s_defaultGroup);
         auto remainingParticipants = defaultGroup->participants();
-
+        
         if (remainingParticipants.size() > 0)
         {
             auto smallestGroup = (*groupsList.begin());
@@ -471,7 +648,7 @@ void Sample::HandleParticipantStateChange(interactive_event event)
     if (interactive_event_type::participant_state_changed == event.event_type())
     {
         std::shared_ptr<interactive_participant_state_change_event_args> participantStateArgs = std::dynamic_pointer_cast<interactive_participant_state_change_event_args>(event.event_args());
-
+        
         if (nullptr == participantStateArgs)
         {
             m_console->WriteLine(L"Invalid participant state change");
@@ -554,7 +731,6 @@ void Sample::HandleButtonEvents(std::shared_ptr<interactive_button_event_args> b
         m_console->WriteLine(L"Invalid interactive_button_event_args");
     }
 }
-
 void Sample::HandleJoystickEvents(std::shared_ptr<interactive_joystick_event_args> joystickEventArgs)
 {
     m_console->Write(L"Received joystick event for control ");
@@ -571,6 +747,31 @@ void Sample::HandleJoystickEvents(std::shared_ptr<interactive_joystick_event_arg
     m_console->Write(L"\n");
 }
 
+#pragma endregion
+
+#pragma region Direct3D Resources
+// These are the resources that depend on the device.
+void Sample::CreateDeviceDependentResources()
+{
+    auto device = m_deviceResources->GetD3DDevice();
+    auto context = m_deviceResources->GetD3DDeviceContext();
+
+    m_graphicsMemory = std::make_unique<GraphicsMemory>(device, m_deviceResources->GetBackBufferCount());
+    m_console = std::make_unique<DX::TextConsole>(context,L"Courier_16.spritefont");
+
+    m_ui->RestoreDevice(context);
+}
+
+// Allocate all memory resources that change on a window SizeChanged event.
+void Sample::CreateWindowSizeDependentResources()
+{
+    RECT fullscreen = m_deviceResources->GetOutputSize();
+    static const RECT consoleDisplay = { 960, 150, 1838, 825 };
+
+    m_ui->SetWindow(fullscreen);
+    m_console->SetWindow(consoleDisplay);
+}
+
 void Sample::SetAllButtonsEnabled(bool enabled)
 {
     for (auto iter = m_buttons.begin(); iter != m_buttons.end(); iter++)
@@ -579,3 +780,4 @@ void Sample::SetAllButtonsEnabled(bool enabled)
         currButton->SetEnabled(enabled);
     }
 }
+#pragma endregion

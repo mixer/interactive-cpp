@@ -42,19 +42,19 @@
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
   </ImportGroup>
   <ItemGroup>
-    <ClCompile Include="..\..\Source\Services\Beam\beam_control.cpp" />
-    <ClCompile Include="..\..\Source\Services\Beam\beam_event.cpp" />
-    <ClCompile Include="..\..\Source\Services\Beam\beam_group.cpp" />
-    <ClCompile Include="..\..\Source\Services\Beam\beam_manager.cpp" />
-    <ClCompile Include="..\..\Source\Services\Beam\beam_manager_impl.cpp" />
-    <ClCompile Include="..\..\Source\Services\Beam\beam_participant.cpp" />
-    <ClCompile Include="..\..\Source\Services\Beam\beam_scene.cpp" />
-    <ClCompile Include="..\..\Source\Shared\beam_web_socket_client.cpp" />
-    <ClCompile Include="..\..\Source\Shared\beam_web_socket_connection.cpp" />
-    <ClCompile Include="..\..\Source\System\debug_output.cpp" />
-    <ClCompile Include="..\..\Source\System\log.cpp" />
-    <ClCompile Include="..\..\Source\System\log_entry.cpp" />
-    <ClCompile Include="..\..\Source\System\log_output.cpp" />
+    <ClCompile Include="..\..\Source\interactive_control.cpp" />
+    <ClCompile Include="..\..\Source\interactive_event.cpp" />
+    <ClCompile Include="..\..\Source\interactive_group.cpp" />
+    <ClCompile Include="..\..\Source\interactive_participant.cpp" />
+    <ClCompile Include="..\..\Source\interactive_scene.cpp" />
+    <ClCompile Include="..\..\Source\interactivity_manager.cpp" />
+    <ClCompile Include="..\..\Source\interactivity_manager_impl.cpp" />
+    <ClCompile Include="..\..\Source\Util\mixer_web_socket_client.cpp" />
+    <ClCompile Include="..\..\Source\Util\mixer_web_socket_connection.cpp" />
+    <ClCompile Include="..\..\Source\Util\debug_output.cpp" />
+    <ClCompile Include="..\..\Source\Util\log.cpp" />
+    <ClCompile Include="..\..\Source\Util\log_entry.cpp" />
+    <ClCompile Include="..\..\Source\Util\log_output.cpp" />
     <ClCompile Include="pch.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">Create</PrecompiledHeader>
@@ -63,17 +63,17 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\..\Include\beam\beam.h" />
-    <ClInclude Include="..\..\Include\beam\beam_types.h" />
-    <ClInclude Include="..\..\Include\beam\namespaces.h" />
-    <ClInclude Include="..\..\Source\Services\Beam\beam_internal.h" />
-    <ClInclude Include="..\..\Source\Services\Beam\json_helper.h" />
-    <ClInclude Include="..\..\Source\Shared\beam_web_socket_client.h" />
-    <ClInclude Include="..\..\Source\Shared\beam_web_socket_connection.h" />
-    <ClInclude Include="..\..\Source\Shared\beam_web_socket_connection_state.h" />
-    <ClInclude Include="..\..\Source\System\debug_output.h" />
-    <ClInclude Include="..\..\Source\System\log.h" />
-    <ClInclude Include="..\..\Source\Shared\pch.h" />
+    <ClInclude Include="..\..\Include\interactivity.h" />
+    <ClInclude Include="..\..\Include\interactivity_types.h" />
+    <ClInclude Include="..\..\Include\namespaces.h" />
+    <ClInclude Include="..\..\Source\interactivity_internal.h" />
+    <ClInclude Include="..\..\Source\json_helper.h" />
+    <ClInclude Include="..\..\Source\Util\mixer_web_socket_client.h" />
+    <ClInclude Include="..\..\Source\Util\mixer_web_socket_connection.h" />
+    <ClInclude Include="..\..\Source\Util\mixer_web_socket_connection_state.h" />
+    <ClInclude Include="..\..\Source\Util\debug_output.h" />
+    <ClInclude Include="..\..\Source\Util\log.h" />
+    <ClInclude Include="..\..\Source\Util\pch.h" />
   </ItemGroup>
   <PropertyGroup>
     <ProjectFolder>$(MSBuildProjectName)</ProjectFolder>
@@ -83,8 +83,8 @@
   <ItemDefinitionGroup>
     <ClCompile>
       <PrecompiledHeader>Use</PrecompiledHeader>
-      <PreprocessorDefinitions Condition="'$(ConfigurationType)'=='StaticLibrary'">_NO_ASYNCRTIMP;_NO_PPLXIMP;_NO_BEAMIMP;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <PreprocessorDefinitions Condition="'$(ConfigurationType)'=='DynamicLibrary'">_BEAMIMP_EXPORT;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions Condition="'$(ConfigurationType)'=='StaticLibrary'">_NO_ASYNCRTIMP;_NO_PPLXIMP;_NO_MIXERIMP;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions Condition="'$(ConfigurationType)'=='DynamicLibrary'">_MIXERIMP_EXPORT;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <PreprocessorDefinitions>_VARIADIC_MAX=10;ENABLE_INTSAFE_SIGNED_FUNCTIONS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
       <PrecompiledHeaderOutputFile>$(IntDir)pch.pch</PrecompiledHeaderOutputFile>
@@ -97,11 +97,9 @@
       <AdditionalIncludeDirectories>
       $(ProjectDir);
       $(ProjectDir)\..\..\Include;
-      $(ProjectDir)\..\..\Include\beam;
+      $(ProjectDir)\..\..\Include;
       $(ProjectDir)\..\..\Source;
-      $(ProjectDir)\..\..\Source\Services;
-      $(ProjectDir)\..\..\Source\Shared;
-      $(ProjectDir)\..\..\Source\System;
+      $(ProjectDir)\..\..\Source\Util;
       $(ProjectDir)\..\..\cpprestsdk\Release\include;
       %(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
