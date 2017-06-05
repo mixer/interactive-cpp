@@ -162,7 +162,7 @@
     <ClCompile>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
       <PrecompiledHeaderOutputFile>$(IntDir)pch.pch</PrecompiledHeaderOutputFile>
-      <AdditionalIncludeDirectories>$(ProjectDir);$(IntermediateOutputPath);..\Kits\DirectXTK\Inc;..\Kits\ATGTK;..\..\Include\beam;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir);$(IntermediateOutputPath);..\Kits\DirectXTK\Inc;..\Kits\ATGTK;..\..\Include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <AdditionalOptions>/bigobj %(AdditionalOptions)</AdditionalOptions>
       <WarningLevel>Level4</WarningLevel>
       <PreprocessorDefinitions>NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
@@ -181,7 +181,7 @@
     <ClCompile>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
       <PrecompiledHeaderOutputFile>$(IntDir)pch.pch</PrecompiledHeaderOutputFile>
-      <AdditionalIncludeDirectories>$(ProjectDir);$(IntermediateOutputPath);..\Kits\DirectXTK\Inc;..\Kits\ATGTK;..\..\Include\beam;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir);$(IntermediateOutputPath);..\Kits\DirectXTK\Inc;..\Kits\ATGTK;..\..\Include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <AdditionalOptions>/bigobj %(AdditionalOptions)</AdditionalOptions>
       <WarningLevel>Level4</WarningLevel>
       <PreprocessorDefinitions>_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
@@ -199,7 +199,7 @@
     <ClCompile>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
       <PrecompiledHeaderOutputFile>$(IntDir)pch.pch</PrecompiledHeaderOutputFile>
-      <AdditionalIncludeDirectories>$(ProjectDir);$(IntermediateOutputPath);..\Kits\DirectXTK\Inc;..\Kits\ATGTK;..\..\Include\beam;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir);$(IntermediateOutputPath);..\Kits\DirectXTK\Inc;..\Kits\ATGTK;..\..\Include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <AdditionalOptions>/bigobj %(AdditionalOptions)</AdditionalOptions>
       <WarningLevel>Level4</WarningLevel>
       <PreprocessorDefinitions>NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
@@ -210,9 +210,9 @@
     </FXCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClInclude Include="..\..\Include\beam\interactivity.h" />
-    <ClInclude Include="..\..\Include\beam\beam_types.h" />
-    <ClInclude Include="..\..\Include\beam\namespaces.h" />
+    <ClInclude Include="..\..\Include\interactivity.h" />
+    <ClInclude Include="..\..\Include\interactivity_types.h" />
+    <ClInclude Include="..\..\Include\namespaces.h" />
     <ClInclude Include="..\Kits\ATGTK\ATGColors.h" />
     <ClInclude Include="..\Kits\ATGTK\ControllerFont.h" />
     <ClInclude Include="..\Kits\ATGTK\CSVReader.h" />
