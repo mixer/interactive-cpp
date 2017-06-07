@@ -257,7 +257,7 @@ namespace Microsoft {
         bool initialize(
             _In_ string_t interactiveVersion,
             _In_ bool goInteractive = true,
-        _In_ string_t sharecode = L""
+            _In_ string_t sharecode = L""
         );
 
 #if TV_API | XBOX_UWP
