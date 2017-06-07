@@ -24,12 +24,13 @@ mixer_web_socket_client::connect(
     _In_ const web::uri& uri,
     _In_ const string_t& bearerToken,
     _In_ const string_t& interactiveVersion,
+    _In_ const string_t& sharecode,
     _In_ const string_t& protocolVersion
     )
 {
     std::weak_ptr<mixer_web_socket_client> thisWeakPtr = shared_from_this();
 
-    auto task = pplx::create_task([uri, bearerToken, interactiveVersion, protocolVersion, thisWeakPtr]
+    auto task = pplx::create_task([uri, bearerToken, interactiveVersion, sharecode, protocolVersion, thisWeakPtr]
     {
         std::shared_ptr<mixer_web_socket_client> pThis(thisWeakPtr.lock());
         if (pThis == nullptr)
@@ -42,6 +43,11 @@ mixer_web_socket_client::connect(
         config.headers().add(_T("Authorization"), bearerToken);
         config.headers().add(_T("X-Interactive-Version"), interactiveVersion);
         config.headers().add(_T("X-Protocol-Version"), protocolVersion);
+        
+        if (!sharecode.empty())
+        {
+            config.headers().add(_T("X-Interactive-Sharecode"), sharecode);
+        }
 
         pThis->m_client = std::make_shared<websocket_callback_client>(config);
 

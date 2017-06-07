@@ -21,6 +21,7 @@ public:
         _In_ const web::uri& uri,
         _In_ const string_t& bearerToken,
         _In_ const string_t& interactiveVersion,
+        _In_ const string_t& sharecode,
         _In_ const string_t& protocolVersion
         );
 

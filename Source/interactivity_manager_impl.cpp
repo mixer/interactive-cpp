@@ -110,7 +110,8 @@ void interactivity_manager_impl::close_websocket()
 bool
 interactivity_manager_impl::initialize(
     _In_ string_t interactiveVersion,
-    _In_ bool goInteractive
+    _In_ bool goInteractive,
+    _In_ string_t sharecode
 )
 {
     std::lock_guard<std::recursive_mutex> lock(m_lock);
@@ -120,6 +121,7 @@ interactivity_manager_impl::initialize(
     }
 
     m_interactiveVersion = interactiveVersion;
+    m_sharecode = sharecode;
 
     // Create long-running initialization task
     std::weak_ptr<interactivity_manager_impl> thisWeakPtr = shared_from_this();
@@ -498,7 +500,7 @@ interactivity_manager_impl::initialize_websockets_helper()
             close_websocket();
         }
 
-        m_webSocketConnection = std::make_shared<MICROSOFT_MIXER_NAMESPACE::web_socket_connection>(m_accessToken, m_interactiveVersion, protocolVersion);
+        m_webSocketConnection = std::make_shared<MICROSOFT_MIXER_NAMESPACE::web_socket_connection>(m_accessToken, m_interactiveVersion, m_sharecode, protocolVersion);
 
         // We will reset these event handlers on destructor, so it's safe to pass in 'this' here.
         std::weak_ptr<interactivity_manager_impl> thisWeakPtr = shared_from_this();
