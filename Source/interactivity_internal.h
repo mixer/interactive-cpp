@@ -256,7 +256,8 @@ namespace Microsoft {
     public:
         bool initialize(
             _In_ string_t interactiveVersion,
-            _In_ bool goInteractive = true
+            _In_ bool goInteractive = true,
+            _In_ string_t sharecode = L""
         );
 
 #if TV_API | XBOX_UWP
@@ -393,6 +394,7 @@ namespace Microsoft {
         string_t m_accessToken;
         string_t m_refreshToken;
         string_t m_interactiveVersion;
+        string_t m_sharecode;
         string_t m_interactiveHostUrl;
         MICROSOFT_MIXER_NAMESPACE::interactivity_state m_interactivityState;
         std::chrono::milliseconds m_serverTimeOffset;

@@ -19,6 +19,7 @@ public:
     web_socket_connection(
         _In_ string_t bearerToken,
         _In_ string_t interactiveVersion,
+        _In_ string_t sharecode,
         _In_ string_t protocolVersion
         );
 
@@ -64,6 +65,7 @@ private:
     string_t m_subProtocol;
     string_t m_bearerToken;
     string_t m_interactiveVersion;
+    string_t m_sharecode;
     string_t m_protocolVersion;
 
     std::recursive_mutex m_stateLocker;

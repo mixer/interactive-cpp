@@ -19,10 +19,12 @@ NAMESPACE_MICROSOFT_MIXER_BEGIN
 web_socket_connection::web_socket_connection(
     _In_ string_t bearerToken,
     _In_ string_t interactiveVersion,
+    _In_ string_t sharecode,
     _In_ string_t protocolVersion
     ):
     m_bearerToken(std::move(bearerToken)),
-    m_interactiveVersion(std::move(interactiveVersion)),
+    m_interactiveVersion(std::move(interactiveVersion)), 
+    m_sharecode(std::move(sharecode)),
     m_protocolVersion(std::move(protocolVersion)),
     m_state(mixer_web_socket_connection_state::disconnected),
     m_client(std::make_shared<mixer_web_socket_client>()),
@@ -100,6 +102,7 @@ web_socket_connection::connect_async()
         m_uri,
         m_bearerToken,
         m_interactiveVersion,
+        m_sharecode,
         m_protocolVersion
     ).then([thisWeakPtr] (pplx::task<void> connectionResult)
     {

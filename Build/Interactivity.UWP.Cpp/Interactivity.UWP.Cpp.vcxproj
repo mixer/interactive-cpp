@@ -110,7 +110,6 @@
         $(ProjectDir)\..\..\Include;
         $(ProjectDir)\..\..\Include;
         $(ProjectDir)\..\..\Source;
-        $(ProjectDir)\..\..\Source\Shared;
         $(ProjectDir)\..\..\Source\Util;
         $(ProjectDir)\..\..\cpprestsdk\Release\include;
         %(AdditionalIncludeDirectories)

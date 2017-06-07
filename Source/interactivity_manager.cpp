@@ -47,10 +47,11 @@ interactivity_manager::get_singleton_instance()
 
 bool interactivity_manager::initialize(
     _In_ string_t interactiveVersion,
-    _In_ bool goInteractive
+    _In_ bool goInteractive,
+    _In_ string_t sharecode
 )
 {
-    return m_impl->initialize(interactiveVersion, goInteractive);
+    return m_impl->initialize(interactiveVersion, goInteractive, sharecode);
 }
 
 #if TV_API | XBOX_UWP
