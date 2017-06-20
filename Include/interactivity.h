@@ -1136,11 +1136,10 @@ private:
     /// </summary>
     interactivity_mock_util();
 
-    std::shared_ptr<MICROSOFT_MIXER_NAMESPACE::interactive_manager_impl> m_interactiveManagerImpl;
+    std::shared_ptr<MICROSOFT_MIXER_NAMESPACE::interactivity_manager_impl> m_interactiveManagerImpl;
 
     friend interactive_control_builder;
-    friend interactive_manager_impl;
+    friend interactivity_manager_impl;
 };
 #endif
-
 }}
