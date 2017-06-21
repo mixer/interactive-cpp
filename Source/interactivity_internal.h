@@ -264,6 +264,8 @@ namespace Microsoft {
         std::shared_ptr<interactive_event> set_local_user(_In_ xbox_live_user_t user);
 #else
         std::shared_ptr<interactive_event> set_xtoken(_In_ string_t token);
+
+		std::shared_ptr<interactive_event> set_oauth_token(_In_ string_t token);
 #endif
 #if 0
         void request_linking_code(_In_ const string_t& mixer_id) const;
@@ -369,6 +371,9 @@ namespace Microsoft {
         //
         void init_worker(_In_ string_t interactiveVersion, _In_ bool goInteractive);
         bool get_auth_token(_Out_ std::shared_ptr<MICROSOFT_MIXER_NAMESPACE::interactive_event> &errorEvent);
+#if !TV_API && !XBOX_UWP
+		std::shared_ptr<interactive_event> set_auth_token(_In_ string_t token);
+#endif
         bool get_interactive_host();
         void initialize_websockets_helper();
         bool initialize_server_state_helper();

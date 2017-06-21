@@ -973,9 +973,16 @@ public:
     /// <summary>
     /// Set an xtoken retrieved from a signed in user. This is used to authenticate into the Mixer interactivity experience.
     /// </summary>
-    /// <param name="user">The user's xtoken.</param>
+    /// <param name="token">The user's xtoken.</param>
     /// <returns>Returns an interactive event to report any potential error. A nullptr is returned if there's no error.</returns>
     _MIXERIMP std::shared_ptr<interactive_event> set_xtoken(_In_ string_t token);
+
+	/// <summary>
+	/// Set an OAuth token for the Mixer user obtained via some flow external to the C++ SDK.
+	/// </summary>
+	/// <param name="token">The user's OAuth token.</param>
+	/// <returns>Returns an interactive event to report any potential error. A nullptr is returned if there's no error.</returns>
+	_MIXERIMP std::shared_ptr<interactive_event> set_oauth_token(_In_ string_t token);
 #endif
 
 #if 0
@@ -1136,11 +1143,10 @@ private:
     /// </summary>
     interactivity_mock_util();
 
-    std::shared_ptr<MICROSOFT_MIXER_NAMESPACE::interactive_manager_impl> m_interactiveManagerImpl;
+    std::shared_ptr<MICROSOFT_MIXER_NAMESPACE::interactivity_manager_impl> m_interactiveManagerImpl;
 
     friend interactive_control_builder;
-    friend interactive_manager_impl;
+    friend interactivity_manager_impl;
 };
 #endif
-
 }}

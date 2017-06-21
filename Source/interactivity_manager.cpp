@@ -66,6 +66,12 @@ interactivity_manager::set_xtoken(string_t token)
 {
     return m_impl->set_xtoken(token);
 }
+
+std::shared_ptr<interactive_event>
+interactivity_manager::set_oauth_token(string_t token)
+{
+	return m_impl->set_oauth_token(token);
+}
 #endif
 
 const std::chrono::milliseconds

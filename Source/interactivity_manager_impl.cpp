@@ -202,26 +202,15 @@ interactivity_manager_impl::set_local_user(xbox_live_user_t user)
 std::shared_ptr<interactive_event>
 interactivity_manager_impl::set_xtoken(_In_ string_t token)
 {
-    std::lock_guard<std::recursive_mutex> lock(m_lock);
+	return set_auth_token(token);
+}
 
-    auto duration = std::chrono::steady_clock::now().time_since_epoch();
-    std::chrono::milliseconds currTime = std::chrono::duration_cast<std::chrono::milliseconds>(duration);
-    std::shared_ptr<interactive_event> event = nullptr;
-
-    if (interactivity_state::interactivity_enabled == m_interactivityState || interactivity_state::interactivity_pending == m_interactivityState)
-    {
-        event = std::make_shared<MICROSOFT_MIXER_NAMESPACE::interactive_event>(currTime, std::error_code(0, std::generic_category()), L"Cannot set token while in an interactive state", interactive_event_type::error, nullptr);
-    }
-    else if (interactivity_state::initializing == m_interactivityState)
-    {
-        event = std::make_shared<MICROSOFT_MIXER_NAMESPACE::interactive_event>(currTime, std::error_code(0, std::generic_category()), L"Cannot set token while initialization is in progress", interactive_event_type::error, nullptr);
-    }
-    else
-    {
-        m_accessToken = token;
-    }
-
-    return event;
+std::shared_ptr<interactive_event>
+interactivity_manager_impl::set_oauth_token(_In_ string_t token)
+{
+	string_t fullTokenString = L"Bearer ";
+	fullTokenString.append(token);
+	return set_auth_token(fullTokenString);
 }
 #endif
 
@@ -446,6 +435,33 @@ interactivity_manager_impl::get_auth_token(_Out_ std::shared_ptr<interactive_eve
 
     return true;
 }
+
+#if !TV_API && !XBOX_UWP
+std::shared_ptr<interactive_event>
+interactivity_manager_impl::set_auth_token(_In_ string_t token)
+{
+	std::lock_guard<std::recursive_mutex> lock(m_lock);
+
+	auto duration = std::chrono::steady_clock::now().time_since_epoch();
+	std::chrono::milliseconds currTime = std::chrono::duration_cast<std::chrono::milliseconds>(duration);
+	std::shared_ptr<interactive_event> event = nullptr;
+
+	if (interactivity_state::interactivity_enabled == m_interactivityState || interactivity_state::interactivity_pending == m_interactivityState)
+	{
+		event = std::make_shared<MICROSOFT_MIXER_NAMESPACE::interactive_event>(currTime, std::error_code(0, std::generic_category()), L"Cannot set token while in an interactive state", interactive_event_type::error, nullptr);
+	}
+	else if (interactivity_state::initializing == m_interactivityState)
+	{
+		event = std::make_shared<MICROSOFT_MIXER_NAMESPACE::interactive_event>(currTime, std::error_code(0, std::generic_category()), L"Cannot set token while initialization is in progress", interactive_event_type::error, nullptr);
+	}
+	else
+	{
+		m_accessToken = token;
+	}
+
+	return event;
+}
+#endif
 
 bool
 interactivity_manager_impl::get_interactive_host()
