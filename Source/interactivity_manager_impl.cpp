@@ -703,6 +703,12 @@ std::shared_ptr<interactive_group>
 interactivity_manager_impl::group(_In_ const string_t& group_id)
 {
     auto groupImpl = m_groupsInternal[group_id];
+
+	if (nullptr == groupImpl)
+	{
+		return nullptr;
+	}
+
     std::shared_ptr<interactive_group> groupPtr = std::make_shared<interactive_group>(groupImpl->group_id());
     groupPtr->m_impl = groupImpl;
     return groupPtr;
