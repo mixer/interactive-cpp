@@ -8,24 +8,21 @@ as we work through these work items.
 
 
 ## Features
-
 * UWP build support (with authentication via MSA and XToken)
 * Win32 build support (with authentication via OAuth)
-* Dynamic control and scene creation
-* Client side spark transactions
-* Client side configuration of throttling parameters
-* Aggregation of control events
-* Service endpoint migration
+* iOS build support (with authentication via OAuth)
+* Android build support (with authentication via OAuth)
+* Service-side aggregation (save bandwidth)
+* Retrieve count of button presses
+* Get input by participant
+* Disable buttons
+* Set button progress
 
 ## Quality Improvements
+* Better message handling
 
 ### Performance
-
-* Better message handling
-  * Integrate new batching functionality exposed by the service
-  * More robust retry logic
-  * Improved performance of json message parsing
-* Re-incorporate Unit Tests on a platform-agnostic framework
-* Improved thread safety, multi-threading and parallelization - refactor already underway!
-
-### Bugs
+* Integrate new batching functionality exposed by the service
+* More robust retry logic
+* Improved performance of json message parsing
+* Improved thread safety, multi-threading and parallelization.
