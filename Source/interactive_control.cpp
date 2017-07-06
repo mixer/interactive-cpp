@@ -219,9 +219,7 @@ interactive_joystick_state::y()
     return m_y;
 }
 
-interactive_joystick_state::interactive_joystick_state(
-    _In_ double x,
-    _In_ double y) :
+interactive_joystick_state::interactive_joystick_state(_In_ double x, _In_ double y) :
     m_x(x),
     m_y(y)
 {
