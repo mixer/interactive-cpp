@@ -11,18 +11,29 @@ using namespace MICROSOFT_MIXER_NAMESPACE;
 
 namespace
 {
-    const int c_liveHUD                     = 1000;
-    const int c_sampleUIPanel               = 2000;
-    const int c_goInteractiveBtn            = 2101;
-    const int c_placeParticipantBtn         = 2102;
-    const int c_disbandGroupsBtn            = 2103;
-    const int c_cooldownRedBtn              = 2104;
-    const int c_cooldownBlueBtn             = 2105;
-    const int c_switchScenesBtn             = 2106;
-    const int c_voteYesCountLabel           = 1004;
-    const int c_voteNoCountLabel            = 1006;
+    const int c_liveHUD                                 = 1000;
+    const int c_sampleUIPanel                           = 2000;
+    const int c_goInteractiveBtn                        = 2101;
+    const int c_placeParticipantBtn                     = 2102;
+    const int c_disbandGroupsBtn                        = 2103;
+    const int c_toggleEnabledStateBtn                   = 2104;
+    const int c_cooldownBtn                             = 2106;
+    const int c_setProgressBtn                          = 2107;
+    const int c_switchScenesBtn                         = 2108;
+    const int c_voteYesCountLabel                       = 1004;
+    const int c_voteNoCountLabel                        = 1006;
+    const int c_yesButtonStateDownLabel                 = 1008;
+    const int c_yesButtonStatePressedLabel              = 1009;
+    const int c_yesButtonStateUpLabel                   = 1010;
+    const int c_yesButtonStateByParticipantDownLabel    = 1012;
+    const int c_yesButtonStateByParticipantPressedLabel = 1013;
+    const int c_yesButtonStateByParticipantUpLabel      = 1014;
+    const int c_joystickXReadingLabel                   = 1016;
+    const int c_joystickYReadingLabel                   = 1017;
+    const int c_joystickXByParticipantReadingLabel      = 1019;
+    const int c_joystickYByParticipantReadingLabel      = 1020;
 
-    const string_t s_interactiveVersion     = L"19005";
+    const string_t s_interactiveVersion     = L"76127";
 
     const string_t s_defaultGroup           = L"default";
     const string_t s_redGroup               = L"redGroup";
@@ -78,6 +89,20 @@ void Sample::Initialize(IUnknown* window)
     m_voteYesCountLabel = m_ui->FindControl<ATG::TextLabel>(2000, c_voteYesCountLabel);
     m_voteNoCountLabel = m_ui->FindControl<ATG::TextLabel>(2000, c_voteNoCountLabel);
 
+    m_yesButtonStateDownLabel = m_ui->FindControl<ATG::TextLabel>(2000, c_yesButtonStateDownLabel);
+    m_yesButtonStatePressedLabel = m_ui->FindControl<ATG::TextLabel>(2000, c_yesButtonStatePressedLabel);
+    m_yesButtonStateUpLabel = m_ui->FindControl<ATG::TextLabel>(2000, c_yesButtonStateUpLabel);
+
+    m_yesButtonStateByParticipantDownLabel = m_ui->FindControl<ATG::TextLabel>(2000, c_yesButtonStateByParticipantDownLabel);
+    m_yesButtonStateByParticipantPressedLabel = m_ui->FindControl<ATG::TextLabel>(2000, c_yesButtonStateByParticipantPressedLabel);
+    m_yesButtonStateByParticipantUpLabel = m_ui->FindControl<ATG::TextLabel>(2000, c_yesButtonStateByParticipantUpLabel);
+
+    m_joystickXReadingLabel = m_ui->FindControl<ATG::TextLabel>(2000, c_joystickXReadingLabel);
+    m_joystickYReadingLabel = m_ui->FindControl<ATG::TextLabel>(2000, c_joystickYReadingLabel);
+
+    m_joystickXByParticipantReadingLabel = m_ui->FindControl<ATG::TextLabel>(2000, c_joystickXByParticipantReadingLabel);
+    m_joystickYByParticipantReadingLabel = m_ui->FindControl<ATG::TextLabel>(2000, c_joystickYByParticipantReadingLabel);
+
     // Set up references to buttons in the main scene
     m_interactivityBtn = m_ui->FindControl<ATG::Button>(2000, c_goInteractiveBtn);
     m_buttons.push_back(m_interactivityBtn);
@@ -85,14 +110,14 @@ void Sample::Initialize(IUnknown* window)
     m_disbandGroupsBtn = m_ui->FindControl<ATG::Button>(2000, c_disbandGroupsBtn);
     m_buttons.push_back(m_disbandGroupsBtn);
 
-    m_cooldownRedControlsBtn = m_ui->FindControl<ATG::Button>(2000, c_cooldownRedBtn);
-    m_buttons.push_back(m_cooldownRedControlsBtn);
-
-    m_cooldownBlueControlsBtn = m_ui->FindControl<ATG::Button>(2000, c_cooldownBlueBtn);
-    m_buttons.push_back(m_cooldownBlueControlsBtn);
+    m_cooldownControlsBtn = m_ui->FindControl<ATG::Button>(2000, c_cooldownBtn);
+    m_buttons.push_back(m_cooldownControlsBtn);
 
     m_switchScenesBtn = m_ui->FindControl<ATG::Button>(2000, c_switchScenesBtn);
     m_buttons.push_back(m_switchScenesBtn);
+
+    m_setProgressBtn = m_ui->FindControl<ATG::Button>(2000, c_setProgressBtn);
+    m_buttons.push_back(m_setProgressBtn);
 
     m_liveResources->Initialize(m_ui, m_ui->FindPanel<ATG::Overlay>(c_sampleUIPanel));
     m_deviceResources->SetWindow(window);
@@ -129,16 +154,22 @@ void Sample::SetupUI()
         DisbandGroups();
     });
 
-    // Trigger cooldowns on red group
-    m_ui->FindControl<Button>(c_sampleUIPanel, c_cooldownRedBtn)->SetCallback([this](IPanel*, IControl*)
+    // Disable buttons on the default group
+    m_ui->FindControl<Button>(c_sampleUIPanel, c_toggleEnabledStateBtn)->SetCallback([this](IPanel*, IControl*)
     {
-        TriggerCooldownOnButtons(s_redGroup);
+        ToggleButtonsEnabledState(s_defaultGroup);
     });
 
-    // Trigger cooldowns on blue group
-    m_ui->FindControl<Button>(c_sampleUIPanel, c_cooldownBlueBtn)->SetCallback([this](IPanel*, IControl*)
+    // Trigger cooldowns on the default group
+    m_ui->FindControl<Button>(c_sampleUIPanel, c_cooldownBtn)->SetCallback([this](IPanel*, IControl*)
     {
-        TriggerCooldownOnButtons(s_blueGroup);
+        TriggerCooldownOnButtons(s_defaultGroup);
+    });
+
+    // Set progress on the buttons in the default scene
+    m_ui->FindControl<Button>(c_sampleUIPanel, c_setProgressBtn)->SetCallback([this](IPanel*, IControl*)
+    {
+        SetProgress(s_defaultGroup);
     });
 
     // Rotate through scenes defined for the groups
@@ -194,6 +225,8 @@ void Sample::Update(DX::StepTimer const& timer)
     {
         m_gamePadButtons.Reset();
     }
+
+    RefreshControlInputState();
 
     std::vector<interactive_event> events = m_interactivityManager->do_work();
     ProcessInteractiveEvents(events);
@@ -282,7 +315,7 @@ void Sample::InitializeInteractivity()
     {
         m_interactivityManager->set_local_user(user);
 
-        m_interactivityManager->initialize(s_interactiveVersion, false /*goInteractive*/);
+        m_interactivityManager->initialize(s_interactiveVersion, true /*goInteractive*/);
     }
     else
     {
@@ -555,14 +588,57 @@ void Sample::DisbandGroups()
     }
 }
 
+void Sample::ToggleButtonsEnabledState(string_t groupId)
+{
+    m_console->Write(L"Toggling disabled / enabled all visible buttons for group: ");
+    m_console->Write(groupId.c_str());
+    m_console->Write(L"\n");
+
+    auto currentScene = m_interactivityManager->group(groupId)->scene();
+    auto buttons = currentScene->buttons();
+
+    for (auto & button : buttons)
+    {
+        if (nullptr != button)
+        {
+            if (button->disabled())
+            {
+                button->set_disabled(false);
+            }
+            else
+            {
+                button->set_disabled(true);
+            }
+        }
+    }
+}
+
+void Sample::SetProgress(string_t groupId)
+{
+    m_console->Write(L"Set progress to 50% for all visible buttons for group: ");
+    m_console->Write(groupId.c_str());
+    m_console->Write(L"\n");
+
+    auto currentScene = m_interactivityManager->group(groupId)->scene();
+    auto buttons = currentScene->buttons();
+
+    for (auto & button : buttons)
+    {
+        if (nullptr != button)
+        {
+            button->set_progress(0.5);
+        }
+    }
+}
+
+
 void Sample::TriggerCooldownOnButtons(string_t groupId)
 {
     m_console->Write(L"Triggering a 5 second cooldown for all visible buttons for group: ");
     m_console->Write(groupId.c_str());
     m_console->Write(L"\n");
 
-    auto currentScene = m_interactivityManager->group(groupId)->scene();
-
+	auto currentScene = m_interactivityManager->group(groupId)->scene();
     auto buttons = currentScene->buttons();
 
     for (auto & button : buttons)
@@ -746,7 +822,96 @@ void Sample::HandleJoystickEvents(std::shared_ptr<interactive_joystick_event_arg
     m_console->Write(std::to_wstring(joystickEventArgs->y()).c_str());
     m_console->Write(L"\n");
 }
+void Sample::RefreshControlInputState()
+{
+    bool isDown = false;
+    bool isPressed = false;
+    bool isUp = false;
 
+    bool isDownByMixerID = false;
+    bool isPressedByMixerID = false;
+    bool isUpByMixerID = false;
+
+    if (m_interactivityManager->interactivity_state() >= interactivity_state::initialized)
+    {
+        LPCWSTR yesButtonLabel = L"btnVoteYes";
+        auto defaultGroup = m_interactivityManager->group(L"default");
+        auto foo = defaultGroup->participants();
+        auto defaultScene = m_interactivityManager->scene(L"default");
+        auto yesButton = defaultScene->button(yesButtonLabel).get();
+        
+        // We know there will be at least one participant (the broadcaster)
+        // so we'll use their ID to test getting input by Mixer ID.
+        auto broadcasterMixerId = m_interactivityManager->participants()[0]->mixer_id();
+
+        isDown = yesButton->is_up();
+        isPressed = yesButton->is_pressed();
+        isUp = yesButton->is_down();
+
+        isUpByMixerID = yesButton->is_up(broadcasterMixerId);
+        isPressedByMixerID = yesButton->is_pressed(broadcasterMixerId);
+        isDownByMixerID = yesButton->is_down(broadcasterMixerId);
+        
+        auto joystick = defaultScene->joystick(L"joystick");
+        m_joystickXReadingLabel->SetText(joystick->x().ToString()->Data());
+        m_joystickYReadingLabel->SetText(joystick->y().ToString()->Data());
+
+        m_joystickXByParticipantReadingLabel->SetText(joystick->x(broadcasterMixerId).ToString()->Data());
+        m_joystickYByParticipantReadingLabel->SetText(joystick->y(broadcasterMixerId).ToString()->Data());
+    }
+
+    // Button state
+    if (isDown)
+    {
+        m_yesButtonStateDownLabel->SetText(L"True");
+    }
+    else
+    {
+        m_yesButtonStateDownLabel->SetText(L"False");
+    }
+    if (isPressed)
+    {
+        m_yesButtonStatePressedLabel->SetText(L"True");
+    }
+    else
+    {
+        m_yesButtonStatePressedLabel->SetText(L"False");
+    }
+    if (isUp)
+    {
+        m_yesButtonStateUpLabel->SetText(L"True");
+    }
+    else
+    {
+        m_yesButtonStateUpLabel->SetText(L"False");
+    }
+
+    // Button state by participant
+    if (isUpByMixerID)
+    {
+        m_yesButtonStateByParticipantUpLabel->SetText(L"True");
+    }
+    else
+    {
+        m_yesButtonStateByParticipantUpLabel->SetText(L"False");
+    }
+    if (isPressedByMixerID)
+    {
+        m_yesButtonStateByParticipantPressedLabel->SetText(L"True");
+    }
+    else
+    {
+        m_yesButtonStateByParticipantPressedLabel->SetText(L"False");
+    }
+    if (isDownByMixerID)
+    {
+        m_yesButtonStateByParticipantDownLabel->SetText(L"True");
+    }
+    else
+    {
+        m_yesButtonStateByParticipantDownLabel->SetText(L"False");
+    }
+}
 #pragma endregion
 
 #pragma region Direct3D Resources

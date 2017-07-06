@@ -17,6 +17,7 @@ Casablanca*/Build_iOS/ios-cmake/
 
 #nuget packages
 External/Packages/*
+Tools/Packages/*
 
 # Xcode
 

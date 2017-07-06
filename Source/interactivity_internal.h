@@ -147,8 +147,7 @@ namespace Microsoft {
         interactive_scene_impl(
             _In_ string_t sceneId,
             _In_ string_t etag,
-            _In_ bool disabled,
-            _In_ const std::vector<const string_t&>& controls
+            _In_ bool disabled
             );
 
     private:
@@ -248,6 +247,21 @@ namespace Microsoft {
         friend interactivity_manager_impl;
     };
 
+    class interactive_joystick_state
+    {
+    public:
+        double x();
+        double y();
+
+        interactive_joystick_state(double x, double y);
+
+    private:
+        double m_x;
+        double m_y;
+
+        friend interactivity_manager_impl;
+    };
+
     //
     // Implementation of the manager object that handles Mixer Interactivity functionality
     //
@@ -300,6 +314,10 @@ namespace Microsoft {
         std::shared_ptr<interactive_joystick_control> joystick(_In_ const string_t& control_id);
         
         std::vector<std::shared_ptr<interactive_joystick_control>> joysticks();
+
+        void set_disabled(_In_ const string_t& control_id, _In_ bool disabled);
+
+        void set_progress(_In_ const string_t& control_id, _In_ float progress);
 
         void trigger_cooldown(_In_ const string_t& control_id, _In_ const std::chrono::milliseconds& cooldownDeadline);
 
@@ -354,6 +372,7 @@ namespace Microsoft {
         void add_group_to_map(std::shared_ptr<interactive_group_impl> group);
         void add_control_to_map(std::shared_ptr<interactive_control> control);
         void update_button_state(string_t buttonId, web::json::value buttonInputParamsJson);
+        void update_joystick_state(string_t joystickId, uint32_t mixerId, double x, double y);
         void send_update_participants(std::vector<uint32_t> participantIds);
         void send_create_groups(std::vector<std::shared_ptr<interactive_group_impl>> groupsToCreate);
         void send_update_groups(std::vector<std::shared_ptr<interactive_group_impl>> groupsToUpdate);

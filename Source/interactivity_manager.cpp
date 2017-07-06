@@ -129,6 +129,18 @@ interactivity_manager::participants()
 }
 
 void
+interactivity_manager::set_disabled(_In_ const string_t& control_id, _In_ bool disabled) const
+{
+    return m_impl->set_disabled(control_id, disabled);
+}
+
+void
+interactivity_manager::set_progress(_In_ const string_t& control_id, _In_ float progress)
+{
+    return m_impl->set_progress(control_id, progress);
+}
+
+void
 interactivity_manager::trigger_cooldown(_In_ const string_t& control_id, _In_ const std::chrono::milliseconds& cooldown) const
 {
     return m_impl->trigger_cooldown(control_id, cooldown);

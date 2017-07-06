@@ -58,12 +58,11 @@ interactive_scene::interactive_scene() {
 
 interactive_scene::interactive_scene(
     _In_ string_t sceneId,
-    _In_ bool enabled,
-    _In_ const std::vector<const string_t&>& controls
+    _In_ bool enabled
 )
 {
     m_interactivityManager = interactivity_manager::get_singleton_instance();
-    m_impl = std::make_shared<interactive_scene_impl>(sceneId, L"" /*etag filled in by service call*/, enabled, controls);
+    m_impl = std::make_shared<interactive_scene_impl>(sceneId, L"" /*etag filled in by service call*/, enabled);
 }
 
 //
@@ -256,8 +255,7 @@ interactive_scene_impl::interactive_scene_impl()
 interactive_scene_impl::interactive_scene_impl(
     _In_ string_t sceneId,
     _In_ string_t etag,
-    _In_ bool disabled,
-    _In_ const std::vector<const string_t&>& controls
+    _In_ bool disabled
 ) :
     m_sceneId(std::move(sceneId)),
     m_etag(std::move(etag)),

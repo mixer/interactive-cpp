@@ -207,6 +207,26 @@ interactive_button_count::interactive_button_count() :
 {
 }
 
+double
+interactive_joystick_state::x()
+{
+    return m_x;
+}
+
+double
+interactive_joystick_state::y()
+{
+    return m_y;
+}
+
+interactive_joystick_state::interactive_joystick_state(
+    _In_ double x,
+    _In_ double y) :
+    m_x(x),
+    m_y(y)
+{
+}
+
 //
 // Button control
 //
@@ -217,13 +237,12 @@ interactive_button_control::disabled() const
     return m_disabled;
 }
 
-#if 0
 void
 interactive_button_control::set_disabled(bool disabled)
 {
     m_disabled = disabled;
+    m_interactivityManager->set_disabled(m_controlId, disabled);
 }
-#endif
 
 const string_t&
 interactive_button_control::button_text() const
@@ -260,22 +279,20 @@ interactive_button_control::remaining_cooldown() const
 }
 
 
-#if 0
 float
 interactive_button_control::progress() const
 {
     return m_progress;
 }
-#endif
 
 
-#if 0
 void
 interactive_button_control::set_progress(_In_ float progress)
 {
     m_progress = progress;
+    m_interactivityManager->set_progress(m_controlId, progress);
+    return;
 }
-#endif
 
 
 uint32_t
@@ -285,29 +302,11 @@ interactive_button_control::count_of_button_downs()
 }
 
 
-#if 0
-uint32_t
-interactive_button_control::count_of_button_downs(_In_ uint32_t mixerId)
-{
-    return 0;
-}
-#endif
-
-
 uint32_t
 interactive_button_control::count_of_button_presses()
 {
     return m_buttonCount->count_of_button_presses();
 }
-
-
-#if 0
-uint32_t
-interactive_button_control::count_of_button_presses(_In_ uint32_t mixerId)
-{
-    return 0;
-}
-#endif
 
 
 uint32_t
@@ -317,15 +316,6 @@ interactive_button_control::count_of_button_ups()
 }
 
 
-#if 0
-uint32_t
-interactive_button_control::count_of_button_ups(_In_ uint32_t mixerId)
-{
-    return 0;
-}
-#endif
-
-
 bool
 interactive_button_control::is_pressed()
 {
@@ -333,13 +323,16 @@ interactive_button_control::is_pressed()
 }
 
 
-#if 0
 bool
 interactive_button_control::is_pressed(_In_ uint32_t mixerId)
 {
-    return m_buttonStateBymixerId[mixerId]->is_pressed();
+    bool isPressed = false;
+    if (m_buttonStateByMixerId[mixerId] != nullptr)
+    {
+        isPressed = m_buttonStateByMixerId[mixerId]->is_pressed();
+    }
+    return isPressed;
 }
-#endif
 
 
 bool
@@ -348,13 +341,17 @@ interactive_button_control::is_down()
     return (m_buttonCount->count_of_button_ups() < m_buttonCount->count_of_button_downs());
 }
 
-#if 0
+
 bool
 interactive_button_control::is_down(_In_ uint32_t mixerId)
 {
-    return m_buttonStateBymixerId[mixerId]->is_down();
+    bool isDown = false;
+    if (m_buttonStateByMixerId[mixerId] != nullptr)
+    {
+        isDown = m_buttonStateByMixerId[mixerId]->is_down();
+    }
+    return isDown;
 }
-#endif
 
 
 bool
@@ -363,13 +360,17 @@ interactive_button_control::is_up()
     return (m_buttonCount->count_of_button_ups() > m_buttonCount->count_of_button_downs());
 }
 
-#if 0
+
 bool
 interactive_button_control::is_up(_In_ uint32_t mixerId)
 {
-    return m_buttonStateBymixerId[mixerId]->is_up();
+    bool isUp = false;
+    if (m_buttonStateByMixerId[mixerId] != nullptr)
+    {
+        isUp = m_buttonStateByMixerId[mixerId]->is_up();
+    }
+    return isUp;
 }
-#endif
 
 
 bool
@@ -459,7 +460,7 @@ MICROSOFT_MIXER_NAMESPACE::interactive_button_control::update(web::json::value j
 void
 interactive_button_control::clear_state()
 {
-    m_buttonStateBymixerId.clear();
+	m_buttonStateByMixerId.clear();
     m_buttonCount->clear();
 }
 
@@ -496,22 +497,43 @@ interactive_button_control::interactive_button_control(
 //
 // Joystick control
 //
-  
- double
- interactive_joystick_control::x() const
- {
-     return m_x;
- }
-
- double
- interactive_joystick_control::y() const
- {
-     return m_y;
- }
-
 void
 interactive_joystick_control::clear_state()
 {
+}
+
+double
+interactive_joystick_control::x() const
+{
+    return m_x;
+}
+
+double
+interactive_joystick_control::x(_In_ uint32_t mixerId)
+{
+    double x = 0;
+    if (m_joystickStateByMixerId[mixerId] != nullptr)
+    {
+        x = m_joystickStateByMixerId[mixerId]->x();
+    }
+    return x;
+}
+
+double
+interactive_joystick_control::y() const
+{
+    return m_y;
+}
+
+double
+interactive_joystick_control::y(_In_ uint32_t mixerId)
+{
+    double y = 0;
+    if (m_joystickStateByMixerId[mixerId] != nullptr)
+    {
+        y = m_joystickStateByMixerId[mixerId]->y();
+    }
+    return y;
 }
 
 interactive_joystick_control::interactive_joystick_control()

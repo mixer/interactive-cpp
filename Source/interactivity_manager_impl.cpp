@@ -947,6 +947,45 @@ interactivity_manager_impl::joysticks()
     return joysticksCopy;
 }
 
+void
+interactivity_manager_impl::set_disabled(_In_ const string_t& control_id, _In_ bool disabled)
+{
+    std::shared_ptr<interactive_control> control = m_controls[control_id];
+    if (nullptr != control)
+    {
+        web::json::value params;
+        web::json::value controlJson;
+        controlJson[RPC_CONTROL_ID] = web::json::value::string(control_id);
+        controlJson[RPC_ETAG] = web::json::value::string(control->m_etag);
+        controlJson[RPC_DISABLED] = web::json::value::boolean(disabled);
+
+        params[RPC_SCENE_ID] = web::json::value::string(control->m_parentScene);
+        params[RPC_SCENE_CONTROLS][0] = controlJson;
+
+        std::shared_ptr<interactive_rpc_message> updateControlMessage = build_mediator_rpc_message(get_next_message_id(), RPC_METHOD_UPDATE_CONTROLS, params, false);
+        queue_message_for_service(updateControlMessage);
+    }
+}
+
+void
+interactivity_manager_impl::set_progress(_In_ const string_t& control_id, _In_ float progress)
+{
+    std::shared_ptr<interactive_control> control = m_controls[control_id];
+    if (nullptr != control)
+    {
+        web::json::value params;
+        web::json::value controlJson;
+        controlJson[RPC_CONTROL_ID] = web::json::value::string(control_id);
+        controlJson[RPC_ETAG] = web::json::value::string(control->m_etag);
+        controlJson[RPC_CONTROL_BUTTON_PROGRESS] = web::json::value::number(progress);
+
+        params[RPC_SCENE_ID] = web::json::value::string(control->m_parentScene);
+        params[RPC_SCENE_CONTROLS][0] = controlJson;
+
+        std::shared_ptr<interactive_rpc_message> updateControlMessage = build_mediator_rpc_message(get_next_message_id(), RPC_METHOD_UPDATE_CONTROLS, params, false);
+        queue_message_for_service(updateControlMessage);
+    }
+}
 
 void
 interactivity_manager_impl::trigger_cooldown(_In_ const string_t& control_id, _In_ const std::chrono::milliseconds& cooldown)
@@ -1004,6 +1043,10 @@ interactivity_manager_impl::do_work()
         for (auto iter = m_controls.begin(); iter != m_controls.end(); iter++)
         {
             iter->second->clear_state();
+			// Note: We do not clear the joystick state. The reason is because (1) we will get a 0, 0 joystick
+			// event if the joystick returns to rest. The other reason is if the user is holding the joytick
+			// at a certain value, let's say (1, 1), then we will not continue to recieve input events, however
+			// we need to report (1, 1) as the joystick value. The clear_state() of the joystick is a no-op.
         }
     }
 
@@ -1133,6 +1176,12 @@ void interactivity_manager_impl::process_reply(const web::json::value& jsonReply
         {
             std::lock_guard<std::recursive_mutex> lock(m_messagesLock);
             std::shared_ptr<interactive_rpc_message> message = remove_awaiting_reply(jsonReply.at(RPC_ID).as_integer());
+
+			if (message == nullptr)
+			{
+				LOGS_ERROR << L"Message does not exist: " << jsonReply.at(RPC_ID).as_string();
+				return;
+			}
 
             if (jsonReply.has_field(RPC_ERROR))
             {
@@ -1758,7 +1807,7 @@ void interactivity_manager_impl::process_button_input(const web::json::value& in
                 string_t controlId = buttonInputJson[RPC_CONTROL_ID].as_string();
                 string_t transactionId;
                 uint32_t cost = 0;
-                update_button_state(controlId, buttonInputJson);
+                update_button_state(controlId, inputJson);
 
                 // send event out to title
                 std::shared_ptr<interactive_participant> currParticipant;
@@ -1848,6 +1897,9 @@ void interactivity_manager_impl::process_joystick_input(const web::json::value& 
                         LOGS_INFO << "No participant record for mixer id " << mixerId;
                         return;
                     }
+
+                    // Update joystick state
+                    update_joystick_state(controlId, mixerId, x, y);
 
                     std::shared_ptr<interactive_joystick_event_args> args = std::shared_ptr<interactive_joystick_event_args>(new interactive_joystick_event_args(participant, x, y, controlId));
 
@@ -1996,7 +2048,7 @@ interactivity_manager_impl::update_button_state(string_t buttonId, web::json::va
         std::shared_ptr<interactive_participant> currParticipant = m_participants[mixerId];
         if (nullptr == currParticipant)
         {
-            LOGS_INFO << "Unexpected input from participant " << currParticipant->username();
+            LOGS_INFO << "Unexpected input from participant " << mixerId;
             return;
         }
 
@@ -2007,60 +2059,88 @@ interactivity_manager_impl::update_button_state(string_t buttonId, web::json::va
         }
 
         std::shared_ptr<interactive_button_state> newState = std::shared_ptr<interactive_button_state>(new interactive_button_state());
-        std::shared_ptr<interactive_button_state> oldStateByParticipant = button->m_buttonStateBymixerId[mixerId];
+        std::shared_ptr<interactive_button_state> oldStateByParticipant = button->m_buttonStateByMixerId[mixerId];
         if (nullptr == oldStateByParticipant)
         {
             // Create initial state entry for this participant
-            button->m_buttonStateBymixerId[mixerId] = newState;
-            oldStateByParticipant = button->m_buttonStateBymixerId[mixerId];
+            button->m_buttonStateByMixerId[mixerId] = newState;
+            oldStateByParticipant = button->m_buttonStateByMixerId[mixerId];
         }
 
         bool wasPressed = oldStateByParticipant->is_pressed();
         bool isPressed = (0 == buttonInputParamsJson[RPC_PARAMS][RPC_PARAM_INPUT][RPC_PARAM_INPUT_EVENT].as_string().compare(RPC_INPUT_EVENT_BUTTON_DOWN));
 
-        if (!wasPressed &&
-            isPressed)
+        if (isPressed)
         {
-            newState->m_isDown = true;
-            newState->m_isPressed = false;
-            newState->m_isUp = false;
+            if (!wasPressed)
+            {
+                newState->m_isDown = true;
+                newState->m_isPressed = true;
+                newState->m_isUp = false;
+            }
+            else
+            {
+                newState->m_isDown = false;
+                newState->m_isPressed = true;
+                newState->m_isUp = false;
+            }
         }
-        else if (wasPressed &&
-            !isPressed)
+        else
         {
-            newState->m_isDown = false;
-            newState->m_isPressed = false;
-            newState->m_isUp = true;
-        }
-        else if (wasPressed &&
-            isPressed)
-        {
-            newState->m_isDown = true;
-            newState->m_isPressed = true;
-            newState->m_isUp = false;
-        }
-        else if (!wasPressed &&
-            !isPressed)
-        {
+            // This means isPressed on the event was false, so it was a mouse up event.
             newState->m_isDown = false;
             newState->m_isPressed = false;
             newState->m_isUp = true;
         }
 
-        button->m_buttonStateBymixerId[mixerId] = newState;
+        button->m_buttonStateByMixerId[mixerId] = newState;
 
         if (newState->is_down())
         {
             button->m_buttonCount->m_buttonDowns++;
         }
-        else if (newState->is_pressed())
+        if (newState->is_pressed())
         {
             button->m_buttonCount->m_buttonPresses++;
         }
-        else if (newState->is_up())
+        if (newState->is_up())
         {
             button->m_buttonCount->m_buttonUps++;
         }
+    }
+}
+
+
+void
+interactivity_manager_impl::update_joystick_state(string_t joystickId, uint32_t mixerId, double x, double y)
+{
+    // TODO: lock
+    std::shared_ptr<interactive_joystick_control> joystick = m_joysticks[joystickId];
+
+    if (nullptr == joystick)
+    {
+        LOGS_INFO << L"Joystick not in map: " << joystickId;
+    }
+    else
+    {
+        std::shared_ptr<interactive_participant> currParticipant = m_participants[mixerId];
+        if (nullptr == currParticipant)
+        {
+            LOGS_INFO << "Unexpected input from participant " << currParticipant->username();
+            return;
+        }
+
+        if (currParticipant->input_disabled())
+        {
+            LOGS_INFO << "Ignoring input from disabled participant " << currParticipant->username();
+            return;
+        }
+
+        std::shared_ptr<interactive_joystick_state> newState = std::shared_ptr<interactive_joystick_state>(new interactive_joystick_state(x, y));
+        std::shared_ptr<interactive_joystick_state> oldStateByParticipant = joystick->m_joystickStateByMixerId[mixerId];
+        joystick->m_joystickStateByMixerId[mixerId] = newState;
+        joystick->m_x = x;
+        joystick->m_y = y;
     }
 }
 
