@@ -2048,7 +2048,7 @@ interactivity_manager_impl::update_button_state(string_t buttonId, web::json::va
         std::shared_ptr<interactive_participant> currParticipant = m_participants[mixerId];
         if (nullptr == currParticipant)
         {
-            LOGS_INFO << "Unexpected input from participant " << mixerId;
+            LOGS_INFO << "Unexpected input from participant " << mixerId;            
             return;
         }
 
@@ -2070,7 +2070,7 @@ interactivity_manager_impl::update_button_state(string_t buttonId, web::json::va
         bool wasPressed = oldStateByParticipant->is_pressed();
         bool isPressed = (0 == buttonInputParamsJson[RPC_PARAMS][RPC_PARAM_INPUT][RPC_PARAM_INPUT_EVENT].as_string().compare(RPC_INPUT_EVENT_BUTTON_DOWN));
 
-        if (isPressed)
+       if (isPressed)
         {
             if (!wasPressed)
             {
@@ -2126,7 +2126,7 @@ interactivity_manager_impl::update_joystick_state(string_t joystickId, uint32_t 
         std::shared_ptr<interactive_participant> currParticipant = m_participants[mixerId];
         if (nullptr == currParticipant)
         {
-            LOGS_INFO << "Unexpected input from participant " << currParticipant->username();
+            LOGS_INFO << "Unexpected input from participant " << mixerId;
             return;
         }
 
