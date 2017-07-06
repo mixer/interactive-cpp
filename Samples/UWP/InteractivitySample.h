@@ -73,7 +73,9 @@ private:
     void InitializeGroupsAndScenes();
     void AddParticipantToGroup();
     void DisbandGroups();
+    void ToggleEnabledStateForControls(string_t groupId);
     void TriggerCooldownOnButtons(string_t groupId);
+	void SetProgressOnButtons(string_t groupId);
     void ProcessInteractiveEvents(std::vector<interactive_event> events);
     void HandleInteractivityError(interactive_event event);
     void HandleInteractivityStateChange(interactive_event event);
@@ -82,6 +84,7 @@ private:
     void HandleButtonEvents(std::shared_ptr<interactive_button_event_args> buttonEventArgs);
     void HandleJoystickEvents(std::shared_ptr<interactive_joystick_event_args> joystickEventArgs);
     void SetAllButtonsEnabled(bool disabled);
+	void RefreshControlInputState();
 
     // Device resources.
     std::unique_ptr<DX::DeviceResources>    m_deviceResources;
@@ -118,10 +121,21 @@ private:
     std::vector<ATG::Button*>               m_buttons;
     ATG::Button*                            m_interactivityBtn;
     ATG::Button*                            m_disbandGroupsBtn;
-    ATG::Button*                            m_cooldownRedControlsBtn;
-    ATG::Button*                            m_cooldownBlueControlsBtn;
+    ATG::Button*                            m_toggleEnabledBtn;
+    ATG::Button*                            m_cooldownBtn;
+    ATG::Button*                            m_setProgressBtn;
     ATG::Button*                            m_switchScenesBtn;
     ATG::Button*                            m_simulateUserChangeBtn;
     ATG::TextLabel*                         m_voteYesCountLabel;
     ATG::TextLabel*                         m_voteNoCountLabel;
+    ATG::TextLabel*                         m_yesButtonStateDownLabel;
+    ATG::TextLabel*                         m_yesButtonStatePressedLabel;
+    ATG::TextLabel*                         m_yesButtonStateUpLabel;
+    ATG::TextLabel*                         m_yesButtonStateByParticipantDownLabel;
+    ATG::TextLabel*                         m_yesButtonStateByParticipantPressedLabel;
+    ATG::TextLabel*                         m_yesButtonStateByParticipantUpLabel;
+    ATG::TextLabel*                         m_joystickXReadingLabel;
+    ATG::TextLabel*                         m_joystickYReadingLabel;
+    ATG::TextLabel*                         m_joystickXByParticipantReadingLabel;
+    ATG::TextLabel*                         m_joystickYByParticipantReadingLabel;
 };

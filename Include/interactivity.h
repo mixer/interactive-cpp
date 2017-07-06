@@ -43,6 +43,7 @@ class interactive_button_control;
 class interactive_joystick_control;
 class interactivity_mock_util;
 class interactive_button_state;
+class interactive_joystick_state;
 class interactive_button_count;
 
 /// <summary>
@@ -588,14 +589,12 @@ public:
     /// </summary>
     _MIXERIMP bool disabled() const;
 
-#if 0
     /// <summary>
     /// Function to enable or disable the button.
     /// </summary>
     /// <param name="disabled">Value to enable or disable the button. 
     /// Set this value to TRUE to disable the button.</param>
     _MIXERIMP void set_disabled(_In_ bool disabled);
-#endif
 
     /// <summary>
     /// Sets the cooldown duration (in milliseconds) required between triggers. 
@@ -609,7 +608,7 @@ public:
     /// </summary>
     _MIXERIMP std::chrono::milliseconds remaining_cooldown() const;
 
-#if 0
+
     /// <summary>
     /// Current progress of the button control.
     /// </summary>
@@ -620,82 +619,69 @@ public:
     /// </summary>
     /// <param name="progress">The progress value, in the range of 0.0 to 1.0.</param>
     _MIXERIMP void set_progress(_In_ float progress);
-#endif
 
     /// <summary>
     /// Returns the total count of button downs since the last call to do_work().
     /// </summary>
     _MIXERIMP uint32_t count_of_button_downs();
 
-#if 0
     /// <summary>
     /// Returns the total count of button downs by the specified participant
     /// since the last call to do_work().
     /// </summary>
     _MIXERIMP uint32_t count_of_button_downs(_In_ uint32_t mixerId);
-#endif
 
     /// <summary>
     /// Returns the total count of button presses since the last call to do_work().
     /// </summary>
     _MIXERIMP uint32_t count_of_button_presses();
 
-#if 0
     /// <summary>
     /// Returns the total count of button presses by the specified participant
     /// since the last call to do_work().
     /// </summary>
     _MIXERIMP uint32_t count_of_button_presses(_In_ uint32_t mixerId);
-#endif
 
     /// <summary>
     /// Returns the total count of button ups since the last call to do_work().
     /// </summary>
     _MIXERIMP uint32_t count_of_button_ups();
 
-#if 0
     /// <summary>
     /// Returns the total count of button ups by the specified participant
     /// since the last call to do_work().
     /// </summary>
     _MIXERIMP uint32_t count_of_button_ups(_In_ uint32_t mixerId);
-#endif
 
     /// <summary>
     /// Returns TRUE if button is currently pressed.
     /// </summary>
     _MIXERIMP bool is_pressed();
 
-#if 0
     /// <summary>
     /// Returns TRUE if the button is currently pressed by the specified participant.
     /// </summary>
     _MIXERIMP bool is_pressed(_In_ uint32_t mixerId);
-#endif
 
     /// <summary>
     /// Returns TRUE if button is currently down.
     /// </summary>
     _MIXERIMP bool is_down();
 
-#if 0
     /// <summary>
     /// Returns TRUE if the button is clicked down by the specified participant.
     /// </summary>
     _MIXERIMP bool is_down(_In_ uint32_t mixerId);
-#endif
 
     /// <summary>
     /// Returns TRUE if button is currently up.
     /// </summary>
     _MIXERIMP bool is_up();
 
-#if 0
     /// <summary>
     /// Returns TRUE if the button is currently up for the specified participant.
     /// </summary>
     _MIXERIMP bool is_up(_In_ uint32_t mixerId);
-#endif
 
 private:
 
@@ -736,7 +722,7 @@ private:
     std::chrono::milliseconds m_cooldownDeadline;
     string_t                  m_buttonText;
     uint32_t                  m_sparkCost;
-    std::map<uint32_t, std::shared_ptr<interactive_button_state>> m_buttonStateBymixerId;
+    std::map<uint32_t, std::shared_ptr<interactive_button_state>> m_buttonStateByMixerId;
     std::shared_ptr<interactive_button_count> m_buttonCount;
 
     friend interactive_control_builder;
@@ -758,9 +744,24 @@ public:
     _MIXERIMP double x() const;
 
     /// <summary>
+    /// The current X coordinate of the joystick, in the range of [-1, 1] for the specified participant.
+    /// </summary>
+    _MIXERIMP double x(_In_ uint32_t mixerId);
+
+    /// <summary>
     /// The current Y coordinate of the joystick, in the range of [-1, 1].
     /// </summary>
     _MIXERIMP double y() const;
+
+    /// <summary>
+    /// The current Y coordinate of the joystick, in the range of [-1, 1] for the specified participant.
+    /// </summary>
+    _MIXERIMP double y(_In_ uint32_t mixerId);
+
+    /// <summary>
+    /// Internal function to clear the state of the interactive_button_control object.
+    /// </summary>
+    void clear_state();
 
 private:
 
@@ -786,17 +787,14 @@ private:
     bool init_from_json(web::json::value json);
 
     /// <summary>
-    /// Internal function to clear the state of the interactive_joystick_control object.
-    /// </summary>
-    void clear_state();
-
-    /// <summary>
     /// Internal function to update the state of the interactive_joystick_control object.
     /// </summary>
     bool update(web::json::value json, bool overwrite);
 
     double m_x;
     double m_y;
+
+    std::map<uint32_t, std::shared_ptr<interactive_joystick_state>> m_joystickStateByMixerId;
 
     friend interactive_control_builder;
     friend interactivity_manager_impl;
@@ -920,8 +918,7 @@ private:
     /// </summary>
     interactive_scene(
         _In_ string_t sceneId,
-        _In_ bool enabled,
-        _In_ const std::vector<const string_t&>& controls
+        _In_ bool enabled
         );
 
     std::shared_ptr<MICROSOFT_MIXER_NAMESPACE::interactivity_manager> m_interactivityManager;
@@ -1052,6 +1049,25 @@ public:
     /// is not yet completed or if the scene does not exist.
     /// </summary>
     _MIXERIMP std::shared_ptr<interactive_scene> scene(_In_ const string_t&  scene_id);
+
+    /// <summary>
+    /// Function to enable or disable the button.
+    /// </summary>
+    /// <param name="control_id">The unique string identifier of the control.</param>
+    /// <param name="disabled">Value to enable or disable the button. 
+    /// Set this value to TRUE to disable the button.</param>
+    _MIXERIMP void set_disabled(_In_ const string_t& control_id, _In_ bool disabled) const;
+
+    /// <summary>
+    /// Current progress of the button control.
+    /// </summary>
+    _MIXERIMP float progress() const;
+
+    /// <summary>
+    /// Sets the progress value for the button control.
+    /// </summary>
+    /// <param name="progress">The progress value, in the range of 0.0 to 1.0.</param>
+    _MIXERIMP void set_progress(_In_ const string_t& control_id, _In_ float progress);
 
     /// <summary>
     /// Disables a specific control for a period of time, specified in milliseconds.

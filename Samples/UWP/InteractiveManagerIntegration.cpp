@@ -22,13 +22,24 @@ namespace
     const int c_goInteractiveBtn = 2101;
     const int c_placeParticipantBtn = 2102;
     const int c_disbandGroupsBtn = 2103;
-    const int c_cooldownRedBtn = 2104;
-    const int c_cooldownBlueBtn = 2105;
-    const int c_switchScenesBtn = 2106;
+	const int c_toggleEnabledBtn = 2104;
+    const int c_cooldownBtn = 2106;
+	const int c_setProgressBtn = 2107;
+    const int c_switchScenesBtn = 2108;
     const int c_voteYesCountLabel = 1004;
     const int c_voteNoCountLabel = 1006;
+	const int c_yesBtnDownLabel = 1008;
+	const int c_yesBtnPressedLabel = 1009;
+	const int c_yesBtnUpLabel = 1010;
+	const int c_yesBtnDownByParticipantLabel = 1012;
+	const int c_yesBtnPressedByParticipantLabel = 1013;
+	const int c_yesBtnUpByParticipantLabel = 1014;
+	const int c_yesJoystickXLabel = 1016;
+	const int c_yesJoystickYLabel = 1017;
+	const int c_yesJoystickXByParticipantLabel = 1019;
+	const int c_yesJoystickYByParticipantLabel = 1020;
 
-    const string_t s_interactiveVersion = L"19005";
+    const string_t s_interactiveVersion = L"76127";
 
     const string_t s_defaultGroup = L"default";
     const string_t s_redGroup = L"redGroup";
@@ -75,11 +86,14 @@ void Sample::InitializeInteractiveManager()
     m_disbandGroupsBtn = m_ui->FindControl<ATG::Button>(2000, c_disbandGroupsBtn);
     m_buttons.push_back(m_disbandGroupsBtn);
 
-    m_cooldownRedControlsBtn = m_ui->FindControl<ATG::Button>(2000, c_cooldownRedBtn);
-    m_buttons.push_back(m_cooldownRedControlsBtn);
+	m_toggleEnabledBtn = m_ui->FindControl<ATG::Button>(2000, c_toggleEnabledBtn);
+    m_buttons.push_back(m_toggleEnabledBtn);
 
-    m_cooldownBlueControlsBtn = m_ui->FindControl<ATG::Button>(2000, c_cooldownBlueBtn);
-    m_buttons.push_back(m_cooldownBlueControlsBtn);
+	m_cooldownBtn = m_ui->FindControl<ATG::Button>(2000, c_cooldownBtn);
+	m_buttons.push_back(m_cooldownBtn);
+
+    m_setProgressBtn = m_ui->FindControl<ATG::Button>(2000, c_setProgressBtn);
+    m_buttons.push_back(m_setProgressBtn);
 
     m_switchScenesBtn = m_ui->FindControl<ATG::Button>(2000, c_switchScenesBtn);
     m_buttons.push_back(m_switchScenesBtn);
@@ -149,7 +163,7 @@ void Sample::UpdateInteractivityManager()
 
 void Sample::InitializeInteractivity()
 {
-    m_interactivityManager->initialize(s_interactiveVersion, false /*goInteractive*/);
+    m_interactivityManager->initialize(s_interactiveVersion, true /*goInteractive*/);
 }
 
 
@@ -378,6 +392,33 @@ void Sample::DisbandGroups()
     }
 }
 
+// For now this method only disables and enables buttons. Soon the SDK will have support for disabling joysticks
+// and we can modify this method to disable and enable joysticks as well.
+void Sample::ToggleEnabledStateForControls(string_t groupId)
+{
+    m_console->Write(L"Toggling the enabled / disabled state for all visible buttons for group: ");
+    m_console->Write(groupId.c_str());
+    m_console->Write(L"\n");
+
+    auto currentScene = m_interactivityManager->group(groupId)->scene();
+
+    auto buttons = currentScene->buttons();
+    for (auto & button : buttons)
+    {
+        if (nullptr != button)
+        {
+            if (button->disabled())
+            {
+                button->set_disabled(false);
+            }
+            else
+            {
+                button->set_disabled(true);
+            }
+        }
+    }
+}
+
 void Sample::TriggerCooldownOnButtons(string_t groupId)
 {
     m_console->Write(L"Triggering a 5 second cooldown for all visible buttons for group: ");
@@ -396,6 +437,24 @@ void Sample::TriggerCooldownOnButtons(string_t groupId)
             button->trigger_cooldown(cooldownTimer);
         }
     }
+}
+
+void Sample::SetProgressOnButtons(string_t groupId)
+{
+	m_console->Write(L"Sets progress to 50% for all visible buttons for group: ");
+	m_console->Write(groupId.c_str());
+	m_console->Write(L"\n");
+
+	auto currentScene = m_interactivityManager->group(groupId)->scene();
+
+	auto buttons = currentScene->buttons();
+	for (auto & button : buttons)
+	{
+		if (nullptr != button)
+		{
+			button->set_progress(0.5);
+		}
+	}
 }
 
 void Sample::ProcessInteractiveEvents(std::vector<interactive_event> events)
