@@ -131,6 +131,11 @@ interactive_control::control_id() const
     return m_controlId;
 }
 
+const std::map<string_t, string_t>&
+interactive_control::meta_properties() const
+{
+    return m_metaProperties;
+}
 
 interactive_control::interactive_control()
 {
@@ -339,7 +344,6 @@ interactive_button_control::is_down()
     return (m_buttonCount->count_of_button_ups() < m_buttonCount->count_of_button_downs());
 }
 
-
 bool
 interactive_button_control::is_down(_In_ uint32_t mixerId)
 {
@@ -357,7 +361,6 @@ interactive_button_control::is_up()
 {
     return (m_buttonCount->count_of_button_ups() > m_buttonCount->count_of_button_downs());
 }
-
 
 bool
 interactive_button_control::is_up(_In_ uint32_t mixerId)
@@ -442,6 +445,19 @@ MICROSOFT_MIXER_NAMESPACE::interactive_button_control::update(web::json::value j
             }
         }
 
+        if (success && json.has_field(RPC_METADATA))
+        {
+            auto metadata = json[RPC_METADATA].as_object();
+
+            for (auto meta : metadata)
+            {
+                string_t key(meta.first);
+                string_t value(meta.second.as_object().at(RPC_VALUE).as_string());
+
+                m_metaProperties.insert_or_assign(key, value);
+            }
+        }
+
         if (success && json.has_field(RPC_CONTROL_BUTTON_PROGRESS))
         {
             m_progress = (float)json[RPC_CONTROL_BUTTON_PROGRESS].as_number().to_double();
@@ -458,7 +474,7 @@ MICROSOFT_MIXER_NAMESPACE::interactive_button_control::update(web::json::value j
 void
 interactive_button_control::clear_state()
 {
-	m_buttonStateByMixerId.clear();
+    m_buttonStateByMixerId.clear();
     m_buttonCount->clear();
 }
 
@@ -495,6 +511,7 @@ interactive_button_control::interactive_button_control(
 //
 // Joystick control
 //
+  
 void
 interactive_joystick_control::clear_state()
 {
@@ -600,6 +617,19 @@ MICROSOFT_MIXER_NAMESPACE::interactive_joystick_control::update(web::json::value
         if (success && json.has_field(RPC_DISABLED))
         {
             m_disabled = json[RPC_DISABLED].as_bool();
+        }
+
+        if (success && json.has_field(RPC_METADATA))
+        {
+            auto metadata = json[RPC_METADATA].as_object();
+
+            for (auto meta : metadata)
+            {
+                string_t key(meta.first);
+                string_t value(meta.second.as_object().at(RPC_VALUE).as_string());
+
+                m_metaProperties.insert_or_assign(key, value);
+            }
         }
     }
     catch (std::exception e)

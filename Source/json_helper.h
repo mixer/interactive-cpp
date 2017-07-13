@@ -107,6 +107,7 @@
 #define RPC_JOYSTICK_MOVE           L"move"
 #define RPC_JOYSTICK_X              L"x"
 #define RPC_JOYSTICK_Y              L"y"
+#define RPC_VALUE                   L"value"
 
 // participants
 #define RPC_SESSION_ID      L"sessionID"
