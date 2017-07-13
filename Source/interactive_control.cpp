@@ -518,38 +518,38 @@ interactive_joystick_control::clear_state()
 }
 
 double
- interactive_joystick_control::x() const
- {
-     return m_x;
- }
+interactive_joystick_control::x() const
+{
+    return m_x;
+}
 
- double
-     interactive_joystick_control::x(_In_ uint32_t mixerId)
- {
-     double x = 0;
-     if (m_joystickStateByMixerId[mixerId] != nullptr)
-     {
-         x = m_joystickStateByMixerId[mixerId]->x();
-     }
-     return x;
- }
+double
+interactive_joystick_control::x(_In_ uint32_t mixerId)
+{
+    double x = 0;
+    if (m_joystickStateByMixerId[mixerId] != nullptr)
+    {
+        x = m_joystickStateByMixerId[mixerId]->x();
+    }
+    return x;
+}
 
- double
- interactive_joystick_control::y() const
- {
-     return m_y;
- }
+double
+interactive_joystick_control::y() const
+{
+    return m_y;
+}
 
- double
-     interactive_joystick_control::y(_In_ uint32_t mixerId)
- {
-     double y = 0;
-     if (m_joystickStateByMixerId[mixerId] != nullptr)
-     {
-         y = m_joystickStateByMixerId[mixerId]->y();
-     }
-     return y;
- }
+double
+interactive_joystick_control::y(_In_ uint32_t mixerId)
+{
+    double y = 0;
+    if (m_joystickStateByMixerId[mixerId] != nullptr)
+    {
+        y = m_joystickStateByMixerId[mixerId]->y();
+    }
+    return y;
+}
 
 interactive_joystick_control::interactive_joystick_control()
 {
