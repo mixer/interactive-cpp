@@ -41,7 +41,7 @@ have a fix for? Do you have an idea or just interest in helping out in building 
 library? Let us know and we'd love to work with you. For a good starting point on where
 we are headed and feature ideas, take a look at our [requested features and bugs](https://github.com/mixer/interactive-cpp/issues) or [backlog](https://github.com/mixer/interactive-cpp/blob/master/backlog.md).
 
-Big or small we'd like to take your contributions to help improve the Beam Interactivity
+Big or small we'd like to take your contributions to help improve the Mixer Interactivity
 API for everyone. 
 
 ## Having Trouble?
