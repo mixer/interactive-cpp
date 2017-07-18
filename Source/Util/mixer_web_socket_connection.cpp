@@ -83,13 +83,11 @@ web_socket_connection::ensure_connected()
             if (auto pThisWeak = thisWeakPtr.lock())
             {
                 // Trigger connection logic
-                pThisWeak->connect_async();
+                return pThisWeak->connect_async();
             }
         }
-        else
-        {
-            pplx::task_from_result();
-        }
+
+        return pplx::task_from_result();
     });
 }
 
