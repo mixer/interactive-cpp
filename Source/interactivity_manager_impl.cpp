@@ -51,7 +51,7 @@ interactivity_manager_impl::interactivity_manager_impl() :
     m_connectionState(interactivity_connection_state::disconnected),
     m_interactivityState(interactivity_state::not_initialized),
     m_initRetryAttempt(0),
-    m_maxInitRetries(10),
+    m_maxInitRetries(7),
     m_initRetryInterval(std::chrono::milliseconds(100)),
     m_processing(FALSE),
     m_currentScene(RPC_SCENE_DEFAULT),
@@ -239,19 +239,22 @@ interactivity_manager_impl::init_worker(
     if (success)
     {
         initialize_websockets_helper();
-        initialize_server_state_helper();
+        success = initialize_server_state_helper();
+    }
 
+    if (success)
+    {
         int retryAttempt = 0;
         std::chrono::milliseconds retryInterval(100);
         while (retryAttempt < m_maxInitRetries)
         {
+            std::this_thread::sleep_for(retryInterval);
+
             if (m_initScenesComplete && m_initGroupsComplete && m_initServerTimeComplete)
             {
                 set_interactivity_state(interactivity_state::interactivity_disabled);
                 break;
             }
-
-            std::this_thread::sleep_for(retryInterval);
 
             retryInterval = min((3 * retryInterval), std::chrono::milliseconds(1000 * 60));
             retryAttempt++;
@@ -556,21 +559,23 @@ interactivity_manager_impl::get_next_message_id()
 bool
 interactivity_manager_impl::initialize_server_state_helper()
 {
-    while (m_initRetryAttempt < m_maxInitRetries)
+    int retryAttempt = 0;
+    std::chrono::milliseconds retryInterval(100);
+    while (retryAttempt < m_maxInitRetries)
     {
+        LOGS_INFO << "Init task waiting on websocket connection... attempt " << m_initRetryAttempt;
+
+        std::this_thread::sleep_for(retryInterval);
         if (interactivity_connection_state::connected == m_connectionState)
         {
             break;
         }
 
-        LOGS_INFO << "Init task waiting on websocket connection... attempt " << ++m_initRetryAttempt;
-
-        std::this_thread::sleep_for(m_initRetryInterval);
-
-        m_initRetryInterval = min((3 * m_initRetryInterval), std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::minutes(1)));
+        ++retryAttempt;
+        retryInterval = min((3 * retryInterval), std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::minutes(1)));
     }
 
-    if (m_initRetryAttempt < m_maxInitRetries)
+    if (retryAttempt < m_maxInitRetries)
     {
         // request service time, for synchronization purposes
         std::shared_ptr<interactive_rpc_message> getTimeMessage = build_mediator_rpc_message(get_next_message_id(), RPC_METHOD_GET_TIME, web::json::value(), false);
