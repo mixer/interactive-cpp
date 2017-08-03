@@ -88,8 +88,7 @@ private:
     interactivity_state      m_currentInteractiveState;
     std::vector<std::shared_ptr<interactive_scene>>            m_scenesList;
     std::vector<std::shared_ptr<interactive_group>>            m_groupsList;
-    uint32_t                                            m_voteYesCount;
-    uint32_t                                            m_voteNoCount;
+    uint32_t                                            m_health;
     std::map<string_t, std::vector<string_t>>           m_groupToSceneMap;
 
     // UI Objects
@@ -99,17 +98,16 @@ private:
     ATG::Button*                        m_interactivityBtn;
     ATG::Button*                        m_disbandGroupsBtn;
     ATG::Button*                        m_cooldownControlsBtn;
-    ATG::Button*                        m_switchScenesBtn;
     ATG::Button*                        m_setProgressBtn;
+    ATG::Button*                        m_switchScenesBtn;
     ATG::Button*                        m_simulateUserChangeBtn;
-    ATG::TextLabel*                     m_voteYesCountLabel;
-    ATG::TextLabel*                     m_voteNoCountLabel;
-    ATG::TextLabel*                     m_yesButtonStateDownLabel;
-    ATG::TextLabel*                     m_yesButtonStatePressedLabel;
-    ATG::TextLabel*                     m_yesButtonStateUpLabel;
-    ATG::TextLabel*                     m_yesButtonStateByParticipantDownLabel;
-    ATG::TextLabel*                     m_yesButtonStateByParticipantPressedLabel;
-    ATG::TextLabel*                     m_yesButtonStateByParticipantUpLabel;
+    ATG::TextLabel*                     m_healthButtonLabel;
+    ATG::TextLabel*                     m_healthButtonStateDownLabel;
+    ATG::TextLabel*                     m_healthButtonStatePressedLabel;
+    ATG::TextLabel*                     m_healthButtonStateUpLabel;
+    ATG::TextLabel*                     m_healthButtonStateByParticipantDownLabel;
+    ATG::TextLabel*                     m_healthButtonStateByParticipantPressedLabel;
+    ATG::TextLabel*                     m_healthButtonStateByParticipantUpLabel;
     ATG::TextLabel*                     m_joystickXReadingLabel;
     ATG::TextLabel*                     m_joystickYReadingLabel;
     ATG::TextLabel*                     m_joystickXByParticipantReadingLabel;

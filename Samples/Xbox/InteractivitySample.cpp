@@ -11,39 +11,34 @@ using namespace MICROSOFT_MIXER_NAMESPACE;
 
 namespace
 {
-    const int c_liveHUD                                 = 1000;
-    const int c_sampleUIPanel                           = 2000;
-    const int c_goInteractiveBtn                        = 2101;
-    const int c_placeParticipantBtn                     = 2102;
-    const int c_disbandGroupsBtn                        = 2103;
-    const int c_toggleEnabledStateBtn                   = 2104;
-    const int c_cooldownBtn                             = 2106;
-    const int c_setProgressBtn                          = 2107;
-    const int c_switchScenesBtn                         = 2108;
-    const int c_voteYesCountLabel                       = 1004;
-    const int c_voteNoCountLabel                        = 1006;
-    const int c_yesButtonStateDownLabel                 = 1008;
-    const int c_yesButtonStatePressedLabel              = 1009;
-    const int c_yesButtonStateUpLabel                   = 1010;
-    const int c_yesButtonStateByParticipantDownLabel    = 1012;
-    const int c_yesButtonStateByParticipantPressedLabel = 1013;
-    const int c_yesButtonStateByParticipantUpLabel      = 1014;
-    const int c_joystickXReadingLabel                   = 1016;
-    const int c_joystickYReadingLabel                   = 1017;
-    const int c_joystickXByParticipantReadingLabel      = 1019;
-    const int c_joystickYByParticipantReadingLabel      = 1020;
+    const int c_liveHUD                                     = 1000;
+    const int c_sampleUIPanel                               = 2000;
+    const int c_goInteractiveBtn                            = 2101;
+    const int c_placeParticipantBtn                         = 2102;
+    const int c_disbandGroupsBtn                            = 2103;
+    const int c_toggleEnabledStateBtn                       = 2104;
+    const int c_cooldownBtn                                 = 2106;
+    const int c_setProgressBtn                              = 2107;
+    const int c_switchScenesBtn                             = 2108;
+    const int c_healthButtonLabel                           = 1004;
+    const int c_healthButtonStateDownLabel                  = 1008;
+    const int c_healthButtonStatePressedLabel               = 1009;
+    const int c_healthButtonStateUpLabel                    = 1010;
+    const int c_healthButtonStateByParticipantDownLabel     = 1012;
+    const int c_healthButtonStateByParticipantPressedLabel  = 1013;
+    const int c_healthButtonStateByParticipantUpLabel       = 1014;
+    const int c_joystickXReadingLabel                       = 1016;
+    const int c_joystickYReadingLabel                       = 1017;
+    const int c_joystickXByParticipantReadingLabel          = 1019;
+    const int c_joystickYByParticipantReadingLabel          = 1020;
 
     const string_t s_interactiveVersion     = L"76127";
 
     const string_t s_defaultGroup           = L"default";
-    const string_t s_redGroup               = L"redGroup";
-    const string_t s_blueGroup              = L"blueGroup";
+    const string_t s_group1                 = L"group1";
 
     const string_t s_defaultScene           = L"default";
-    const string_t s_redMinesScene          = L"red_mines";
-    const string_t s_redLasersScene         = L"red_lasers";
-    const string_t s_blueMinesScene         = L"blue_mines";
-    const string_t s_blueLasersScene        = L"blue_lasers";
+    const string_t s_scene1                 = L"Scene1";
 }
 
 Sample::Sample() :
@@ -56,24 +51,7 @@ Sample::Sample() :
     m_ui = std::make_unique<ATG::UIManager>(uiconfig);
     m_currentInteractiveState = interactivity_state::not_initialized;
     m_interactivityManager = interactivity_manager::get_singleton_instance();
-    m_voteYesCount = 0;
-    m_voteNoCount = 0;
-
-    // Create the map of groups to scenes - this should be kept in sync with the scenes created in the Interactive Studio
-    std::vector<string_t> defaultScenes;
-    defaultScenes.push_back(s_defaultScene);
-
-    std::vector<string_t> redScenes;
-    redScenes.push_back(s_redMinesScene);
-    redScenes.push_back(s_redLasersScene);
-
-    std::vector<string_t> blueScenes;
-    blueScenes.push_back(s_blueMinesScene);
-    blueScenes.push_back(s_blueLasersScene);
-
-    m_groupToSceneMap[s_defaultGroup] = defaultScenes;
-    m_groupToSceneMap[s_redGroup] = redScenes;
-    m_groupToSceneMap[s_blueGroup] = blueScenes;
+    m_health = 0;
 }
 
 // Initialize the Direct3D resources required to run.
@@ -86,16 +64,15 @@ void Sample::Initialize(IUnknown* window)
 
     m_ui->LoadLayout(L".\\Assets\\SampleUI.csv", L".\\Assets");
 
-    m_voteYesCountLabel = m_ui->FindControl<ATG::TextLabel>(2000, c_voteYesCountLabel);
-    m_voteNoCountLabel = m_ui->FindControl<ATG::TextLabel>(2000, c_voteNoCountLabel);
+    m_healthButtonLabel = m_ui->FindControl<ATG::TextLabel>(2000, c_healthButtonLabel);
 
-    m_yesButtonStateDownLabel = m_ui->FindControl<ATG::TextLabel>(2000, c_yesButtonStateDownLabel);
-    m_yesButtonStatePressedLabel = m_ui->FindControl<ATG::TextLabel>(2000, c_yesButtonStatePressedLabel);
-    m_yesButtonStateUpLabel = m_ui->FindControl<ATG::TextLabel>(2000, c_yesButtonStateUpLabel);
+    m_healthButtonStateDownLabel = m_ui->FindControl<ATG::TextLabel>(2000, c_healthButtonStateDownLabel);
+    m_healthButtonStatePressedLabel = m_ui->FindControl<ATG::TextLabel>(2000, c_healthButtonStatePressedLabel);
+    m_healthButtonStateUpLabel = m_ui->FindControl<ATG::TextLabel>(2000, c_healthButtonStateUpLabel);
 
-    m_yesButtonStateByParticipantDownLabel = m_ui->FindControl<ATG::TextLabel>(2000, c_yesButtonStateByParticipantDownLabel);
-    m_yesButtonStateByParticipantPressedLabel = m_ui->FindControl<ATG::TextLabel>(2000, c_yesButtonStateByParticipantPressedLabel);
-    m_yesButtonStateByParticipantUpLabel = m_ui->FindControl<ATG::TextLabel>(2000, c_yesButtonStateByParticipantUpLabel);
+    m_healthButtonStateByParticipantDownLabel = m_ui->FindControl<ATG::TextLabel>(2000, c_healthButtonStateByParticipantDownLabel);
+    m_healthButtonStateByParticipantPressedLabel = m_ui->FindControl<ATG::TextLabel>(2000, c_healthButtonStateByParticipantPressedLabel);
+    m_healthButtonStateByParticipantUpLabel = m_ui->FindControl<ATG::TextLabel>(2000, c_healthButtonStateByParticipantUpLabel);
 
     m_joystickXReadingLabel = m_ui->FindControl<ATG::TextLabel>(2000, c_joystickXReadingLabel);
     m_joystickYReadingLabel = m_ui->FindControl<ATG::TextLabel>(2000, c_joystickYReadingLabel);
@@ -113,11 +90,11 @@ void Sample::Initialize(IUnknown* window)
     m_cooldownControlsBtn = m_ui->FindControl<ATG::Button>(2000, c_cooldownBtn);
     m_buttons.push_back(m_cooldownControlsBtn);
 
-    m_switchScenesBtn = m_ui->FindControl<ATG::Button>(2000, c_switchScenesBtn);
-    m_buttons.push_back(m_switchScenesBtn);
-
     m_setProgressBtn = m_ui->FindControl<ATG::Button>(2000, c_setProgressBtn);
     m_buttons.push_back(m_setProgressBtn);
+
+    m_switchScenesBtn = m_ui->FindControl<ATG::Button>(2000, c_switchScenesBtn);
+    m_buttons.push_back(m_switchScenesBtn);
 
     m_liveResources->Initialize(m_ui, m_ui->FindPanel<ATG::Overlay>(c_sampleUIPanel));
     m_deviceResources->SetWindow(window);
@@ -353,37 +330,24 @@ void Sample::SwitchScenes()
     for (auto iter = groupsList.begin(); iter != groupsList.end(); iter++)
     {
         auto currentGroup = (*iter);
-        if (0 != currentGroup->group_id().compare(s_defaultGroup))
+        std::shared_ptr<interactive_scene> currentScene = currentGroup->scene();
+        std::shared_ptr<interactive_scene> sceneToSet = nullptr;
+
+        if (0 == currentScene->scene_id().compare(s_defaultScene))
         {
-            auto currentGroupsSceneList = m_groupToSceneMap[currentGroup->group_id()];
-            string_t currentGroupSceneId = currentGroup->scene()->scene_id();
+            sceneToSet = m_interactivityManager->scene(s_scene1);
+        }
+        else if (0 == currentScene->scene_id().compare(s_scene1))
+        {
+            sceneToSet = m_interactivityManager->scene(s_defaultScene);
+        }
 
-            for (int i = 0; i < currentGroupsSceneList.size(); i++)
-            {
-                // Find the current scene, then go to the next one, wrapping around
-                if (0 == currentGroupSceneId.compare(currentGroupsSceneList[i]))
-                {
-                    i++;
-                    if (i == currentGroupsSceneList.size())
-                    {
-                        i = 0;
-                    }
+        if (sceneToSet != nullptr)
+        {
+            m_console->Write(L"Updating scenes.");
+            m_console->Write(L"\n");
 
-                    string_t newSceneId = currentGroupsSceneList[i];
-                    auto sceneToSet = m_interactivityManager->scene(newSceneId);
-
-                    m_console->Write(L"Updating scene for group ");
-                    m_console->Write(currentGroup->group_id().c_str());
-                    m_console->Write(L" from ");
-                    m_console->Write(currentGroupSceneId.c_str());
-                    m_console->Write(L" to ");
-                    m_console->Write(newSceneId.c_str());
-                    m_console->Write(L"\n");
-
-                    currentGroup->set_scene(sceneToSet);
-                    break;
-                }
-            }
+            currentGroup->set_scene(sceneToSet);
         }
     }
 }
@@ -441,32 +405,20 @@ void Sample::InitializeGroupsAndScenes()
 
     if (groupsList.size() == 1)
     {
-        auto redScene = m_interactivityManager->scene(s_redLasersScene);
-        auto blueScene = m_interactivityManager->scene(s_blueLasersScene);
+        auto scene1 = m_interactivityManager->scene(s_scene1);
 
-        if (nullptr == redScene)
+        if (nullptr == scene1)
         {
             m_console->Write(L"Unexpected error: \"");
-            m_console->Write(s_redLasersScene.c_str());
+            m_console->Write(s_scene1.c_str());
             m_console->Write(L"\" does not exist\n");
             return;
         }
 
-        if (nullptr == blueScene)
-        {
-            m_console->Write(L"Unexpected error: \"");
-            m_console->Write(s_blueLasersScene.c_str());
-            m_console->Write(L"\" does not exist\n");
-            return;
-        }
-
-        std::shared_ptr<interactive_group> groupRedTeam = std::make_shared<interactive_group>(s_redGroup, redScene);
-
-        std::shared_ptr<interactive_group> groupBlueTeam = std::make_shared<interactive_group>(s_blueGroup, blueScene);
-
+        std::shared_ptr<interactive_group> group1 = std::make_shared<interactive_group>(s_group1, scene1);
         m_groupsList = m_interactivityManager->groups();
 
-        if (m_groupsList.size() != 3)
+        if (m_groupsList.size() != 1)
         {
             m_console->WriteLine(L"Unexpected error: invalid group size after group initialization");
             return;
@@ -790,15 +742,10 @@ void Sample::HandleButtonEvents(std::shared_ptr<interactive_button_event_args> b
             m_console->Write(buttonEventArgs->participant()->username().c_str());
             m_console->Write(L")\n");
 
-            if (0 == buttonId.compare(L"btnVoteYes"))
+            if (0 == buttonId.compare(L"GiveHealth"))
             {
-                m_voteYesCount++;
-                m_voteYesCountLabel->SetText(std::to_wstring(m_voteYesCount).c_str());
-            }
-            else if (0 == buttonId.compare(L"btnVoteNo"))
-            {
-                m_voteNoCount++;
-                m_voteNoCountLabel->SetText(std::to_wstring(m_voteNoCount).c_str());
+                m_health++;
+                m_healthButtonLabel->SetText(std::to_wstring(m_health).c_str());
             }
         }
     }
@@ -834,82 +781,86 @@ void Sample::RefreshControlInputState()
 
     if (m_interactivityManager->interactivity_state() >= interactivity_state::initialized)
     {
-        LPCWSTR yesButtonLabel = L"btnVoteYes";
+        LPCWSTR healthButtonID = L"GiveHealth";
         auto defaultGroup = m_interactivityManager->group(L"default");
         auto foo = defaultGroup->participants();
         auto defaultScene = m_interactivityManager->scene(L"default");
-        auto yesButton = defaultScene->button(yesButtonLabel).get();
+        auto yesButton = defaultScene->button(healthButtonID).get();
         
         // We know there will be at least one participant (the broadcaster)
         // so we'll use their ID to test getting input by Mixer ID.
-        auto broadcasterMixerId = m_interactivityManager->participants()[0]->mixer_id();
+        uint32_t mixerId = 0;
+        if (m_interactivityManager->participants().size() > 0)
+        {
+            mixerId = m_interactivityManager->participants()[0]->mixer_id();
+        }
 
         isDown = yesButton->is_up();
         isPressed = yesButton->is_pressed();
         isUp = yesButton->is_down();
 
-        isUpByMixerID = yesButton->is_up(broadcasterMixerId);
-        isPressedByMixerID = yesButton->is_pressed(broadcasterMixerId);
-        isDownByMixerID = yesButton->is_down(broadcasterMixerId);
+        isUpByMixerID = yesButton->is_up(mixerId);
+        isPressedByMixerID = yesButton->is_pressed(mixerId);
+        isDownByMixerID = yesButton->is_down(mixerId);
         
-        auto joystick = defaultScene->joystick(L"joystick");
+        auto joystick = defaultScene->joystick(L"Joystick");
         m_joystickXReadingLabel->SetText(joystick->x().ToString()->Data());
         m_joystickYReadingLabel->SetText(joystick->y().ToString()->Data());
 
-        m_joystickXByParticipantReadingLabel->SetText(joystick->x(broadcasterMixerId).ToString()->Data());
-        m_joystickYByParticipantReadingLabel->SetText(joystick->y(broadcasterMixerId).ToString()->Data());
+        m_joystickXByParticipantReadingLabel->SetText(joystick->x(mixerId).ToString()->Data());
+        m_joystickYByParticipantReadingLabel->SetText(joystick->y(mixerId).ToString()->Data());
     }
 
     // Button state
     if (isDown)
     {
-        m_yesButtonStateDownLabel->SetText(L"True");
+        m_healthButtonStateDownLabel->SetText(L"True");
     }
     else
     {
-        m_yesButtonStateDownLabel->SetText(L"False");
+        m_healthButtonStateDownLabel->SetText(L"False");
     }
     if (isPressed)
     {
-        m_yesButtonStatePressedLabel->SetText(L"True");
+        m_healthButtonStatePressedLabel->SetText(L"True");
     }
     else
     {
-        m_yesButtonStatePressedLabel->SetText(L"False");
+        m_healthButtonStatePressedLabel->SetText(L"False");
     }
     if (isUp)
     {
-        m_yesButtonStateUpLabel->SetText(L"True");
+        m_healthButtonStateUpLabel->SetText(L"True");
     }
     else
     {
-        m_yesButtonStateUpLabel->SetText(L"False");
+        m_healthButtonStateUpLabel->SetText(L"False");
     }
 
     // Button state by participant
     if (isUpByMixerID)
     {
-        m_yesButtonStateByParticipantUpLabel->SetText(L"True");
+        m_healthButtonStateByParticipantUpLabel->SetText(L"True");
     }
     else
     {
-        m_yesButtonStateByParticipantUpLabel->SetText(L"False");
+        m_healthButtonStateByParticipantUpLabel->SetText(L"False");
     }
     if (isPressedByMixerID)
     {
-        m_yesButtonStateByParticipantPressedLabel->SetText(L"True");
+        m_healthButtonStateByParticipantPressedLabel->SetText(L"True");
     }
     else
     {
-        m_yesButtonStateByParticipantPressedLabel->SetText(L"False");
+        m_healthButtonStateByParticipantPressedLabel->SetText(L"False");
     }
     if (isDownByMixerID)
     {
-        m_yesButtonStateByParticipantDownLabel->SetText(L"True");
+        m_healthButtonStateByParticipantDownLabel->SetText(L"True");
     }
     else
     {
-        m_yesButtonStateByParticipantDownLabel->SetText(L"False");
+        m_healthButtonStateByParticipantDownLabel->SetText(L"False");
     }
 }
 #pragma endregion
