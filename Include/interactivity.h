@@ -237,6 +237,13 @@ private:
 enum class interactive_event_type
 {
     /// <summary>
+    /// The message is not a message processed by the SDK. It could be a custom
+    /// message from an interactive control or a message supported by the protocol
+    /// but not yet supported by the SDK.
+    /// </summary>
+    unknown,
+
+    /// <summary>
     /// An error message object. This object type is returned when the service
 	/// or manager encounters an error. The err and err_message members will
 	/// contain pertinent info.
@@ -322,6 +329,11 @@ public:
     /// Type of the event raised.
     /// </summary>
     _MIXERIMP interactive_event_type event_type() const;
+
+    /// <summary>
+    /// Returns the raw message. The messages are JSON formatted.
+    /// </summary>
+    _MIXERIMP const string_t& raw_message() const;
 
     /// <summary>
     /// Returns a pointer to an event argument. Cast the event arg to a specific
@@ -494,6 +506,30 @@ private:
     double m_x;
     double m_y;
     std::shared_ptr<interactive_participant> m_participant;
+};
+
+/// <summary>
+/// Contains information for a message from the interactive service.
+/// </summary>
+class interactive_message_event_args : public interactive_event_args
+{
+public:
+
+    /// <summary>
+    /// The raw text of the message. Messages are in JSON format.
+    /// </summary>
+    _MIXERIMP const string_t& message() const;
+
+    /// <summary>
+    /// Constructor for the interactive button event args object.
+    /// </summary>
+    interactive_message_event_args(
+        _In_ string_t message
+    );
+
+private:
+
+    string_t m_message;
 };
 
 /// <summary>
@@ -1080,6 +1116,12 @@ public:
     /// <param name="control_id">The unique string identifier of the control.</param>
     /// <param name="cooldown">Cooldown duration (in milliseconds).</param>
     _MIXERIMP void trigger_cooldown(_In_ const string_t& control_id, _In_ const std::chrono::milliseconds& cooldown) const;
+
+    /// <summary>
+    /// Sends a message to the interactivity service.
+    /// </summary>
+    /// <param name="message">The message to send. The message must be in JSON format.</param>
+    _MIXERIMP void send_message(_In_ const string_t& message) const;
 
     /// <summary>
     /// Captures a given interactive event transaction, charging the sparks to the appropriate Participant.
