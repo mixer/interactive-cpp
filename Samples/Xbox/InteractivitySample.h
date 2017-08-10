@@ -52,6 +52,7 @@ private:
     void TriggerCooldownOnButtons(string_t groupId);
     void SetProgress(string_t groupId);
     void ProcessInteractiveEvents(std::vector<interactive_event> events);
+    void HandleCustomMessage(interactive_event event);
     void HandleInteractivityError(interactive_event event);
     void HandleInteractivityStateChange(interactive_event event);
     void HandleParticipantStateChange(interactive_event event);

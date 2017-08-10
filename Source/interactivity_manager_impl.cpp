@@ -306,6 +306,9 @@ void MICROSOFT_MIXER_NAMESPACE::interactivity_manager_impl::process_messages_wor
             {
                 std::shared_ptr<interactive_rpc_message> currentMessage = m_unhandledFromService.front();
                 m_unhandledFromService.pop();
+
+                bool processedByTheSDK = false;
+
                 try
                 {
                     if (currentMessage->m_json.has_field(RPC_TYPE))
@@ -314,11 +317,11 @@ void MICROSOFT_MIXER_NAMESPACE::interactivity_manager_impl::process_messages_wor
 
                         if (0 == messageType.compare(RPC_REPLY))
                         {
-                            process_reply(currentMessage->m_json);
+                            processedByTheSDK = process_reply(currentMessage->m_json);
                         }
                         else if (0 == messageType.compare(RPC_METHOD))
                         {
-                            process_method(currentMessage->m_json);
+                            processedByTheSDK = process_method(currentMessage->m_json);
                         }
                         else
                         {
@@ -329,6 +332,12 @@ void MICROSOFT_MIXER_NAMESPACE::interactivity_manager_impl::process_messages_wor
                 catch (std::exception e)
                 {
                     LOGS_ERROR << "Failed to parse incoming socket message";
+                }
+
+                if (!processedByTheSDK)
+                {
+                    std::shared_ptr<interactive_custom_message_event_args> customMessageEventArgs = std::shared_ptr<interactive_custom_message_event_args>(new interactive_custom_message_event_args(currentMessage->to_string()));
+                    queue_interactive_event_for_client(L"", std::error_code(0, std::generic_category()), interactive_event_type::custom, customMessageEventArgs);
                 }
             }
         }
@@ -993,6 +1002,14 @@ interactivity_manager_impl::set_progress(_In_ const string_t& control_id, _In_ f
 }
 
 void
+interactivity_manager_impl::send_rpc_message(_In_ const string_t& method, _In_ const string_t& parameters)
+{
+    web::json::value params = web::json::value::parse(parameters);
+    std::shared_ptr<interactive_rpc_message> rpcMessage = build_mediator_rpc_message(get_next_message_id(), method, params, false);
+    queue_message_for_service(rpcMessage);
+}
+
+void
 interactivity_manager_impl::trigger_cooldown(_In_ const string_t& control_id, _In_ const std::chrono::milliseconds& cooldown)
 {
     std::shared_ptr<interactive_control> control = m_controls[control_id];
@@ -1018,26 +1035,6 @@ interactivity_manager_impl::trigger_cooldown(_In_ const string_t& control_id, _I
             queue_message_for_service(updateControlMessage);
         }
     }
-}
-
-void MICROSOFT_MIXER_NAMESPACE::interactivity_manager_impl::send_message(const string_t & message)
-{
-    // The goal of this API is to be fast, with minimal memory and CPU overhead. This is why
-    // it is a pass-through to the websocket rather than packaging the message into a data structure
-    // and putting it on a queue to be sent later.
-    m_webSocketConnection->send(message)
-        .then([](pplx::task<void> t)
-    {
-        try
-        {
-            t.get();
-        }
-        catch (std::exception e)
-        {
-            // Throws this exception on failure to send, our retry logic once the websocket comes back online will resend
-            LOGS_ERROR << "Failed to send on websocket.";
-        }
-    });
 }
 
 void MICROSOFT_MIXER_NAMESPACE::interactivity_manager_impl::capture_transaction(const string_t & transaction_id)
@@ -1187,18 +1184,14 @@ interactivity_manager_impl::on_socket_message_received(
     _In_ const string_t& message
 )
 {
-    // We always return all messages from the service to to the developer, even the ones the SDK will process them.
-    std::shared_ptr<interactive_message_event_args> args = std::shared_ptr<interactive_message_event_args>(new interactive_message_event_args(message));
-    queue_interactive_event_for_client(L"", std::error_code(0, std::generic_category()), interactive_event_type::unknown, args);
-
     std::shared_ptr<interactive_rpc_message> rpcMessage = std::shared_ptr<interactive_rpc_message>(new interactive_rpc_message(get_next_message_id(), web::json::value::parse(message), unix_timestamp_in_ms()));
     m_unhandledFromService.push(rpcMessage);
 }
 
-void interactivity_manager_impl::process_reply(const web::json::value& jsonReply)
+bool interactivity_manager_impl::process_reply(const web::json::value& jsonReply)
 {
     LOGS_INFO << "Received a reply from the service";
-
+    bool messageWasProcessed = true;
     try
     {
         if (jsonReply.has_field(L"id"))
@@ -1206,17 +1199,17 @@ void interactivity_manager_impl::process_reply(const web::json::value& jsonReply
             std::lock_guard<std::recursive_mutex> lock(m_messagesLock);
             std::shared_ptr<interactive_rpc_message> message = remove_awaiting_reply(jsonReply.at(RPC_ID).as_integer());
 
-			if (message == nullptr)
-			{
-				LOGS_ERROR << L"Message does not exist: " << jsonReply.at(RPC_ID).as_string();
-				return;
-			}
+            if (message == nullptr)
+            {
+                LOGS_ERROR << L"Message does not exist: " << jsonReply.at(RPC_ID).as_string();
+                return false;
+            }
 
             if (jsonReply.has_field(RPC_ERROR))
             {
                 LOGS_ERROR << L"Full message for error reply: " << message->m_json.serialize();
                 process_reply_error(jsonReply);
-                return;
+                return false;
             }
             
             if (message->m_json.has_field(RPC_METHOD))
@@ -1253,18 +1246,23 @@ void interactivity_manager_impl::process_reply(const web::json::value& jsonReply
                 else
                 {
                     LOGS_INFO << L"Unhandled reply: " << jsonReply.serialize().c_str() << "to message " << message->to_string();
+                    messageWasProcessed = false;
                 }
             }
         }
         else
         {
             LOGS_INFO << "Unexpected json reply, no id";
+            messageWasProcessed = false;
         }
     }
     catch (std::exception e)
     {
         LOGS_ERROR << "Failed to parse service reply";
+        messageWasProcessed = false;
     }
+
+    return messageWasProcessed;
 }
 
 void interactivity_manager_impl::process_reply_error(const web::json::value& jsonReply)
@@ -1571,9 +1569,10 @@ void interactivity_manager_impl::process_update_participants_reply(const web::js
     }
 }
 
-void interactivity_manager_impl::process_method(const web::json::value& methodJson)
+bool interactivity_manager_impl::process_method(const web::json::value& methodJson)
 {
     LOGS_DEBUG << "Received an RPC call from the service";
+    bool messageWasProcessed = true;
     try
     {
         if (methodJson.has_field(RPC_METHOD))
@@ -1614,17 +1613,22 @@ void interactivity_manager_impl::process_method(const web::json::value& methodJs
             else
             {
                 LOGS_INFO << "Unexpected or unsupported RPC call: " << methodJson.at(RPC_METHOD).as_string();
+                messageWasProcessed = false;
             }
         }
         else
         {
             LOGS_INFO << "Method RPC call had no method name";
+            messageWasProcessed = false;
         }
     }
     catch (std::exception e)
     {
         LOGS_ERROR << "Failed to process method RPC call";
+        messageWasProcessed = false;
     }
+
+    return messageWasProcessed;
 }
 
 
@@ -1965,8 +1969,8 @@ void interactivity_manager_impl::send_message(std::shared_ptr<interactive_rpc_me
         {
             m_awaitingReply.push_back(rpcMessage);
         }
-
-        m_webSocketConnection->send(rpcMessage->to_string())
+        string_t messageToSend = rpcMessage->to_string();
+        m_webSocketConnection->send(messageToSend)
             .then([](pplx::task<void> t)
         {
             try
@@ -1975,8 +1979,7 @@ void interactivity_manager_impl::send_message(std::shared_ptr<interactive_rpc_me
             }
             catch (std::exception e)
             {
-                // Throws this exception on failure to send. It is up to the developer
-                // to resend or not.
+                // Throws this exception on failure to send, our retry logic once the websocket comes back online will resend.
                 LOGS_ERROR << "Failed to send on websocket.";
             }
         });

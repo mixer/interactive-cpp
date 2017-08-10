@@ -147,9 +147,9 @@ interactivity_manager::trigger_cooldown(_In_ const string_t& control_id, _In_ co
 }
 
 void
-interactivity_manager::send_message(const string_t & message) const
+interactivity_manager::send_rpc_message(const string_t & message, const string_t & parameters) const
 {
-    return m_impl->send_message(message);
+    return m_impl->send_rpc_message(message, parameters);
 }
 
 void

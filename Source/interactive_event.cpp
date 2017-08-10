@@ -82,12 +82,12 @@ interactivity_state_change_event_args::interactivity_state_change_event_args(
 // Interactive message event args
 //
 
-const string_t& interactive_message_event_args::message() const
+const string_t& interactive_custom_message_event_args::message() const
 {
     return m_message;
 }
 
-interactive_message_event_args::interactive_message_event_args(string_t message)
+interactive_custom_message_event_args::interactive_custom_message_event_args(string_t message)
 {
     m_message = std::move(message);
 }

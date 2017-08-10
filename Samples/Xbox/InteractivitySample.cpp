@@ -160,7 +160,7 @@ void Sample::SetupUI()
         SwitchScenes();
     });
 
-    // SEnds a 
+    // Sends a sample custom message to the interactive service.
     m_ui->FindControl<Button>(c_sampleUIPanel, c_sendMessageBtn)->SetCallback([this](IPanel*, IControl*)
     {
         SendMessage();
@@ -366,23 +366,18 @@ void Sample::SwitchScenes()
 void Sample::SendMessage()
 {
     // This is a sample message that sets a bandwidth throttle.
-    const string_t message = L"{\"type\": \"method\","\
-                                L"\"id\": 123,"\
-                                L"\"method\": \"setBandwidthThrottle\","\
-                                L"    \"discard\": true,"\
-                                L"    \"params\": {"\
-                                L"        \"giveInput\": {"\
-                                L"            \"capacity\": 10000000,"\
-                                L"            \"drainRate\": 3000000"\
-                                L"        },"\
-                                L"        \"onParticipantJoin\": {"\
-                                L"            \"capacity\": 0,"\
-                                L"            \"drainRate\": 0"\
-                                L"        },"\
-                                L"        \"onParticipantLeave\": null"\
-                                L"    }"\
+    const string_t parameters = L"{"\
+                                L"    \"giveInput\": {"\
+                                L"        \"capacity\": 10000000,"\
+                                L"        \"drainRate\": 3000000"\
+                                L"    },"\
+                                L"    \"onParticipantJoin\": {"\
+                                L"        \"capacity\": 0,"\
+                                L"        \"drainRate\": 0"\
+                                L"    },"\
+                                L"    \"onParticipantLeave\": null"\
                                 L"}";
-    m_interactivityManager->send_message(message);
+    m_interactivityManager->send_rpc_message(L"setBandwidthThrottle", parameters);
 }
 
 void Sample::SimulateUserChange()
@@ -648,10 +643,8 @@ void Sample::ProcessInteractiveEvents(std::vector<interactive_event> events)
         case interactive_event_type::error:
             HandleInteractivityError(event);
             break;
-        case interactive_event_type::unknown:
-            std::shared_ptr<interactive_message_event_args> messageEventArgs = std::dynamic_pointer_cast<interactive_message_event_args>(event.event_args());
-            m_console->Write(messageEventArgs->message().c_str());
-            m_console->Write(L"\n");
+        case interactive_event_type::custom:
+            HandleCustomMessage(event);
             break;
         }
 
@@ -662,6 +655,14 @@ void Sample::ProcessInteractiveEvents(std::vector<interactive_event> events)
             break;
         }
     }
+}
+
+void Sample::HandleCustomMessage(interactive_event event)
+{
+    std::shared_ptr<interactive_custom_message_event_args> messageEventArgs = std::dynamic_pointer_cast<interactive_custom_message_event_args>(event.event_args());
+    m_console->Write(messageEventArgs->message().c_str());
+    m_console->Write(L"\n");
+    return;
 }
 
 void Sample::HandleInteractivityError(interactive_event event)

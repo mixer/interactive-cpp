@@ -241,12 +241,12 @@ enum class interactive_event_type
     /// message from an interactive control or a message supported by the protocol
     /// but not yet supported by the SDK.
     /// </summary>
-    unknown,
+    custom,
 
     /// <summary>
     /// An error message object. This object type is returned when the service
-	/// or manager encounters an error. The err and err_message members will
-	/// contain pertinent info.
+    /// or manager encounters an error. The err and err_message members will
+    /// contain pertinent info.
     /// </summary>
     error,
 
@@ -511,7 +511,7 @@ private:
 /// <summary>
 /// Contains information for a message from the interactive service.
 /// </summary>
-class interactive_message_event_args : public interactive_event_args
+class interactive_custom_message_event_args : public interactive_event_args
 {
 public:
 
@@ -523,7 +523,7 @@ public:
     /// <summary>
     /// Constructor for the interactive button event args object.
     /// </summary>
-    interactive_message_event_args(
+    interactive_custom_message_event_args(
         _In_ string_t message
     );
 
@@ -1118,10 +1118,11 @@ public:
     _MIXERIMP void trigger_cooldown(_In_ const string_t& control_id, _In_ const std::chrono::milliseconds& cooldown) const;
 
     /// <summary>
-    /// Sends a message to the interactivity service.
+    /// Sends a JSON RPC message to the interactivity service.
     /// </summary>
-    /// <param name="message">The message to send. The message must be in JSON format.</param>
-    _MIXERIMP void send_message(_In_ const string_t& message) const;
+    /// <param name="method">The name of the method.</param>
+    /// <param name="parameters">A string that can contain any data so long as it is valid JSON.</param>
+    _MIXERIMP void send_rpc_message(_In_ const string_t& method, _In_ const string_t& parameters) const;
 
     /// <summary>
     /// Captures a given interactive event transaction, charging the sparks to the appropriate Participant.
