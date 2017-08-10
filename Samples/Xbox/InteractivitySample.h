@@ -43,6 +43,7 @@ private:
     void InitializeInteractivity();
     void ToggleInteractivity();
     void SwitchScenes();
+    void SendMessage();
     void SimulateUserChange();
     void InitializeGroupsAndScenes();
     void AddParticipantToGroup();
@@ -100,6 +101,7 @@ private:
     ATG::Button*                        m_cooldownControlsBtn;
     ATG::Button*                        m_setProgressBtn;
     ATG::Button*                        m_switchScenesBtn;
+    ATG::Button*                        m_sendMessageBtn;
     ATG::Button*                        m_simulateUserChangeBtn;
     ATG::TextLabel*                     m_healthButtonLabel;
     ATG::TextLabel*                     m_healthButtonStateDownLabel;

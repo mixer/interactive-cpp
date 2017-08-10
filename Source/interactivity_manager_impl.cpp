@@ -1020,6 +1020,26 @@ interactivity_manager_impl::trigger_cooldown(_In_ const string_t& control_id, _I
     }
 }
 
+void MICROSOFT_MIXER_NAMESPACE::interactivity_manager_impl::send_message(const string_t & message)
+{
+    // The goal of this API is to be fast, with minimal memory and CPU overhead. This is why
+    // it is a pass-through to the websocket rather than packaging the message into a data structure
+    // and putting it on a queue to be sent later.
+    m_webSocketConnection->send(message)
+        .then([](pplx::task<void> t)
+    {
+        try
+        {
+            t.get();
+        }
+        catch (std::exception e)
+        {
+            // Throws this exception on failure to send, our retry logic once the websocket comes back online will resend
+            LOGS_ERROR << "Failed to send on websocket.";
+        }
+    });
+}
+
 void MICROSOFT_MIXER_NAMESPACE::interactivity_manager_impl::capture_transaction(const string_t & transaction_id)
 {
     web::json::value params;
@@ -1167,6 +1187,10 @@ interactivity_manager_impl::on_socket_message_received(
     _In_ const string_t& message
 )
 {
+    // We always return all messages from the service to to the developer, even the ones the SDK will process them.
+    std::shared_ptr<interactive_message_event_args> args = std::shared_ptr<interactive_message_event_args>(new interactive_message_event_args(message));
+    queue_interactive_event_for_client(L"", std::error_code(0, std::generic_category()), interactive_event_type::unknown, args);
+
     std::shared_ptr<interactive_rpc_message> rpcMessage = std::shared_ptr<interactive_rpc_message>(new interactive_rpc_message(get_next_message_id(), web::json::value::parse(message), unix_timestamp_in_ms()));
     m_unhandledFromService.push(rpcMessage);
 }
@@ -1951,7 +1975,8 @@ void interactivity_manager_impl::send_message(std::shared_ptr<interactive_rpc_me
             }
             catch (std::exception e)
             {
-                // Throws this exception on failure to send, our retry logic once the websocket comes back online will resend
+                // Throws this exception on failure to send. It is up to the developer
+                // to resend or not.
                 LOGS_ERROR << "Failed to send on websocket.";
             }
         });

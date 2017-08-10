@@ -321,6 +321,8 @@ namespace Microsoft {
 
         void trigger_cooldown(_In_ const string_t& control_id, _In_ const std::chrono::milliseconds& cooldownDeadline);
 
+        void send_message(_In_ const string_t& message);
+
         void capture_transaction(_In_ const string_t& transaction_id);
 
         std::vector<MICROSOFT_MIXER_NAMESPACE::interactive_event> do_work();

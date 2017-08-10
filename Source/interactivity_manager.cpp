@@ -147,6 +147,12 @@ interactivity_manager::trigger_cooldown(_In_ const string_t& control_id, _In_ co
 }
 
 void
+interactivity_manager::send_message(const string_t & message) const
+{
+    return m_impl->send_message(message);
+}
+
+void
 interactivity_manager::capture_transaction(const string_t & transaction_id) const
 {
     return m_impl->capture_transaction(transaction_id);
