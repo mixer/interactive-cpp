@@ -307,7 +307,7 @@ void MICROSOFT_MIXER_NAMESPACE::interactivity_manager_impl::process_messages_wor
                 std::shared_ptr<interactive_rpc_message> currentMessage = m_unhandledFromService.front();
                 m_unhandledFromService.pop();
 
-                bool processedByTheSDK = false;
+                bool isCustomMessage = false;
 
                 try
                 {
@@ -317,11 +317,11 @@ void MICROSOFT_MIXER_NAMESPACE::interactivity_manager_impl::process_messages_wor
 
                         if (0 == messageType.compare(RPC_REPLY))
                         {
-                            processedByTheSDK = process_reply(currentMessage->m_json);
+                            isCustomMessage = process_reply(currentMessage->m_json);
                         }
                         else if (0 == messageType.compare(RPC_METHOD))
                         {
-                            processedByTheSDK = process_method(currentMessage->m_json);
+                            isCustomMessage = process_method(currentMessage->m_json);
                         }
                         else
                         {
@@ -334,7 +334,7 @@ void MICROSOFT_MIXER_NAMESPACE::interactivity_manager_impl::process_messages_wor
                     LOGS_ERROR << "Failed to parse incoming socket message";
                 }
 
-                if (!processedByTheSDK)
+                if (isCustomMessage)
                 {
                     std::shared_ptr<interactive_custom_message_event_args> customMessageEventArgs = std::shared_ptr<interactive_custom_message_event_args>(new interactive_custom_message_event_args(currentMessage->to_string()));
                     queue_interactive_event_for_client(L"", std::error_code(0, std::generic_category()), interactive_event_type::custom, customMessageEventArgs);
@@ -1191,7 +1191,7 @@ interactivity_manager_impl::on_socket_message_received(
 bool interactivity_manager_impl::process_reply(const web::json::value& jsonReply)
 {
     LOGS_INFO << "Received a reply from the service";
-    bool messageWasProcessed = true;
+    bool isCustomMessage = false;
     try
     {
         if (jsonReply.has_field(L"id"))
@@ -1246,23 +1246,21 @@ bool interactivity_manager_impl::process_reply(const web::json::value& jsonReply
                 else
                 {
                     LOGS_INFO << L"Unhandled reply: " << jsonReply.serialize().c_str() << "to message " << message->to_string();
-                    messageWasProcessed = false;
+                    isCustomMessage = true;
                 }
             }
         }
         else
         {
             LOGS_INFO << "Unexpected json reply, no id";
-            messageWasProcessed = false;
         }
     }
     catch (std::exception e)
     {
         LOGS_ERROR << "Failed to parse service reply";
-        messageWasProcessed = false;
     }
 
-    return messageWasProcessed;
+    return isCustomMessage;
 }
 
 void interactivity_manager_impl::process_reply_error(const web::json::value& jsonReply)
@@ -1572,7 +1570,7 @@ void interactivity_manager_impl::process_update_participants_reply(const web::js
 bool interactivity_manager_impl::process_method(const web::json::value& methodJson)
 {
     LOGS_DEBUG << "Received an RPC call from the service";
-    bool messageWasProcessed = true;
+    bool isCustomMessage = true;
     try
     {
         if (methodJson.has_field(RPC_METHOD))
@@ -1613,22 +1611,20 @@ bool interactivity_manager_impl::process_method(const web::json::value& methodJs
             else
             {
                 LOGS_INFO << "Unexpected or unsupported RPC call: " << methodJson.at(RPC_METHOD).as_string();
-                messageWasProcessed = false;
+                isCustomMessage = true;
             }
         }
         else
         {
             LOGS_INFO << "Method RPC call had no method name";
-            messageWasProcessed = false;
         }
     }
     catch (std::exception e)
     {
         LOGS_ERROR << "Failed to process method RPC call";
-        messageWasProcessed = false;
     }
 
-    return messageWasProcessed;
+    return isCustomMessage;
 }
 
 
