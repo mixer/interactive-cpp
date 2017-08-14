@@ -43,6 +43,7 @@ private:
     void InitializeInteractivity();
     void ToggleInteractivity();
     void SwitchScenes();
+    void SendMessage();
     void SimulateUserChange();
     void InitializeGroupsAndScenes();
     void AddParticipantToGroup();
@@ -51,6 +52,7 @@ private:
     void TriggerCooldownOnButtons(string_t groupId);
     void SetProgress(string_t groupId);
     void ProcessInteractiveEvents(std::vector<interactive_event> events);
+    void HandleCustomMessage(interactive_event event);
     void HandleInteractivityError(interactive_event event);
     void HandleInteractivityStateChange(interactive_event event);
     void HandleParticipantStateChange(interactive_event event);
@@ -100,6 +102,7 @@ private:
     ATG::Button*                        m_cooldownControlsBtn;
     ATG::Button*                        m_setProgressBtn;
     ATG::Button*                        m_switchScenesBtn;
+    ATG::Button*                        m_sendMessageBtn;
     ATG::Button*                        m_simulateUserChangeBtn;
     ATG::TextLabel*                     m_healthButtonLabel;
     ATG::TextLabel*                     m_healthButtonStateDownLabel;

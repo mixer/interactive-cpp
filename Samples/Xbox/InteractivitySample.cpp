@@ -20,6 +20,7 @@ namespace
     const int c_cooldownBtn                                 = 2106;
     const int c_setProgressBtn                              = 2107;
     const int c_switchScenesBtn                             = 2108;
+    const int c_sendMessageBtn                              = 2109;
     const int c_healthButtonLabel                           = 1004;
     const int c_healthButtonStateDownLabel                  = 1008;
     const int c_healthButtonStatePressedLabel               = 1009;
@@ -32,6 +33,7 @@ namespace
     const int c_joystickXByParticipantReadingLabel          = 1019;
     const int c_joystickYByParticipantReadingLabel          = 1020;
 
+    // TODO: Replace the Project Version ID with your Project Version ID from Interactive Studio
     const string_t s_interactiveVersion     = L"76127";
 
     const string_t s_defaultGroup           = L"default";
@@ -96,6 +98,9 @@ void Sample::Initialize(IUnknown* window)
     m_switchScenesBtn = m_ui->FindControl<ATG::Button>(2000, c_switchScenesBtn);
     m_buttons.push_back(m_switchScenesBtn);
 
+    m_sendMessageBtn = m_ui->FindControl<ATG::Button>(2000, c_sendMessageBtn);
+    m_buttons.push_back(m_sendMessageBtn);
+
     m_liveResources->Initialize(m_ui, m_ui->FindPanel<ATG::Overlay>(c_sampleUIPanel));
     m_deviceResources->SetWindow(window);
 
@@ -153,6 +158,12 @@ void Sample::SetupUI()
     m_ui->FindControl<Button>(c_sampleUIPanel, c_switchScenesBtn)->SetCallback([this](IPanel*, IControl*)
     {
         SwitchScenes();
+    });
+
+    // Sends a sample custom message to the interactive service.
+    m_ui->FindControl<Button>(c_sampleUIPanel, c_sendMessageBtn)->SetCallback([this](IPanel*, IControl*)
+    {
+        SendMessage();
     });
 }
 #pragma endregion
@@ -352,6 +363,23 @@ void Sample::SwitchScenes()
     }
 }
 
+void Sample::SendMessage()
+{
+    // This is a sample message that sets a bandwidth throttle.
+    const string_t parameters = L"{"\
+                                L"    \"giveInput\": {"\
+                                L"        \"capacity\": 10000000,"\
+                                L"        \"drainRate\": 3000000"\
+                                L"    },"\
+                                L"    \"onParticipantJoin\": {"\
+                                L"        \"capacity\": 0,"\
+                                L"        \"drainRate\": 0"\
+                                L"    },"\
+                                L"    \"onParticipantLeave\": null"\
+                                L"}";
+    m_interactivityManager->send_rpc_message(L"setBandwidthThrottle", parameters);
+}
+
 void Sample::SimulateUserChange()
 {
     SetAllButtonsEnabled(false);
@@ -417,12 +445,6 @@ void Sample::InitializeGroupsAndScenes()
 
         std::shared_ptr<interactive_group> group1 = std::make_shared<interactive_group>(s_group1, scene1);
         m_groupsList = m_interactivityManager->groups();
-
-        if (m_groupsList.size() != 1)
-        {
-            m_console->WriteLine(L"Unexpected error: invalid group size after group initialization");
-            return;
-        }
     }
 }
 
@@ -621,6 +643,9 @@ void Sample::ProcessInteractiveEvents(std::vector<interactive_event> events)
         case interactive_event_type::error:
             HandleInteractivityError(event);
             break;
+        case interactive_event_type::custom:
+            HandleCustomMessage(event);
+            break;
         }
 
         // If you want to handle the interactive input manually:
@@ -630,6 +655,14 @@ void Sample::ProcessInteractiveEvents(std::vector<interactive_event> events)
             break;
         }
     }
+}
+
+void Sample::HandleCustomMessage(interactive_event event)
+{
+    std::shared_ptr<interactive_custom_message_event_args> messageEventArgs = std::dynamic_pointer_cast<interactive_custom_message_event_args>(event.event_args());
+    m_console->Write(messageEventArgs->message().c_str());
+    m_console->Write(L"\n");
+    return;
 }
 
 void Sample::HandleInteractivityError(interactive_event event)
@@ -785,7 +818,7 @@ void Sample::RefreshControlInputState()
         auto defaultGroup = m_interactivityManager->group(L"default");
         auto foo = defaultGroup->participants();
         auto defaultScene = m_interactivityManager->scene(L"default");
-        auto yesButton = defaultScene->button(healthButtonID).get();
+        auto healthButton = defaultScene->button(healthButtonID).get();
         
         // We know there will be at least one participant (the broadcaster)
         // so we'll use their ID to test getting input by Mixer ID.
@@ -795,13 +828,13 @@ void Sample::RefreshControlInputState()
             mixerId = m_interactivityManager->participants()[0]->mixer_id();
         }
 
-        isDown = yesButton->is_up();
-        isPressed = yesButton->is_pressed();
-        isUp = yesButton->is_down();
+        isDown = healthButton->is_up();
+        isPressed = healthButton->is_pressed();
+        isUp = healthButton->is_down();
 
-        isUpByMixerID = yesButton->is_up(mixerId);
-        isPressedByMixerID = yesButton->is_pressed(mixerId);
-        isDownByMixerID = yesButton->is_down(mixerId);
+        isUpByMixerID = healthButton->is_up(mixerId);
+        isPressedByMixerID = healthButton->is_pressed(mixerId);
+        isDownByMixerID = healthButton->is_down(mixerId);
         
         auto joystick = defaultScene->joystick(L"Joystick");
         m_joystickXReadingLabel->SetText(joystick->x().ToString()->Data());

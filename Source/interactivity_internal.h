@@ -321,6 +321,8 @@ namespace Microsoft {
 
         void trigger_cooldown(_In_ const string_t& control_id, _In_ const std::chrono::milliseconds& cooldownDeadline);
 
+        void send_rpc_message(_In_ const string_t& method, _In_ const string_t& parameters);
+
         void capture_transaction(_In_ const string_t& transaction_id);
 
         std::vector<MICROSOFT_MIXER_NAMESPACE::interactive_event> do_work();
@@ -339,7 +341,7 @@ namespace Microsoft {
 
         void process_messages_worker();
 
-        void process_reply(const web::json::value& jsonReply);
+        bool process_reply(const web::json::value& jsonReply);
         void process_reply_error(const web::json::value& jsonReply);
         void process_get_groups_reply(const web::json::value& jsonReply);
         void process_create_groups_reply(const web::json::value& jsonReply);
@@ -349,7 +351,7 @@ namespace Microsoft {
         void process_get_scenes_reply(const web::json::value& jsonReply);
         void process_get_time_reply(std::shared_ptr<interactive_rpc_message> message, const web::json::value& jsonReply);
 
-        void process_method(const web::json::value& methodJson);
+        bool process_method(const web::json::value& methodJson);
 
         void process_participant_joined(const web::json::value& participantJoinedJson);
         void process_participant_left(const web::json::value& participantLeftJson);

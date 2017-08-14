@@ -147,6 +147,12 @@ interactivity_manager::trigger_cooldown(_In_ const string_t& control_id, _In_ co
 }
 
 void
+interactivity_manager::send_rpc_message(const string_t & message, const string_t & parameters) const
+{
+    return m_impl->send_rpc_message(message, parameters);
+}
+
+void
 interactivity_manager::capture_transaction(const string_t & transaction_id) const
 {
     return m_impl->capture_transaction(transaction_id);
