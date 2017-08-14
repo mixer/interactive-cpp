@@ -331,11 +331,6 @@ public:
     _MIXERIMP interactive_event_type event_type() const;
 
     /// <summary>
-    /// Returns the raw message. The messages are JSON formatted.
-    /// </summary>
-    _MIXERIMP const string_t& raw_message() const;
-
-    /// <summary>
     /// Returns a pointer to an event argument. Cast the event arg to a specific
     /// event arg class type before retrieving the data.
     /// </summary>
