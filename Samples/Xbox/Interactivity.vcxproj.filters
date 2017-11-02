@@ -47,6 +47,7 @@
       <Filter>ATG Tool Kit</Filter>
     </ClInclude>
     <ClInclude Include="InteractivitySample.h" />
+    <ClInclude Include="..\..\Include\namespaces.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="LiveResources.cpp">
