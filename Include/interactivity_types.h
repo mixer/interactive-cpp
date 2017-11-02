@@ -1,4 +1,3 @@
-#pragma once
 
 #ifdef _WIN32
 #include <Windows.h>
@@ -30,22 +29,6 @@
 
 #endif //_WIN32
 
-#ifdef ANDROID
-// Android doesn't support std::to_string, so implement it:
-
-namespace std
-{
-template< typename T >
-std::string to_string(const T& item)
-{
-
-	std::stringstream ss;
-	ss << item;
-	return ss.str();
-}
-}
-#endif
-
 #ifndef _WIN32
 #ifdef _In_
 #undef _In_
@@ -59,6 +42,14 @@ std::string to_string(const T& item)
 #undef _Post_writable_byte_size_
 #endif
 #define _Post_writable_byte_size_(X)
+#endif
+
+#ifndef _T
+#ifdef _WIN32
+#define _T(x) L ## x
+#else
+#define _T(x) x
+#endif
 #endif
 
 #if defined _WIN32
@@ -92,43 +83,19 @@ std::string to_string(const T& item)
 #endif
 
 typedef int32_t function_context;
-
-#if _WIN32 || UNICODE
-#ifndef XPLATSTR
-#define __XPLATSTR(x) L ## x
-#define XPLATSTR(x) __XPLATSTR(x)
-#endif
-#ifndef tostring
-#define tostring(x) std::to_wstring(x)
-#endif
-#ifndef char_t
+#ifdef _WIN32
 typedef wchar_t char_t;
-#endif
-#ifndef string_t
 typedef std::wstring string_t;
-#endif
-#ifndef stringstream_t
 typedef std::wstringstream stringstream_t;
-#endif
-
+//typedef std::wregex regex_t;
+//typedef std::wsmatch smatch_t;
 #else
-#ifndef XPLATSTR
-#define XPLATSTR(x) x
-#endif
-#ifndef tostring
-#define tostring(x) std::to_string(x)
-#endif
-#ifndef char_t
 typedef char char_t;
-#endif
-#ifndef string_t
 typedef std::string string_t;
-#endif
-#ifndef stringstream_t
 typedef std::stringstream stringstream_t;
+typedef std::regex regex_t;
+typedef std::smatch smatch_t;
 #endif
-
-#endif // _WIN32 || UNICODE
 
 #if _MSC_VER <= 1800
 typedef std::chrono::system_clock chrono_clock_t;
