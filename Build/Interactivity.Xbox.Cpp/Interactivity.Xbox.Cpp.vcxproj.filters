@@ -12,17 +12,11 @@
     <ClInclude Include="..\..\Source\Util\pch.h">
       <Filter>Includes</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\Source\Util\log.h">
-      <Filter>C++ Source</Filter>
-    </ClInclude>
     <ClInclude Include="..\..\Source\json_helper.h">
       <Filter>Includes</Filter>
     </ClInclude>
     <ClInclude Include="..\..\Include\namespaces.h">
       <Filter>Includes</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\Source\Util\debug_output.h">
-      <Filter>C++ Source</Filter>
     </ClInclude>
     <ClInclude Include="..\..\Include\interactivity.h">
       <Filter>Includes</Filter>
@@ -42,6 +36,9 @@
     <ClInclude Include="..\..\Include\interactivity_types.h">
       <Filter>Includes</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\Source\Util\mixer_debug.h">
+      <Filter>C++ Source</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\Source\interactivity_internal.h">
@@ -53,18 +50,6 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">
-      <Filter>C++ Source</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\Source\Util\log.cpp">
-      <Filter>C++ Source</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\Source\Util\log_entry.cpp">
-      <Filter>C++ Source</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\Source\Util\log_output.cpp">
-      <Filter>C++ Source</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\Source\Util\debug_output.cpp">
       <Filter>C++ Source</Filter>
     </ClCompile>
     <ClCompile Include="..\..\Source\interactive_control.cpp">
@@ -92,6 +77,9 @@
       <Filter>C++ Source</Filter>
     </ClCompile>
     <ClCompile Include="..\..\Source\interactivity_manager_impl.cpp">
+      <Filter>C++ Source</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Source\Util\mixer_debug.cpp">
       <Filter>C++ Source</Filter>
     </ClCompile>
   </ItemGroup>
