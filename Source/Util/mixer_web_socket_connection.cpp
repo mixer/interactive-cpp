@@ -11,26 +11,27 @@
 #include <cpprest/ws_client.h>
 #include <thread>
 #include "mixer_web_socket_connection.h"
+#include "mixer_debug.h"
 
 using namespace web::websockets::client;
 
 NAMESPACE_MICROSOFT_MIXER_BEGIN
 
 web_socket_connection::web_socket_connection(
-    _In_ string_t bearerToken,
-    _In_ string_t interactiveVersion,
-    _In_ string_t sharecode,
-    _In_ string_t protocolVersion
-    ):
-    m_bearerToken(std::move(bearerToken)),
-    m_interactiveVersion(std::move(interactiveVersion)), 
-    m_sharecode(std::move(sharecode)),
-    m_protocolVersion(std::move(protocolVersion)),
-    m_state(mixer_web_socket_connection_state::disconnected),
-    m_client(std::make_shared<mixer_web_socket_client>()),
-    m_closeCallbackSet(false),
-    m_closeRequested(false),
-    m_connectionAttempts(0)
+	_In_ string_t bearerToken,
+	_In_ string_t interactiveVersion,
+	_In_ string_t sharecode,
+	_In_ string_t protocolVersion
+) :
+	m_bearerToken(std::move(bearerToken)),
+	m_interactiveVersion(std::move(interactiveVersion)),
+	m_sharecode(std::move(sharecode)),
+	m_protocolVersion(std::move(protocolVersion)),
+	m_state(mixer_web_socket_connection_state::disconnected),
+	m_client(std::make_shared<mixer_web_socket_client>()),
+	m_closeCallbackSet(false),
+	m_closeRequested(false),
+	m_connectionAttempts(0)
 {
 
 }
@@ -38,230 +39,243 @@ web_socket_connection::web_socket_connection(
 void
 web_socket_connection::ensure_connected()
 {
-    // As soon as this API gets called, move away from disconnected state
-    if (m_connectingTask == pplx::task<void>())
-    {
-        set_state_helper(mixer_web_socket_connection_state::activated);
-        m_connectingTask = pplx::task_from_result();
-    }
+	// As soon as this API gets called, move away from disconnected state
+	if (m_connectingTask == pplx::task<void>())
+	{
+		set_state_helper(mixer_web_socket_connection_state::activated);
+		m_connectingTask = pplx::task_from_result();
+	}
 
-    std::lock_guard<std::recursive_mutex> lock(m_stateLocker);
+	std::lock_guard<std::recursive_mutex> lock(m_stateLocker);
 
-    // If it's still connecting or connected return.
-    if (!m_connectingTask.is_done() || m_state == mixer_web_socket_connection_state::connected)
-    {
-        return;
-    }
+	// If it's still connecting or connected return.
+	if (!m_connectingTask.is_done() || m_state == mixer_web_socket_connection_state::connected)
+	{
+		return;
+	}
 
-    if (m_connectionAttempts > 6)
-    {
-        //retry didn't help, notify caller, we're in stable disconnected state
-        set_state_helper(mixer_web_socket_connection_state::disconnected);
-        return;
-    }
+	if (m_connectionAttempts > 6)
+	{
+		//retry didn't help, notify caller, we're in stable disconnected state
+		set_state_helper(mixer_web_socket_connection_state::disconnected);
+		return;
+	}
 
-    set_state_helper(mixer_web_socket_connection_state::connecting);
+	set_state_helper(mixer_web_socket_connection_state::connecting);
 
-    m_closeRequested = false;
+	m_closeRequested = false;
 
-    // kick off connection 
-    std::weak_ptr<web_socket_connection> thisWeakPtr = shared_from_this();
-    m_connectingTask = pplx::create_task([thisWeakPtr]
-    {
-        // Limit number of re-attempts to something reasonable
-        if (auto pThis = thisWeakPtr.lock())
-        {
-            if (pThis->m_connectionAttempts)
-            {
-                // Linear growth
-                std::chrono::milliseconds retryInterval(150 * pThis->m_connectionAttempts);
-                std::this_thread::sleep_for(retryInterval);
-            }
+	// kick off connection 
+	std::weak_ptr<web_socket_connection> thisWeakPtr = shared_from_this();
+	m_connectingTask = pplx::create_task([thisWeakPtr]
+	{
+		// Limit number of re-attempts to something reasonable
+		if (auto pThis = thisWeakPtr.lock())
+		{
+			if (pThis->m_connectionAttempts)
+			{
+				// Linear growth
+				std::chrono::milliseconds retryInterval(150 * pThis->m_connectionAttempts);
+				std::this_thread::sleep_for(retryInterval);
+			}
 
-            pThis->m_connectionAttempts++;
+			pThis->m_connectionAttempts++;
 
-            if (auto pThisWeak = thisWeakPtr.lock())
-            {
-                // Trigger connection logic
-                return pThisWeak->connect_async();
-            }
-        }
+			if (auto pThisWeak = thisWeakPtr.lock())
+			{
+				// Trigger connection logic
+				return pThisWeak->connect_async();
+			}
+		}
 
-        return pplx::task_from_result();
-    });
+		return pplx::task_from_result();
+	});
 }
 
 pplx::task<void>
 web_socket_connection::connect_async()
 {
-    std::weak_ptr<web_socket_connection> thisWeakPtr = shared_from_this();
+	std::weak_ptr<web_socket_connection> thisWeakPtr = shared_from_this();
 
-    return m_client->connect(
-        m_uri,
-        m_bearerToken,
-        m_interactiveVersion,
-        m_sharecode,
-        m_protocolVersion
-    ).then([thisWeakPtr] (pplx::task<void> connectionResult)
-    {
-        try
-        {
-            connectionResult.get();
-            LOG_INFO("Websocket connnection established.");
+	m_client->set_closed_handler([thisWeakPtr](uint16_t code, string_t reason)
+	{
+		auto pThis2 = thisWeakPtr.lock();
+		if (pThis2 != nullptr)
+		{
+			pThis2->on_close(code, reason);
+		}
+	});
 
-            // This needs to execute after connected 
-            // Can't get 'this' shared pointer in constructor, so place socket client calling setting to here.
-            if (auto pThis = thisWeakPtr.lock())
-            {
-                //We've connected, reset retries
-                pThis->m_connectionAttempts = 0;
+	return m_client->connect(
+		m_uri,
+		m_bearerToken,
+		m_interactiveVersion,
+		m_sharecode,
+		m_protocolVersion
+	).then([thisWeakPtr](pplx::task<void> connectionResult)
+	{
+		try
+		{
+			connectionResult.get();
 
-                pThis->set_state_helper(mixer_web_socket_connection_state::connected);
+			// This needs to execute after connected 
+			// Can't get 'this' shared pointer in constructor, so place socket client calling setting to here.
+			if (auto pThis = thisWeakPtr.lock())
+			{
+				if (mixer_web_socket_connection_state::disconnected == pThis->m_state)
+				{
+					DEBUG_INFO(_XPLATSTR("Websocket closed."));
+				}
+				else
+				{
+					pThis->set_state_helper(mixer_web_socket_connection_state::connected);
+					DEBUG_INFO(_XPLATSTR("Websocket connnection established."));
 
-                if (!pThis->m_closeCallbackSet)
-                {
-                    pThis->m_client->set_closed_handler([thisWeakPtr](uint16_t code, string_t reason)
-                    {
-                        auto pThis2 = thisWeakPtr.lock();
-                        if (pThis2 != nullptr)
-                        {
-                            pThis2->on_close(code, reason);
-                        }
-                    });
-                    pThis->m_closeCallbackSet = true;
-                }
-            }
-        }
-        catch (std::exception& e)
-        {
-            LOG_INFO("Websocket connection failed");
-            return pplx::task_from_result();
-        }
+					// We've connected, reset retries
+					pThis->m_connectionAttempts = 0;
+				}
+			}
+		}
+		catch (std::exception&)
+		{
+			DEBUG_INFO(_XPLATSTR("Websocket connection failed"));
+			return pplx::task_from_result();
+		}
 
-        return connectionResult;
-    });
+		return connectionResult;
+	});
 }
 
 mixer_web_socket_connection_state
 web_socket_connection::state()
 {
-    std::lock_guard<std::recursive_mutex> lock(m_stateLocker);
-    return m_state;
+	std::lock_guard<std::recursive_mutex> lock(m_stateLocker);
+	return m_state;
 }
 
 pplx::task<void>
 web_socket_connection::send(
-    _In_ const string_t& message
-    )
+	_In_ const string_t& message
+)
 {
-    if (m_client == nullptr)
-        return pplx::task_from_exception<void>(std::runtime_error("web socket is not created yet."));
+	if (m_client == nullptr)
+		return pplx::task_from_exception<void>(std::runtime_error("web socket is not created yet."));
 
-    return m_client->send(message);
+	return m_client->send(message);
 }
 
-void 
+void
 web_socket_connection::set_uri(_In_ web::uri uri)
 {
-    m_uri = uri;
+	m_uri = uri;
 }
 
 pplx::task<void>
 web_socket_connection::close()
 {
-    if (m_client == nullptr)
-        return pplx::task_from_exception<void>(std::runtime_error("web socket is not created yet."));
+	if (m_client == nullptr)
+		return pplx::task_from_exception<void>(std::runtime_error("web socket is not created yet."));
 
-    m_closeRequested = true;
-    return m_client->close();
+	m_closeRequested = true;
+	return m_client->close();
 }
 
-void 
+void
 web_socket_connection::set_received_handler(
-    _In_ std::function<void(string_t)> handler
-    )
+	_In_ std::function<void(string_t)> handler
+)
 {
-    if (m_client != nullptr)
-    {
-        m_client->set_received_handler(handler);
-    }
+	if (m_client != nullptr)
+	{
+		m_client->set_received_handler(handler);
+	}
 }
 
 void
 web_socket_connection::on_close(uint16_t code, string_t reason)
 {
-    // websocket_close_status::normal means the socket completed its purpose. Normally it means close
-    // was triggered by client. Don't reconnect.
-    LOGS_INFO << "web_socket_connection on_close code:" << code << " ,reason:" << reason;
-    if (static_cast<websocket_close_status>(code) != websocket_close_status::normal && !m_closeRequested)
-    {
-        LOG_INFO("web_socket_connection on close, not requested");
-        // try to reconnect
-        set_state_helper(mixer_web_socket_connection_state::connecting);
-        ensure_connected();
-    }
-    else
-    {
-        LOG_INFO("web_socket_connection on close, requested");
-        set_state_helper(mixer_web_socket_connection_state::disconnected);
-    }
+	// websocket_close_status::normal means the socket completed its purpose. Normally it means close
+	// was triggered by client. Don't reconnect.
+	DEBUG_INFO(_XPLATSTR("web_socket_connection on_close code: ") + tostring(code) + _XPLATSTR(" Reason:") + reason);
+	switch (code)
+	{
+	case 4020: // invalid version id
+		set_state_helper(mixer_web_socket_connection_state::disconnected);
+		break;
+	case 1000: // Normal
+	default:
+		if (!m_closeRequested)
+		{
+			DEBUG_INFO(_XPLATSTR("web_socket_connection on close, not requested"));
+			// try to reconnect
+			set_state_helper(mixer_web_socket_connection_state::connecting);
+			ensure_connected();
+		}
+		else
+		{
+			DEBUG_INFO(_XPLATSTR("web_socket_connection on close, requested"));
+			set_state_helper(mixer_web_socket_connection_state::disconnected);
+		}
+		break;
+	}
 }
 
 void
 web_socket_connection::set_connection_state_change_handler(
-    _In_ std::function<void(mixer_web_socket_connection_state oldState, mixer_web_socket_connection_state newState)> handler
-    )
+	_In_ std::function<void(mixer_web_socket_connection_state oldState, mixer_web_socket_connection_state newState)> handler
+)
 {
-    std::lock_guard<std::recursive_mutex> lock(m_stateLocker);
-    m_externalStateChangeHandler = handler;
+	std::lock_guard<std::recursive_mutex> lock(m_stateLocker);
+	m_externalStateChangeHandler = handler;
 }
 
 void web_socket_connection::set_state_helper(_In_ mixer_web_socket_connection_state newState)
 {
-    mixer_web_socket_connection_state oldState;
-    std::function<void(mixer_web_socket_connection_state oldState, mixer_web_socket_connection_state newState)> externalStateChangeHandlerCopy;
-    {
-        std::lock_guard<std::recursive_mutex> lock(m_stateLocker);
-        // Can only set state to activated if current state is disconnected
-        if (newState == mixer_web_socket_connection_state::activated && m_state != mixer_web_socket_connection_state::disconnected)
-        {
-            return;
-        }
+	mixer_web_socket_connection_state oldState;
+	std::function<void(mixer_web_socket_connection_state oldState, mixer_web_socket_connection_state newState)> externalStateChangeHandlerCopy;
 
-        oldState = m_state;
-        m_state = newState;
-        externalStateChangeHandlerCopy = m_externalStateChangeHandler;
-    }
+	{
+		std::lock_guard<std::recursive_mutex> lock(m_stateLocker);
+		// Can only set state to activated if current state is disconnected
+		if (newState == mixer_web_socket_connection_state::activated && m_state != mixer_web_socket_connection_state::disconnected)
+		{
+			return;
+		}
 
-    LOGS_DEBUG << "websocket state change: " << convert_web_socket_connection_state_to_string(oldState) << " -> " << convert_web_socket_connection_state_to_string(newState);
+		oldState = m_state;
+		m_state = newState;
+		externalStateChangeHandlerCopy = m_externalStateChangeHandler;
+	}
 
-    if (oldState != newState && externalStateChangeHandlerCopy)
-    {
-        try
-        {
-            if (externalStateChangeHandlerCopy != nullptr)
-            {
-                externalStateChangeHandlerCopy(oldState, newState);
-            }
-        }
-        catch (std::exception e)
-        {
-            LOG_ERROR("web_socket_connection::external state handler had an exception");
-        }
-    }
+	DEBUG_TRACE(_XPLATSTR("websocket state change: ") + convert_web_socket_connection_state_to_string(oldState) + _XPLATSTR(" -> ") + convert_web_socket_connection_state_to_string(newState));
+
+	if (oldState != newState && externalStateChangeHandlerCopy)
+	{
+		try
+		{
+			if (externalStateChangeHandlerCopy != nullptr)
+			{
+				externalStateChangeHandlerCopy(oldState, newState);
+			}
+		}
+		catch (std::exception e)
+		{
+			DEBUG_EXCEPTION(_XPLATSTR("Exception in web_socket_connection::external state handler: "), e.what());
+		}
+	}
 }
 
 const string_t
 web_socket_connection::convert_web_socket_connection_state_to_string(_In_ mixer_web_socket_connection_state state)
 {
-    switch (state)
-    {
-    case mixer_web_socket_connection_state::disconnected: return _T("disconnected");
-    case mixer_web_socket_connection_state::activated: return _T("activated");
-    case mixer_web_socket_connection_state::connecting: return _T("connecting");
-    case mixer_web_socket_connection_state::connected: return _T("connected");
-    default: return _T("unknownState");
-    }
+	switch (state)
+	{
+	case mixer_web_socket_connection_state::disconnected: return _XPLATSTR("disconnected");
+	case mixer_web_socket_connection_state::activated: return _XPLATSTR("activated");
+	case mixer_web_socket_connection_state::connecting: return _XPLATSTR("connecting");
+	case mixer_web_socket_connection_state::connected: return _XPLATSTR("connected");
+	default: return _XPLATSTR("unknownState");
+	}
 }
 
 NAMESPACE_MICROSOFT_MIXER_END

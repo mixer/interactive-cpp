@@ -59,12 +59,9 @@
     <ClCompile Include="..\..\Source\interactivity_manager_impl.cpp" />
     <ClCompile Include="..\..\Source\interactive_participant.cpp" />
     <ClCompile Include="..\..\Source\interactive_scene.cpp" />
+    <ClCompile Include="..\..\Source\Util\mixer_debug.cpp" />
     <ClCompile Include="..\..\Source\Util\mixer_web_socket_client.cpp" />
     <ClCompile Include="..\..\Source\Util\mixer_web_socket_connection.cpp" />
-    <ClCompile Include="..\..\Source\Util\debug_output.cpp" />
-    <ClCompile Include="..\..\Source\Util\log.cpp" />
-    <ClCompile Include="..\..\Source\Util\log_entry.cpp" />
-    <ClCompile Include="..\..\Source\Util\log_output.cpp" />
     <ClCompile Include="pch.cpp">
       <PrecompiledHeader>Create</PrecompiledHeader>
     </ClCompile>
@@ -75,11 +72,10 @@
     <ClInclude Include="..\..\Include\namespaces.h" />
     <ClInclude Include="..\..\Source\interactivity_internal.h" />
     <ClInclude Include="..\..\Source\json_helper.h" />
+    <ClInclude Include="..\..\Source\Util\mixer_debug.h" />
     <ClInclude Include="..\..\Source\Util\mixer_web_socket_client.h" />
     <ClInclude Include="..\..\Source\Util\mixer_web_socket_connection.h" />
     <ClInclude Include="..\..\Source\Util\mixer_web_socket_connection_state.h" />
-    <ClInclude Include="..\..\Source\Util\debug_output.h" />
-    <ClInclude Include="..\..\Source\Util\log.h" />
     <ClInclude Include="..\..\Source\Util\pch.h" />
   </ItemGroup>
   <ItemGroup>
@@ -141,6 +137,9 @@
     <ProjectFolder>$(MSBuildProjectName)</ProjectFolder>
     <OutDir>$(ProjectDir)..\..\Binaries\$(Configuration)\$(Platform)\$(ProjectFolder)\</OutDir>
     <IntDir>$(ProjectDir)..\..\Obj\$(Configuration)\$(Platform)\$(ProjectFolder)\</IntDir>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <IncludePath>$(VC_IncludePath);$(WindowsSDK_IncludePath);</IncludePath>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
 </Project>
