@@ -8,8 +8,8 @@
 //
 //*********************************************************
 #pragma once
-#include "../../Include/namespaces.h"
-#include "../../Include/interactivity.h"
+#include "namespaces.h"
+#include "interactivity.h"
 
 NAMESPACE_MICROSOFT_MIXER_BEGIN
 

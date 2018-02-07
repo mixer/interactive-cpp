@@ -57,7 +57,7 @@
     <ClCompile Include="..\..\Source\interactivity_manager_impl.cpp" />
     <ClCompile Include="..\..\Source\Util\mixer_web_socket_client.cpp" />
     <ClCompile Include="..\..\Source\Util\mixer_web_socket_connection.cpp" />
-    <ClCompile Include="Mixer.cpp" />
+    <ClCompile Include="..\..\Source\Util\mixer_debug.cpp" />
     <ClCompile Include="pch.cpp">
       <PrecompiledHeader>Create</PrecompiledHeader>
     </ClCompile>
@@ -66,6 +66,7 @@
     <ClInclude Include="..\..\Include\interactivity.h" />
     <ClInclude Include="..\..\Include\interactivity_types.h" />
     <ClInclude Include="..\..\Include\namespaces.h" />
+    <ClInclude Include="..\..\Include\mixer_debug.h" />
     <ClInclude Include="..\..\Source\interactivity_internal.h" />
     <ClInclude Include="..\..\Source\json_helper.h" />
     <ClInclude Include="..\..\Source\Util\mixer_web_socket_client.h" />
@@ -73,7 +74,6 @@
     <ClInclude Include="..\..\Source\Util\mixer_web_socket_connection_state.h" />
     <ClInclude Include="..\..\Source\Util\pch.h" />
     <ClInclude Include="json.hpp" />
-    <ClInclude Include="Mixer.h" />
   </ItemGroup>
   <PropertyGroup>
     <ProjectFolder>$(MSBuildProjectName)</ProjectFolder>
@@ -136,9 +136,9 @@
     <Lib>
       <AdditionalOptions>/ignore:4099</AdditionalOptions>
       <AdditionalDependencies>libeay32.lib;ssleay32.lib;zlibstatic.lib</AdditionalDependencies>
-      <AdditionalLibraryDirectories>$(ProjectDir)\..\..\External\Packages\zlib.v140.windesktop.msvcstl.static.rt-dyn.1.2.8.8\lib\native\v140\windesktop\msvcstl\static\rt-dyn\$(Platform)\Release;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalLibraryDirectories Condition="'$(Platform)'=='x64'">$(ProjectDir)\..\..\External\Packages\openssl.v140.windesktop.msvcstl.static.rt-dyn.x64.1.0.2.0\lib\native\v140\windesktop\msvcstl\static\rt-dyn\x64\release;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalLibraryDirectories Condition="'$(Platform)'=='Win32'">$(ProjectDir)\..\..\External\Packages\openssl.v140.windesktop.msvcstl.static.rt-dyn.x86.1.0.2.0\lib\native\v140\windesktop\msvcstl\static\rt-dyn\x86\release;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>$([System.IO.Path]::GetFullPath($(ProjectDir)\..\..\External\Packages\zlib.v140.windesktop.msvcstl.static.rt-dyn.1.2.8.8\lib\native\v140\windesktop\msvcstl\static\rt-dyn\$(Platform)\Release));%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories Condition="'$(Platform)'=='x64'">$([System.IO.Path]::GetFullPath($(ProjectDir)\..\..\External\Packages\openssl.v140.windesktop.msvcstl.static.rt-dyn.x64.1.0.2.0\lib\native\v140\windesktop\msvcstl\static\rt-dyn\x64\release));%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories Condition="'$(Platform)'=='Win32'">$([System.IO.Path]::GetFullPath($(ProjectDir)\..\..\External\Packages\openssl.v140.windesktop.msvcstl.static.rt-dyn.x86.1.0.2.0\lib\native\v140\windesktop\msvcstl\static\rt-dyn\x86\release));%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Lib>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)'=='Debug'">

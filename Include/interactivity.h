@@ -10,7 +10,7 @@
 #pragma once
 
 #include "interactivity_types.h"
-#include "..\Source\Util\mixer_debug.h"
+#include "mixer_debug.h"
 
 namespace xbox
 {
