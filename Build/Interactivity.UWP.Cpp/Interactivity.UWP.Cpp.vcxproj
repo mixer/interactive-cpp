@@ -30,7 +30,7 @@
     <MinimumVisualStudioVersion>14.0</MinimumVisualStudioVersion>
     <AppContainerApplication>true</AppContainerApplication>
     <GenerateManifest>false</GenerateManifest>
-    <WindowsTargetPlatformVersion>10.0.14393.0</WindowsTargetPlatformVersion>
+    <WindowsTargetPlatformVersion>10.0.16299.0</WindowsTargetPlatformVersion>
     <WindowsTargetPlatformMinVersion>10.0.14393.0</WindowsTargetPlatformMinVersion>
     <PreferredToolArchitecture>x64</PreferredToolArchitecture>
   </PropertyGroup>
@@ -52,31 +52,10 @@
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
   </ImportGroup>
   <ItemGroup>
-    <ClCompile Include="..\..\Source\interactive_control.cpp" />
-    <ClCompile Include="..\..\Source\interactive_event.cpp" />
-    <ClCompile Include="..\..\Source\interactive_group.cpp" />
-    <ClCompile Include="..\..\Source\interactivity_manager.cpp" />
-    <ClCompile Include="..\..\Source\interactivity_manager_impl.cpp" />
-    <ClCompile Include="..\..\Source\interactive_participant.cpp" />
-    <ClCompile Include="..\..\Source\interactive_scene.cpp" />
-    <ClCompile Include="..\..\Source\Util\mixer_debug.cpp" />
-    <ClCompile Include="..\..\Source\Util\mixer_web_socket_client.cpp" />
-    <ClCompile Include="..\..\Source\Util\mixer_web_socket_connection.cpp" />
-    <ClCompile Include="pch.cpp">
-      <PrecompiledHeader>Create</PrecompiledHeader>
-    </ClCompile>
+    <ClCompile Include="..\..\Source\interactivity.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\Include\interactivity.h" />
-    <ClInclude Include="..\..\Include\interactivity_types.h" />
-    <ClInclude Include="..\..\Include\namespaces.h" />
-    <ClInclude Include="..\..\Source\interactivity_internal.h" />
-    <ClInclude Include="..\..\Source\json_helper.h" />
-    <ClInclude Include="..\..\Source\Util\mixer_debug.h" />
-    <ClInclude Include="..\..\Source\Util\mixer_web_socket_client.h" />
-    <ClInclude Include="..\..\Source\Util\mixer_web_socket_connection.h" />
-    <ClInclude Include="..\..\Source\Util\mixer_web_socket_connection_state.h" />
-    <ClInclude Include="..\..\Source\Util\pch.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
@@ -88,10 +67,10 @@
   </PropertyGroup>
   <ItemDefinitionGroup>
     <ClCompile>
-      <PrecompiledHeader>Use</PrecompiledHeader>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <WarningLevel>Level3</WarningLevel>
-      <PreprocessorDefinitions Condition="'$(ConfigurationType)'=='StaticLibrary'">_NO_ASYNCRTIMP;_NO_PPLXIMP;_NO_MIXERIMP;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <PreprocessorDefinitions Condition="'$(ConfigurationType)'=='DynamicLibrary'">_MIXERIMP_EXPORT;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions Condition="'$(ConfigurationType)'=='StaticLibrary'">%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions Condition="'$(ConfigurationType)'=='DynamicLibrary'">%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <SDLCheck>true</SDLCheck>
       <AdditionalOptions>/bigobj /Zm300 %(AdditionalOptions)</AdditionalOptions>
       <ProgramDataBaseFileName>$(OutDir)$(ProjectName).pdb</ProgramDataBaseFileName>
@@ -100,22 +79,16 @@
       <AdditionalIncludeDirectories>
         $(ProjectDir);
         $(ProjectDir)\..\..\Include;
-        $(ProjectDir)\..\..\Include;
         $(ProjectDir)\..\..\Source;
-        $(ProjectDir)\..\..\Source\Util;
-        $(ProjectDir)\..\..\cpprestsdk\Release\include;
         %(AdditionalIncludeDirectories)
       </AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
-      <AdditionalDependencies>Bcrypt.lib;Pathcch.lib;Ws2_32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>%(AdditionalDependencies)</AdditionalDependencies>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <GenerateWindowsMetadata>false</GenerateWindowsMetadata>
     </Link>
-    <Lib>
-      <AdditionalOptions>/ignore:4099 /ignore:4264</AdditionalOptions>
-    </Lib>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)'=='Debug'">
   </ItemDefinitionGroup>

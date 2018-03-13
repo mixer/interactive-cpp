@@ -9,77 +9,12 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\..\Source\Util\pch.h">
-      <Filter>Includes</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\Source\json_helper.h">
-      <Filter>Includes</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\Include\namespaces.h">
-      <Filter>Includes</Filter>
-    </ClInclude>
     <ClInclude Include="..\..\Include\interactivity.h">
       <Filter>Includes</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\Source\Util\mixer_web_socket_client.h">
-      <Filter>C++ Source</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\Source\Util\mixer_web_socket_connection.h">
-      <Filter>C++ Source</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\Source\Util\mixer_web_socket_connection_state.h">
-      <Filter>C++ Source</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\Source\interactivity_internal.h">
-      <Filter>Includes</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\Include\interactivity_types.h">
-      <Filter>Includes</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\Source\Util\mixer_debug.h">
-      <Filter>C++ Source</Filter>
-    </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\..\Source\interactivity_internal.h">
-      <Filter>C++ Public Includes</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\Source\Util\pch.h">
-      <Filter>C++ Public Includes</Filter>
-    </ClInclude>
-  </ItemGroup>
-  <ItemGroup>
-    <ClCompile Include="pch.cpp">
-      <Filter>C++ Source</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\Source\interactive_control.cpp">
-      <Filter>C++ Source</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\Source\interactive_event.cpp">
-      <Filter>C++ Source</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\Source\interactive_group.cpp">
-      <Filter>C++ Source</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\Source\interactive_participant.cpp">
-      <Filter>C++ Source</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\Source\interactive_scene.cpp">
-      <Filter>C++ Source</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\Source\Util\mixer_web_socket_client.cpp">
-      <Filter>C++ Source</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\Source\Util\mixer_web_socket_connection.cpp">
-      <Filter>C++ Source</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\Source\interactivity_manager.cpp">
-      <Filter>C++ Source</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\Source\interactivity_manager_impl.cpp">
-      <Filter>C++ Source</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\Source\Util\mixer_debug.cpp">
+    <ClCompile Include="..\..\Source\interactivity.cpp">
       <Filter>C++ Source</Filter>
     </ClCompile>
   </ItemGroup>

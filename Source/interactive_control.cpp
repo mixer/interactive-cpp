@@ -1,676 +1,384 @@
-//*********************************************************
-//
-// Copyright (c) Microsoft. All rights reserved.
-// THIS CODE IS PROVIDED *AS IS* WITHOUT WARRANTY OF
-// ANY KIND, EITHER EXPRESS OR IMPLIED, INCLUDING ANY
-// IMPLIED WARRANTIES OF FITNESS FOR A PARTICULAR
-// PURPOSE, MERCHANTABILITY, OR NON-INFRINGEMENT.
-//
-//*********************************************************
-#include "pch.h"
+#include "interactive_session.h"
+#include "common.h"
 
-NAMESPACE_MICROSOFT_MIXER_BEGIN
-static std::mutex s_singletonLock;
-
-//
-// Control builder static methods - in order to maintain correct sync state
-// with the service, we want the interactivity_manager_impl to own the various scene
-// and control objects.
-//
-
-std::shared_ptr<interactive_button_control>
-interactive_control_builder::build_button_control(string_t parentSceneId, web::json::value json)
+namespace mixer
 {
-	std::shared_ptr<interactive_button_control> button = std::shared_ptr<interactive_button_control>(new interactive_button_control());
-	bool success = button->init_from_json(json);
 
-	if (success)
+int get_scene_object_prop_count(interactive_session_internal& session, const char* pointer, size_t* count)
+{
+	if (nullptr == pointer || nullptr == count)
 	{
-		button->m_parentScene = parentSceneId;
-		interactivity_manager::get_singleton_instance()->m_impl->add_control_to_map(button);
-	}
-	else
-	{
-		button = nullptr;
-		interactivity_manager::get_singleton_instance()->m_impl->queue_interactive_event_for_client(_XPLATSTR("Failed to initialize button control from json"), std::make_error_code(std::errc::invalid_argument), interactive_event_type::error, nullptr);
+		return MIXER_ERROR_INVALID_POINTER;
 	}
 
-	return button;
-}
-
-std::shared_ptr<interactive_button_control>
-interactive_control_builder::build_button_control()
-{
-	std::shared_ptr<interactive_button_control> button = std::shared_ptr<interactive_button_control>(new interactive_button_control());
-
-	interactivity_manager::get_singleton_instance()->m_impl->add_control_to_map(button);
-
-	return button;
-}
-
-std::shared_ptr<interactive_button_control>
-interactive_control_builder::build_button_control(
-	_In_ string_t parentSceneId,
-	_In_ string_t controlId,
-	_In_ bool enabled,
-	_In_ float progress,
-	_In_ std::chrono::milliseconds cooldownDeadline,
-	_In_ string_t buttonText,
-	_In_ uint32_t sparkCost
-)
-{
-	std::shared_ptr<interactive_button_control> button = std::shared_ptr<interactive_button_control>(new interactive_button_control(parentSceneId, controlId, enabled, progress, cooldownDeadline, buttonText, sparkCost));
-
-	interactivity_manager::get_singleton_instance()->m_impl->add_control_to_map(button);
-
-	return button;
-}
-
-
-std::shared_ptr<interactive_joystick_control>
-interactive_control_builder::build_joystick_control()
-{
-	std::shared_ptr<interactive_joystick_control> joystick = std::shared_ptr<interactive_joystick_control>(new interactive_joystick_control());
-
-	interactivity_manager::get_singleton_instance()->m_impl->add_control_to_map(joystick);
-
-	return joystick;
-}
-
-std::shared_ptr<interactive_joystick_control>
-interactive_control_builder::build_joystick_control(string_t parentSceneId, web::json::value json)
-{
-	std::shared_ptr<interactive_joystick_control> joystick = std::shared_ptr<interactive_joystick_control>(new interactive_joystick_control());
-	bool success = joystick->init_from_json(json);
-
-	if (success)
-	{
-		joystick->m_parentScene = parentSceneId;
-		interactivity_manager::get_singleton_instance()->m_impl->add_control_to_map(joystick);
-	}
-	else
-	{
-		joystick = nullptr;
-		interactivity_manager::get_singleton_instance()->m_impl->queue_interactive_event_for_client(_XPLATSTR("Failed to initialize joystick control from json"), std::make_error_code(std::errc::invalid_argument), interactive_event_type::error, nullptr);
-	}
-
-	return joystick;
-}
-
-std::shared_ptr<interactive_joystick_control>
-interactive_control_builder::build_joystick_control(
-	_In_ string_t parentSceneId,
-	_In_ string_t controlId,
-	_In_ bool enabled,
-	_In_ double x,
-	_In_ double y
-)
-{
-	std::shared_ptr<interactive_joystick_control> joystick = std::shared_ptr<interactive_joystick_control>(new interactive_joystick_control(parentSceneId, controlId, enabled, x, y));
-	interactivity_manager::get_singleton_instance()->m_impl->add_control_to_map(joystick);
-
-	return joystick;
-}
-
-//
-// Control base class
-//
-
-const interactive_control_type&
-interactive_control::control_type() const
-{
-	return m_type;
-}
-
-const string_t&
-interactive_control::control_id() const
-{
-	return m_controlId;
-}
-
-const std::map<string_t, string_t, ci_less>&
-interactive_control::meta_properties() const
-{
-	return m_metaProperties;
-}
-
-interactive_control::interactive_control()
-{
-
-}
-
-interactive_control::interactive_control(
-	_In_ string_t parentScene,
-	_In_ string_t controlId,
-	_In_ bool disabled
-)
-{
-	m_parentScene = std::move(parentScene);
-	m_controlId = std::move(controlId);
-	m_disabled = disabled;
-}
-
-
-bool
-interactive_button_state::is_pressed()
-{
-	return m_isPressed;
-}
-
-bool
-interactive_button_state::is_down()
-{
-	return m_isDown;
-}
-
-bool
-interactive_button_state::is_up()
-{
-	return m_isUp;
-}
-
-interactive_button_state::interactive_button_state() :
-	m_isUp(false),
-	m_isDown(false),
-	m_isPressed(false)
-{
-}
-
-uint32_t
-interactive_button_count::count_of_button_presses()
-{
-	return m_buttonPresses;
-}
-
-uint32_t
-interactive_button_count::count_of_button_downs()
-{
-	return m_buttonDowns;
-}
-
-uint32_t
-interactive_button_count::count_of_button_ups()
-{
-	return m_buttonUps;
-}
-
-void
-interactive_button_count::clear()
-{
-	m_buttonDowns = 0;
-	m_buttonPresses = 0;
-	m_buttonUps = 0;
-}
-
-interactive_button_count::interactive_button_count() :
-	m_buttonPresses(0),
-	m_buttonDowns(0),
-	m_buttonUps(0)
-{
-}
-
-double
-interactive_joystick_state::x()
-{
-	return m_x;
-}
-
-double
-interactive_joystick_state::y()
-{
-	return m_y;
-}
-
-interactive_joystick_state::interactive_joystick_state(_In_ double x, _In_ double y) :
-	m_x(x),
-	m_y(y)
-{
-}
-
-//
-// Button control
-//
-
-bool
-interactive_button_control::disabled() const
-{
-	return m_disabled;
-}
-
-void
-interactive_button_control::set_disabled(bool disabled)
-{
-	m_disabled = disabled;
-	m_interactivityManager->set_disabled(m_controlId, disabled);
-}
-
-const string_t&
-interactive_button_control::button_text() const
-{
-	return m_buttonText;
-}
-
-
-uint32_t
-interactive_button_control::cost() const
-{
-	return m_sparkCost;
-}
-
-void
-interactive_button_control::trigger_cooldown(std::chrono::milliseconds cooldown) const
-{
-	m_interactivityManager->trigger_cooldown(m_controlId, cooldown);
-	return;
-}
-
-
-std::chrono::milliseconds
-interactive_button_control::remaining_cooldown() const
-{
-	auto remaining = m_cooldownDeadline - m_interactivityManager->get_server_time();
-
-	if (remaining.count() < 0)
-	{
-		remaining = std::chrono::milliseconds(0);
-	}
-
-	return remaining;
-}
-
-
-float
-interactive_button_control::progress() const
-{
-	return m_progress;
-}
-
-
-void
-interactive_button_control::set_progress(_In_ float progress)
-{
-	m_progress = progress;
-	m_interactivityManager->set_progress(m_controlId, progress);
-	return;
-}
-
-
-uint32_t
-interactive_button_control::count_of_button_downs()
-{
-	return m_buttonCount->count_of_button_downs();
-}
-
-
-uint32_t
-interactive_button_control::count_of_button_presses()
-{
-	return m_buttonCount->count_of_button_presses();
-}
-
-
-uint32_t
-interactive_button_control::count_of_button_ups()
-{
-	return m_buttonCount->count_of_button_ups();
-}
-
-
-bool
-interactive_button_control::is_pressed()
-{
-	return m_buttonCount->count_of_button_ups() > 0;
-}
-
-
-bool
-interactive_button_control::is_pressed(_In_ uint32_t mixerId)
-{
-	bool isPressed = false;
-	if (m_buttonStateByMixerId[mixerId] != nullptr)
-	{
-		isPressed = m_buttonStateByMixerId[mixerId]->is_pressed();
-	}
-	return isPressed;
-}
-
-
-bool
-interactive_button_control::is_down()
-{
-	return (m_buttonCount->count_of_button_ups() < m_buttonCount->count_of_button_downs());
-}
-
-bool
-interactive_button_control::is_down(_In_ uint32_t mixerId)
-{
-	bool isDown = false;
-	if (m_buttonStateByMixerId[mixerId] != nullptr)
-	{
-		isDown = m_buttonStateByMixerId[mixerId]->is_down();
-	}
-	return isDown;
-}
-
-
-bool
-interactive_button_control::is_up()
-{
-	return (m_buttonCount->count_of_button_ups() > m_buttonCount->count_of_button_downs());
-}
-
-bool
-interactive_button_control::is_up(_In_ uint32_t mixerId)
-{
-	bool isUp = false;
-	if (m_buttonStateByMixerId[mixerId] != nullptr)
-	{
-		isUp = m_buttonStateByMixerId[mixerId]->is_up();
-	}
-	return isUp;
-}
-
-
-bool
-interactive_button_control::init_from_json(web::json::value json)
-{
-	return update(json, true);
-}
-
-bool
-MICROSOFT_MIXER_NAMESPACE::interactive_button_control::update(web::json::value json, bool overwrite)
-{
-	string_t errorString;
-	bool success = true;
-
+	*count = 0;
 	try
 	{
-		// Attributes that need to be plumbed through:
-		// keyCode
-		// position
-
-		if (success && json.has_field(RPC_ETAG))
+		// Find the control in the cached scene document.
+		rapidjson::Value* value = rapidjson::Pointer(rapidjson::StringRef(pointer)).Get(session.scenesRoot);
+		if (nullptr == value)
 		{
-			m_etag = json[RPC_ETAG].as_string();
-		}
-		else
-		{
-			errorString = _XPLATSTR("Trying to construct or update a button, no etag");
-			success = false;
+			return MIXER_ERROR_OBJECT_NOT_FOUND;
 		}
 
-		if (success && overwrite)
-		{
-			if (json.has_field(RPC_CONTROL_ID))
-			{
-				m_controlId = json[RPC_CONTROL_ID].as_string();
-			}
-			else
-			{
-				errorString = _XPLATSTR("Trying to construct a button, no id");
-				success = false;
-			}
-		}
+		*count = value->MemberCount();
+	}
+	catch (std::exception e)
+	{
+		return MIXER_ERROR_OBJECT_NOT_FOUND;
+	}
 
-		if (success && json.has_field(RPC_CONTROL_BUTTON_TEXT))
-		{
-			m_buttonText = json[RPC_CONTROL_BUTTON_TEXT].as_string();
-		}
+	return MIXER_OK;
+}
 
-		if (success && json.has_field(RPC_SPARK_COST))
-		{
-			m_sparkCost = json[RPC_SPARK_COST].as_integer();
-		}
+int get_scene_object_prop_data(interactive_session_internal& session, const char* pointer, size_t index, char* propName, size_t* propNameLength, interactive_property_type* propType)
+{
+	if (nullptr == pointer || nullptr == propNameLength || nullptr == propType)
+	{
+		return MIXER_ERROR_INVALID_POINTER;
+	}
 
-		if (success && json.has_field(RPC_CONTROL_BUTTON_COOLDOWN))
-		{
-			uint64_t ullDeadline = json[RPC_CONTROL_BUTTON_COOLDOWN].as_number().to_uint64();
-			std::chrono::milliseconds msDeadline = std::chrono::milliseconds(ullDeadline);
-			m_cooldownDeadline = msDeadline;
-		}
+	if (*propNameLength > 0 && nullptr == propName)
+	{
+		return MIXER_ERROR_INVALID_POINTER;
+	}
 
-		if (success && json.has_field(RPC_DISABLED))
-		{
-			m_disabled = json[RPC_DISABLED].as_bool();
-		}
-		else
-		{
-			if (overwrite)
-			{
-				errorString = _XPLATSTR("Trying to construct or update a button, no disabled field");
-				success = false;
-			}
-		}
+	*propType = interactive_property_type::unknown_t;
 
-		if (success && json.has_field(RPC_METADATA))
+	// Find the object in the cached scene document.
+	rapidjson::Value* value = rapidjson::Pointer(rapidjson::StringRef(pointer)).Get(session.scenesRoot);
+	if (nullptr == value)
+	{
+		return MIXER_ERROR_OBJECT_NOT_FOUND;
+	}
+
+	// Verify that this index is valid for this object.
+	if (value->MemberCount() <= index)
+	{
+		return MIXER_ERROR_PROPERTY_NOT_FOUND;
+	}
+
+	// Move iterator to property index.
+	auto itr = value->MemberBegin();
+	for (size_t i = 0; i < index; ++i)
+	{
+		++itr;
+	}
+
+	// Verify the caller's buffer is large enough to hold the contents.
+	if (*propNameLength < itr->name.GetStringLength())
+	{
+		*propNameLength = itr->name.GetStringLength() + 1;
+		return MIXER_ERROR_BUFFER_SIZE;
+	}
+
+	memcpy(propName, itr->name.GetString(), *propNameLength - 1);
+	propName[*propNameLength - 1] = '\0';
+
+	// Determine the type of this property.
+	if (itr->value.IsString())
+	{
+		*propType = interactive_property_type::string_t;
+	}
+	else if (itr->value.IsInt())
+	{
+		*propType = interactive_property_type::int_t;
+	}
+	else if (itr->value.IsBool())
+	{
+		*propType = interactive_property_type::bool_t;
+	}
+	else if (itr->value.IsFloat())
+	{
+		*propType = interactive_property_type::float_t;
+	}
+	else if (itr->value.IsArray())
+	{
+		*propType = interactive_property_type::array_t;
+	}
+	else if (itr->value.IsObject())
+	{
+		*propType = interactive_property_type::object_t;
+	}
+
+	return MIXER_OK;
+}
+
+int interactive_control_get_property_count(interactive_session session, const char* controlId, size_t* count)
+{
+	if (nullptr == session || nullptr == controlId || nullptr == count)
+	{
+		return MIXER_ERROR_INVALID_POINTER;
+	}
+
+	*count = 0;
+	interactive_session_internal* sessionInternal = reinterpret_cast<interactive_session_internal*>(session);
+
+	auto controlItr = sessionInternal->controls.find(std::string(controlId));
+	if (controlItr == sessionInternal->controls.end())
+	{
+		return MIXER_ERROR_OBJECT_NOT_FOUND;
+	}
+
+	return get_scene_object_prop_count(*sessionInternal, controlItr->second.c_str(), count);
+}
+
+int interactive_control_get_meta_property_count(interactive_session session, const char* controlId, size_t* count)
+{
+	if (nullptr == session || nullptr == controlId || nullptr == count)
+	{
+		return MIXER_ERROR_INVALID_POINTER;
+	}
+
+	*count = 0;
+	interactive_session_internal* sessionInternal = reinterpret_cast<interactive_session_internal*>(session);
+
+	auto controlItr = sessionInternal->controls.find(std::string(controlId));
+	if (controlItr == sessionInternal->controls.end())
+	{
+		return MIXER_ERROR_OBJECT_NOT_FOUND;
+	}
+
+	std::string metaPropPointer = controlItr->second + "/" + RPC_METADATA;
+	return get_scene_object_prop_count(*sessionInternal, metaPropPointer.c_str(), count);
+}
+
+int interactive_control_get_property_data(interactive_session session, const char* controlId, size_t index, char* propName, size_t* propNameLength, interactive_property_type* propType)
+{
+	if (nullptr == session || nullptr == controlId || nullptr == propNameLength || nullptr == propType)
+	{
+		return MIXER_ERROR_INVALID_POINTER;
+	}
+
+	*propType = interactive_property_type::unknown_t;
+	interactive_session_internal* sessionInternal = reinterpret_cast<interactive_session_internal*>(session);
+
+	auto controlItr = sessionInternal->controls.find(std::string(controlId));
+	if (controlItr == sessionInternal->controls.end())
+	{
+		return MIXER_ERROR_OBJECT_NOT_FOUND;
+	}
+
+	const std::string& controlPointer = controlItr->second;
+	return get_scene_object_prop_data(*sessionInternal, controlPointer.c_str(), index, propName, propNameLength, propType);
+}
+
+int interactive_control_get_meta_property_data(interactive_session session, const char* controlId, size_t index, char* propName, size_t* propNameLength, interactive_property_type* propType)
+{
+	if (nullptr == session || nullptr == controlId || nullptr == propNameLength || nullptr == propType)
+	{
+		return MIXER_ERROR_INVALID_POINTER;
+	}
+
+	*propType = interactive_property_type::unknown_t;
+	interactive_session_internal* sessionInternal = reinterpret_cast<interactive_session_internal*>(session);
+
+	auto controlItr = sessionInternal->controls.find(std::string(controlId));
+	if (controlItr == sessionInternal->controls.end())
+	{
+		return MIXER_ERROR_OBJECT_NOT_FOUND;
+	}
+
+	std::string controlPointer = controlItr->second + "/" + RPC_METADATA;
+	interactive_property_type valueType = interactive_property_type::unknown_t;
+	int err = get_scene_object_prop_data(*sessionInternal, controlPointer.c_str(), index, propName, propNameLength, &valueType);
+	if (MIXER_OK == err)
+	{
+		// Metadata properties are stored in a sub-"value" for some reason.
+		controlPointer = controlPointer + "/" + propName;
+		char value[6]; // To store "value"
+		size_t valueLength = sizeof(value);
+		return get_scene_object_prop_data(*sessionInternal, controlPointer.c_str(), 0, value, &valueLength, propType);
+	}
+
+	return err;
+}
+
+int verify_get_property_args_and_get_control_value(interactive_session session, const char* controlId, const char* key, void* property, rapidjson::Value** controlValue)
+{
+	if (nullptr == session || nullptr == property || nullptr == controlValue)
+	{
+		return MIXER_ERROR_INVALID_POINTER;
+	}
+
+	interactive_session_internal* sessionInternal = reinterpret_cast<interactive_session_internal*>(session);
+	if (sessionInternal->shutdownRequested)
+	{
+		return MIXER_OK;
+	}
+
+	auto controlItr = sessionInternal->controls.find(std::string(controlId));
+	if (controlItr == sessionInternal->controls.end())
+	{
+		return MIXER_ERROR_OBJECT_NOT_FOUND;
+	}
+
+	std::string controlPointer = controlItr->second + "/" + std::string(key);
+	try
+	{
+		*controlValue = rapidjson::Pointer(controlPointer.c_str()).Get(sessionInternal->scenesRoot);
+		if (nullptr == *controlValue)
 		{
-			auto metadata = json[RPC_METADATA].as_object();
-
-			for (auto meta : metadata)
-			{
-				string_t key(meta.first);
-				string_t valueString(_XPLATSTR(""));
-				web::json::value value = meta.second.as_object().at(RPC_VALUE);
-				if (web::json::value::String == value.type())
-				{
-					valueString = value.as_string();
-				}
-				else if (web::json::value::Number == value.type())
-				{
-					valueString = tostring(value.as_integer());
-				}
-				else if (web::json::value::Boolean == value.type())
-				{
-					valueString = value.as_bool() ? _XPLATSTR("true") : _XPLATSTR("false");
-				}
-				else
-				{
-					DEBUG_WARNING(_XPLATSTR("Unexpected metdata property type."));
-					continue;
-				}
-
-				m_metaProperties[key] = valueString;
-			}
-		}
-
-		if (success && json.has_field(RPC_CONTROL_BUTTON_PROGRESS))
-		{
-			m_progress = (float)json[RPC_CONTROL_BUTTON_PROGRESS].as_number().to_double();
+			return MIXER_ERROR_OBJECT_NOT_FOUND;
 		}
 	}
 	catch (std::exception e)
 	{
-		DEBUG_EXCEPTION(_XPLATSTR("Exception while parsing json in interactive_button_control::update"), e.what());
+		return MIXER_ERROR_OBJECT_NOT_FOUND;
 	}
 
-	return success;
+	return MIXER_OK;
 }
 
-void
-interactive_button_control::clear_state()
+int interactive_control_get_property_int(interactive_session session, const char* controlId, const char* key, int* property)
 {
-	m_buttonStateByMixerId.clear();
-	m_buttonCount->clear();
-}
-
-interactive_button_control::interactive_button_control()
-{
-	m_interactivityManager = interactivity_manager::get_singleton_instance();
-	m_disabled = true;
-	m_type = interactive_control_type::button;
-	m_buttonCount = std::shared_ptr<interactive_button_count>(new interactive_button_count());
-}
-
-interactive_button_control::interactive_button_control(
-	_In_ string_t parentSceneId,
-	_In_ string_t controlId,
-	_In_ bool disabled,
-	_In_ float progress,
-	_In_ std::chrono::milliseconds cooldownDeadline,
-	_In_ string_t buttonText,
-	_In_ uint32_t sparkCost
-)
-{
-	m_interactivityManager = interactivity_manager::get_singleton_instance();
-	m_parentScene = std::move(parentSceneId);
-	m_type = interactive_control_type::button;
-	m_controlId = std::move(controlId);
-	m_disabled = disabled;
-	m_progress = progress;
-	m_buttonText = std::move(buttonText);
-	m_cooldownDeadline = std::move(cooldownDeadline);
-	m_sparkCost = sparkCost;
-	m_buttonCount = std::shared_ptr<interactive_button_count>(new interactive_button_count());
-}
-
-//
-// Joystick control
-//
-
-void
-interactive_joystick_control::clear_state()
-{
-}
-
-double
-interactive_joystick_control::x() const
-{
-	return m_x;
-}
-
-double
-interactive_joystick_control::x(_In_ uint32_t mixerId)
-{
-	double x = 0;
-	if (m_joystickStateByMixerId[mixerId] != nullptr)
+	rapidjson::Value* controlValue;
+	RETURN_IF_FAILED(verify_get_property_args_and_get_control_value(session, controlId, key, property, &controlValue));
+	if (!controlValue->IsInt())
 	{
-		x = m_joystickStateByMixerId[mixerId]->x();
+		return MIXER_ERROR_INVALID_PROPERTY_TYPE;
 	}
-	return x;
+
+	*property = controlValue->GetInt();
+	return MIXER_OK;
 }
 
-double
-interactive_joystick_control::y() const
+int interactive_control_get_property_bool(interactive_session session, const char* controlId, const char* key, bool* property)
 {
-	return m_y;
-}
-
-double
-interactive_joystick_control::y(_In_ uint32_t mixerId)
-{
-	double y = 0;
-	if (m_joystickStateByMixerId[mixerId] != nullptr)
+	rapidjson::Value* controlValue;
+	RETURN_IF_FAILED(verify_get_property_args_and_get_control_value(session, controlId, key, property, &controlValue));
+	if (!controlValue->IsBool())
 	{
-		y = m_joystickStateByMixerId[mixerId]->y();
+		return MIXER_ERROR_INVALID_PROPERTY_TYPE;
 	}
-	return y;
+
+	*property = controlValue->GetBool();
+	return MIXER_OK;
 }
 
-interactive_joystick_control::interactive_joystick_control()
+int interactive_control_get_property_float(interactive_session session, const char* controlId, const char* key, float* property)
 {
-	m_interactivityManager = interactivity_manager::get_singleton_instance();
-	m_disabled = true;
-	m_type = interactive_control_type::joystick;
-	m_x = 0.0;
-	m_y = 0.0;
-}
-
-interactive_joystick_control::interactive_joystick_control(
-	_In_ string_t parentSceneId,
-	_In_ string_t controlId,
-	_In_ bool disabled,
-	_In_ double x,
-	_In_ double y
-)
-{
-	m_interactivityManager = interactivity_manager::get_singleton_instance();
-	m_parentScene = std::move(parentSceneId);
-	m_type = interactive_control_type::joystick;
-	m_controlId = std::move(controlId);
-	m_disabled = disabled;
-	m_x = x;
-	m_y = y;
-}
-
-bool
-interactive_joystick_control::init_from_json(web::json::value json)
-{
-	return update(json, true);
-}
-
-bool
-MICROSOFT_MIXER_NAMESPACE::interactive_joystick_control::update(web::json::value json, bool overwrite)
-{
-	string_t errorString;
-	bool success = true;
-
-	try
+	rapidjson::Value* controlValue;
+	RETURN_IF_FAILED(verify_get_property_args_and_get_control_value(session, controlId, key, property, &controlValue));
+	if (!controlValue->IsFloat())
 	{
-		if (success && overwrite)
-		{
-			if (json.has_field(RPC_CONTROL_ID))
-			{
-				m_controlId = json[RPC_CONTROL_ID].as_string();
-			}
-			else
-			{
-				errorString = _XPLATSTR("Trying to construct a joystick, no id");
-				success = false;
-			}
-		}
-
-		if (success && json.has_field(RPC_ETAG))
-		{
-			m_etag = json[RPC_ETAG].as_string();
-		}
-		else
-		{
-			errorString = _XPLATSTR("Trying to construct or update joystick, no etag");
-			success = false;
-		}
-
-		if (success && json.has_field(RPC_DISABLED))
-		{
-			m_disabled = json[RPC_DISABLED].as_bool();
-		}
-
-		if (success && json.has_field(RPC_METADATA))
-		{
-			auto metadata = json[RPC_METADATA].as_object();
-
-			for (auto meta : metadata)
-			{
-				string_t key(meta.first);
-				string_t valueString(_XPLATSTR(""));
-				web::json::value value = meta.second.as_object().at(RPC_VALUE);
-				if (web::json::value::String == value.type())
-				{
-					valueString = value.as_string();
-				}
-				else if (web::json::value::Number == value.type())
-				{
-					valueString = tostring(value.as_integer());
-				}
-				else if (web::json::value::Boolean == value.type())
-				{
-					valueString = value.as_bool() ? _XPLATSTR("true") : _XPLATSTR("false");
-				}
-				else
-				{
-					DEBUG_WARNING(_XPLATSTR("Unexpected metdata property type."));
-					continue;
-				}
-
-				m_metaProperties[key] = valueString;
-			}
-		}
-	}
-	catch (std::exception e)
-	{
-		DEBUG_EXCEPTION(_XPLATSTR("Exception in interactive_joystick_control::update"), e.what());
+		return MIXER_ERROR_INVALID_PROPERTY_TYPE;
 	}
 
-	return success;
+	*property = controlValue->GetFloat();
+	return MIXER_OK;
 }
 
-NAMESPACE_MICROSOFT_MIXER_END
+int interactive_control_get_property_string(interactive_session session, const char* controlId, const char* key, char* property, size_t* propertyLength)
+{
+	rapidjson::Value* controlValue;
+	RETURN_IF_FAILED(verify_get_property_args_and_get_control_value(session, controlId, key, propertyLength, &controlValue));
+	if (!controlValue->IsString())
+	{
+		return MIXER_ERROR_INVALID_PROPERTY_TYPE;
+	}
+
+	if (*propertyLength > 0 && nullptr == property)
+	{
+		return MIXER_ERROR_INVALID_POINTER;
+	}
+
+	if (!controlValue->IsString())
+	{
+		return MIXER_ERROR_INVALID_PROPERTY_TYPE;
+	}
+
+	if (*propertyLength < controlValue->GetStringLength() + 1)
+	{
+		*propertyLength = controlValue->GetStringLength() + 1;
+		return MIXER_ERROR_BUFFER_SIZE;
+	}
+
+	if (0 != controlValue->GetStringLength())
+	{
+		memcpy(property, controlValue->GetString(), *propertyLength - 1);
+	}
+
+	property[*propertyLength - 1] = '\0';
+
+	return MIXER_OK;
+}
+
+int interactive_control_get_meta_property_int(interactive_session session, const char* controlId, const char* key, int* property)
+{
+	rapidjson::Value* controlValue;
+	std::string metaKey = std::string(RPC_METADATA) + "/" + std::string(key) + "/value";
+	RETURN_IF_FAILED(verify_get_property_args_and_get_control_value(session, controlId, metaKey.c_str(), property, &controlValue));
+	if (!controlValue->IsInt())
+	{
+		return MIXER_ERROR_INVALID_PROPERTY_TYPE;
+	}
+
+	*property = controlValue->GetInt();
+	return MIXER_OK;
+}
+
+int interactive_control_get_meta_property_bool(interactive_session session, const char* controlId, const char* key, bool* property)
+{
+	rapidjson::Value* controlValue;
+	std::string metaKey = std::string(RPC_METADATA) + "/" + std::string(key) + "/value";
+	RETURN_IF_FAILED(verify_get_property_args_and_get_control_value(session, controlId, metaKey.c_str(), property, &controlValue));
+	if (!controlValue->IsBool())
+	{
+		return MIXER_ERROR_INVALID_PROPERTY_TYPE;
+	}
+
+	*property = controlValue->GetBool();
+	return MIXER_OK;
+}
+
+int interactive_control_get_meta_property_float(interactive_session session, const char* controlId, const char* key, float* property)
+{
+	rapidjson::Value* controlValue;
+	std::string metaKey = std::string(RPC_METADATA) + "/" + std::string(key) + "/value";
+	RETURN_IF_FAILED(verify_get_property_args_and_get_control_value(session, controlId, metaKey.c_str(), property, &controlValue));
+	if (!controlValue->IsFloat())
+	{
+		return MIXER_ERROR_INVALID_PROPERTY_TYPE;
+	}
+
+	*property = controlValue->GetFloat();
+	return MIXER_OK;
+}
+
+int interactive_control_get_meta_property_string(interactive_session session, const char* controlId, const char* key, char* property, size_t* propertyLength)
+{
+	rapidjson::Value* controlValue;
+	std::string metaKey = std::string(RPC_METADATA) + "/" + std::string(key) + "/value";
+	RETURN_IF_FAILED(verify_get_property_args_and_get_control_value(session, controlId, metaKey.c_str(), propertyLength, &controlValue));
+	if (!controlValue->IsString())
+	{
+		return MIXER_ERROR_INVALID_PROPERTY_TYPE;
+	}
+
+	if (*propertyLength > 0 && nullptr == property)
+	{
+		return MIXER_ERROR_INVALID_POINTER;
+	}
+
+	if (!controlValue->IsString())
+	{
+		return MIXER_ERROR_INVALID_PROPERTY_TYPE;
+	}
+
+	if (*propertyLength < controlValue->GetStringLength() + 1)
+	{
+		*propertyLength = controlValue->GetStringLength() + 1;
+		return MIXER_ERROR_BUFFER_SIZE;
+	}
+
+	if (0 != controlValue->GetStringLength())
+	{
+		memcpy(property, controlValue->GetString(), *propertyLength - 1);
+	}
+
+	property[*propertyLength - 1] = '\0';
+
+	return MIXER_OK;
+}
+}

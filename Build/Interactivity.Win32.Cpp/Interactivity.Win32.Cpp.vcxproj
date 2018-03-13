@@ -22,7 +22,7 @@
     <ProjectGuid>{441F8169-F31E-4653-941E-25AC223CBAFB}</ProjectGuid>
     <RootNamespace>Interactivity.Win32.Cpp</RootNamespace>
     <Keyword>Win32Proj</Keyword>
-    <WindowsTargetPlatformVersion>10.0.15063.0</WindowsTargetPlatformVersion>
+    <WindowsTargetPlatformVersion>10.0.16299.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <PropertyGroup Label="Configuration">
     <PlatformToolset>v141</PlatformToolset>
@@ -31,13 +31,13 @@
   <PropertyGroup Condition="'$(Configuration)'=='Debug'" Label="Configuration">
     <ConfigurationType>StaticLibrary</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
-    <CharacterSet>Unicode</CharacterSet>
+    <CharacterSet>NotSet</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)'=='Release'" Label="Configuration">
     <ConfigurationType>StaticLibrary</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
     <WholeProgramOptimization>false</WholeProgramOptimization>
-    <CharacterSet>Unicode</CharacterSet>
+    <CharacterSet>NotSet</CharacterSet>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
   <ImportGroup Label="ExtensionSettings">
@@ -48,32 +48,10 @@
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
   </ImportGroup>
   <ItemGroup>
-    <ClCompile Include="..\..\Source\interactive_control.cpp" />
-    <ClCompile Include="..\..\Source\interactive_event.cpp" />
-    <ClCompile Include="..\..\Source\interactive_group.cpp" />
-    <ClCompile Include="..\..\Source\interactive_participant.cpp" />
-    <ClCompile Include="..\..\Source\interactive_scene.cpp" />
-    <ClCompile Include="..\..\Source\interactivity_manager.cpp" />
-    <ClCompile Include="..\..\Source\interactivity_manager_impl.cpp" />
-    <ClCompile Include="..\..\Source\Util\mixer_web_socket_client.cpp" />
-    <ClCompile Include="..\..\Source\Util\mixer_web_socket_connection.cpp" />
-    <ClCompile Include="Mixer.cpp" />
-    <ClCompile Include="pch.cpp">
-      <PrecompiledHeader>Create</PrecompiledHeader>
-    </ClCompile>
+    <ClCompile Include="..\..\Source\interactivity.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\Include\interactivity.h" />
-    <ClInclude Include="..\..\Include\interactivity_types.h" />
-    <ClInclude Include="..\..\Include\namespaces.h" />
-    <ClInclude Include="..\..\Source\interactivity_internal.h" />
-    <ClInclude Include="..\..\Source\json_helper.h" />
-    <ClInclude Include="..\..\Source\Util\mixer_web_socket_client.h" />
-    <ClInclude Include="..\..\Source\Util\mixer_web_socket_connection.h" />
-    <ClInclude Include="..\..\Source\Util\mixer_web_socket_connection_state.h" />
-    <ClInclude Include="..\..\Source\Util\pch.h" />
-    <ClInclude Include="json.hpp" />
-    <ClInclude Include="Mixer.h" />
   </ItemGroup>
   <PropertyGroup>
     <ProjectFolder>$(MSBuildProjectName)</ProjectFolder>
@@ -110,22 +88,15 @@
   </PropertyGroup>
   <ItemDefinitionGroup>
     <ClCompile>
-      <PrecompiledHeader>Use</PrecompiledHeader>
-      <WarningLevel>Level3</WarningLevel>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <WarningLevel>Level4</WarningLevel>
       <PreprocessorDefinitions Condition="'$(ConfigurationType)'=='StaticLibrary'">_NO_ASYNCRTIMP;_NO_PPLXIMP;_NO_MIXERIMP;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <PreprocessorDefinitions Condition="'$(ConfigurationType)'=='DynamicLibrary'">_MIXERIMP_EXPORT;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <PreprocessorDefinitions>_VARIADIC_MAX=10;ENABLE_INTSAFE_SIGNED_FUNCTIONS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <SDLCheck>true</SDLCheck>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
       <AdditionalOptions>/Zm250 %(AdditionalOptions)</AdditionalOptions>
-      <AdditionalIncludeDirectories> 
-      $(ProjectDir);
-      $(ProjectDir)\..\..\Include;
-      $(ProjectDir)\..\..\Source;
-      $(ProjectDir)\..\..\Source\Util;
-      $(ProjectDir)\..\..\cpprestsdk\Release\include;
-      %(AdditionalIncludeDirectories)
-      </AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir);$(ProjectDir)..\..\Include;$(ProjectDir)..\..\Source;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <ShowIncludes>false</ShowIncludes>
     </ClCompile>
     <Link>
@@ -134,11 +105,15 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
     </Link>
     <Lib>
-      <AdditionalOptions>/ignore:4099</AdditionalOptions>
-      <AdditionalDependencies>libeay32.lib;ssleay32.lib;zlibstatic.lib</AdditionalDependencies>
-      <AdditionalLibraryDirectories>$(ProjectDir)\..\..\External\Packages\zlib.v140.windesktop.msvcstl.static.rt-dyn.1.2.8.8\lib\native\v140\windesktop\msvcstl\static\rt-dyn\$(Platform)\Release;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalLibraryDirectories Condition="'$(Platform)'=='x64'">$(ProjectDir)\..\..\External\Packages\openssl.v140.windesktop.msvcstl.static.rt-dyn.x64.1.0.2.0\lib\native\v140\windesktop\msvcstl\static\rt-dyn\x64\release;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalLibraryDirectories Condition="'$(Platform)'=='Win32'">$(ProjectDir)\..\..\External\Packages\openssl.v140.windesktop.msvcstl.static.rt-dyn.x86.1.0.2.0\lib\native\v140\windesktop\msvcstl\static\rt-dyn\x86\release;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalOptions>
+      </AdditionalOptions>
+      <AdditionalDependencies>
+      </AdditionalDependencies>
+      <AdditionalLibraryDirectories>%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories Condition="'$(Platform)'=='x64'">
+      </AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories Condition="'$(Platform)'=='Win32'">
+      </AdditionalLibraryDirectories>
     </Lib>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)'=='Debug'">
@@ -161,9 +136,6 @@
       <BoostAddressModel Condition="'$(Platform)'=='Win32'">address-model-32</BoostAddressModel>
       <BoostAddressModel Condition="'$(Platform)'=='x64'">address-model-64</BoostAddressModel>
     </PropertyGroup>
-    <Copy SourceFiles="$(ProjectDir)..\..\External\Packages\boost_date_time-vc140.1.58.0-vs140rc\lib\native\$(BoostAddressModel)\lib\libboost_date_time-vc140-mt-1_58.lib" DestinationFolder="$(OutDir)" />
-    <Copy SourceFiles="$(ProjectDir)..\..\External\Packages\boost_regex-vc140.1.58.0-vs140rc\lib\native\$(BoostAddressModel)\lib\libboost_regex-vc140-mt-1_58.lib" DestinationFolder="$(OutDir)" />
-    <Copy SourceFiles="$(ProjectDir)..\..\External\Packages\boost_system-vc140.1.58.0-vs140rc\lib\native\$(BoostAddressModel)\lib\libboost_system-vc140-mt-1_58.lib" DestinationFolder="$(OutDir)" />
   </Target>
   <ImportGroup Label="ExtensionTargets" />
 </Project>

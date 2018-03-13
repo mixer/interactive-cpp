@@ -7,1177 +7,272 @@
 // PURPOSE, MERCHANTABILITY, OR NON-INFRINGEMENT.
 //
 //*********************************************************
+
 #pragma once
 
-#include "interactivity_types.h"
-#include "..\Source\Util\mixer_debug.h"
-
-namespace xbox
-{
-namespace services
-{
-namespace system
-{
-class xbox_live_user;
-}
-}
-}
-
-#if TV_API | XBOX_UWP
-typedef  Windows::Xbox::System::User^ xbox_live_user_t;
-#else
-typedef std::shared_ptr<xbox::services::system::xbox_live_user> xbox_live_user_t;
-#endif
-
-namespace Microsoft
-{
-/// <summary>
-/// Contains classes and enumerations that let you incorporate
-/// Interactivity functionality into your title.
-/// </summary>
 namespace mixer
 {
 
-class interactivity_manager_impl;
-class interactivity_manager;
-class interactive_participant_impl;
-class interactive_scene;
-class interactive_scene_impl;
-class interactive_group;
-class interactive_group_impl;
-class interactive_control_builder;
-class interactive_control;
-class interactive_button_control;
-class interactive_joystick_control;
-class interactivity_mock_util;
-class interactive_button_state;
-class interactive_joystick_state;
-class interactive_button_count;
+// Known control properties
+#define CONTROL_PROP_DISABLED "disabled"
+#define CONTROL_PROP_POSITION "position"
 
-struct ci_less
-{
-	// case-independent (ci) compare_less binary function
-	struct nocase_compare
+#define BUTTON_PROP_KEY_CODE "keyCode"
+#define BUTTON_PROP_TEXT "text"
+#define BUTTON_PROP_TOOLTIP "tooltip"
+#define BUTTON_PROP_COST "cost"
+#define BUTTON_PROP_PROGRESS "progress"
+#define BUTTON_PROP_COOLDOWN "cooldown"
+
+#define JOYSTICK_PROP_SAMPLE_RATE "sampleRate"
+#define JOYSTICK_PROP_ANGLE "angle"
+#define JOYSTICK_PROP_INTENSITY "intensity"
+
+extern "C" {
+
+	typedef enum mixer_result_code
 	{
-		bool operator() (const char_t& c1, const char_t& c2) const;
+		MIXER_OK,
+		MIXER_ERROR,
+		MIXER_ERROR_AUTH,
+		MIXER_ERROR_AUTH_DENIED,
+		MIXER_ERROR_AUTH_TIMEOUT,
+		MIXER_ERROR_AUTH_INVALID_TOKEN,
+		MIXER_ERROR_BUFFER_SIZE,
+		MIXER_ERROR_CANCELLED,
+		MIXER_ERROR_HTTP,
+		MIXER_ERROR_INIT,
+		MIXER_ERROR_INVALID_CALLBACK,
+		MIXER_ERROR_INVALID_CLIENT_ID,
+		MIXER_ERROR_INVALID_OPERATION,
+		MIXER_ERROR_INVALID_POINTER,
+		MIXER_ERROR_INVALID_PROPERTY_TYPE,
+		MIXER_ERROR_INVALID_VERSION_ID,
+		MIXER_ERROR_JSON_PARSE,
+		MIXER_ERROR_NO_HOST,
+		MIXER_ERROR_NO_REPLY,
+		MIXER_ERROR_OBJECT_NOT_FOUND,
+		MIXER_ERROR_PROPERTY_NOT_FOUND,
+		MIXER_ERROR_RECEIVE_TIMED_OUT,
+		MIXER_ERROR_UNKNOWN_METHOD,
+		MIXER_ERROR_UNRECOGNIZED_DATA_FORMAT,
+		MIXER_ERROR_WS_CLOSED,
+		MIXER_ERROR_WS_CONNECT_FAILED,
+		MIXER_ERROR_WS_DISCONNECT_FAILED,
+		MIXER_ERROR_WS_READ_FAILED,
+		MIXER_ERROR_WS_SEND_FAILED,
+		
+	} mixer_result_code;
+
+	enum interactive_state
+	{
+		disconnected,
+		not_ready,
+		ready
 	};
 
-	bool operator() (const string_t & s1, const string_t & s2) const;
-};
-
-/// <summary>
-/// Enum that describes the types of control objects.
-/// </summary>
-enum interactive_control_type
-{
-	/// <summary>
-	/// The button control.
-	/// </summary>
-	button,
-
-	/// <summary>
-	/// The joystick control.
-	/// </summary>
-	joystick
-};
-
-/// <summary>
-/// Enum that describes the current state of the interactivity service.
-/// </summary>
-enum interactivity_state
-{
-	/// <summary>
-	/// The interactivity manager is not initialized.
-	/// </summary>
-	not_initialized,
-
-	/// <summary>
-	/// The interactivity manager is initializing.
-	/// </summary>
-	initializing,
-
-	/// <summary>
-	/// The interactivity manager is initialized.
-	/// </summary>
-	initialized,
-
-	/// <summary>
-	/// The interactivity manager is initialized, but interactivity is not enabled.
-	/// </summary>
-	interactivity_disabled,
-
-	/// <summary>
-	/// The interactivity manager is currently connecting to the interactive service.
-	/// </summary>
-	interactivity_pending,
-
-	/// <summary>
-	/// Interactivity is enabled.
-	/// </summary>
-	interactivity_enabled
-};
-
-
-/// <summary>
-/// Enum representing the current state of the participant
-/// </summary>
-enum interactive_participant_state
-{
-	/// <summary>
-	/// The participant joined the channel.
-	/// </summary>
-	joined,
-
-	/// <summary>
-	/// The participant's input is disabled.
-	/// </summary>
-	input_disabled,
-
-	/// <summary>
-	/// The participant left the channel.
-	/// </summary>
-	left
-};
-
-
-/// <summary>
-/// This class represents a user who is currently viewing a Mixer interactive stream. This
-/// user (also known as an interactive_participant) has both a Mixer account and a Microsoft Security
-/// Account (MSA).
-/// </summary>
-class interactive_participant
-{
-public:
-
-	/// <summary>
-	/// The Mixer ID of the user.
-	/// </summary>
-	_MIXERIMP uint32_t mixer_id() const;
-
-	/// <summary>
-	/// The username of the user.
-	/// </summary>
-	_MIXERIMP const string_t& username() const;
-
-	/// <summary>
-	/// The level of the user.
-	/// </summary>
-	_MIXERIMP uint32_t level() const;
-
-	/// <summary>
-	/// The current state of the participant.
-	/// </summary>
-	_MIXERIMP const interactive_participant_state state() const;
-
-	/// <summary>
-	/// Assigns the user to a specified group. This method 
-	/// also updates the list of participants that are in this group.
-	/// </summary>
-	_MIXERIMP void set_group(std::shared_ptr<interactive_group> group);
-
-	/// <summary>
-	/// Returns a pointer to the group that the user is assigned to.
-	/// By default, participants are placed in a group named "default".
-	/// </summary>
-	_MIXERIMP const std::shared_ptr<interactive_group> group();
-
-	/// <summary>
-	/// The time (in UTC) at which the user last used the interactive control input.
-	/// </summary>
-	_MIXERIMP const std::chrono::milliseconds& last_input_at() const;
-
-	/// <summary>
-	/// The time (in UTC) at which the user connected to the Interactive stream.
-	/// </summary>
-	_MIXERIMP const std::chrono::milliseconds& connected_at() const;
-
-	/// <summary>
-	/// A Boolean value that indicates whether or not the user input is disabled.
-	/// If TRUE, user input has been disabled.
-	/// </summary>
-	_MIXERIMP bool input_disabled() const;
-
-#if 0
-	/// <summary>
-	/// Returns a particular button. If the button does not exist,
-	/// NULL is returned.
-	/// </summary>
-	_MIXERIMP const std::shared_ptr<interactive_button_control> button(_In_ const string_t& controlId);
-
-	/// <summary>
-	/// Returns buttons that the participant has interacted with.
-	/// </summary>
-	_MIXERIMP const std::vector<std::shared_ptr<interactive_button_control>>& buttons();
-
-	/// <summary>
-	/// Returns a particular joystick. If the joystick does not exist, 
-	/// NULL is returned.
-	/// </summary>
-	_MIXERIMP const std::shared_ptr<interactive_joystick_control> joystick(_In_ const string_t& controlId);
-
-	/// <summary>
-	/// Returns joysticks that the participant has interacted with.
-	/// </summary>
-	_MIXERIMP const std::vector<std::shared_ptr<interactive_joystick_control>>& joysticks();
-#endif
-
-private:
-
-	/// <summary>
-	/// Internal function to construct an intreactive_participant.
-	/// </summary>
-	interactive_participant(
-		_In_ uint32_t mixerId,
-		_In_ string_t username,
-		_In_ uint32_t level,
-		_In_ string_t groupId,
-		_In_ std::chrono::milliseconds lastInputAt,
-		_In_ std::chrono::milliseconds connectedAt,
-		_In_ bool disabled
-	);
-
-
-	/// <summary>
-	/// Internal function to construct a interactive_participant.
-	/// </summary>
-	interactive_participant();
-
-	std::shared_ptr<MICROSOFT_MIXER_NAMESPACE::interactivity_manager> m_interactivityManager;
-	std::shared_ptr<MICROSOFT_MIXER_NAMESPACE::interactive_participant_impl> m_impl;
-
-	friend interactive_participant_impl;
-	friend interactivity_manager_impl;
-};
-
-
-/// <summary>
-/// Describes the types of interactive message objects.
-/// </summary>
-enum class interactive_event_type
-{
-	/// <summary>
-	/// The message is not a message processed by the SDK. It could be a custom
-	/// message from an interactive control or a message supported by the protocol
-	/// but not yet supported by the SDK.
-	/// </summary>
-	custom,
-
-	/// <summary>
-	/// An error message object. This object type is returned when the service
-	/// or manager encounters an error. The err and err_message members will
-	/// contain pertinent info.
-	/// </summary>
-	error,
-
-	/// <summary>
-	/// An interactivity state changed message object.
-	/// </summary>
-	interactivity_state_changed,
-
-	/// <summary>
-	/// A participant state changed message object.
-	/// </summary>
-	participant_state_changed,
-
-	/// <summary>
-	/// A button message object.
-	/// </summary>
-	button,
-
-	/// <summary>
-	/// A joystick message object.
-	/// </summary>
-	joystick
-};
-
-
-/// <summary>
-/// Base class for all interactive event args. Contains information for Interactive events.
-/// </summary>
-class interactive_event_args
-{
-public:
-
-	/// <summary>
-	/// Constructor for the interactive event args object.
-	/// </summary>
-	interactive_event_args() {}
-
-	/// <summary>
-	/// Virtual destructor for the interactive event args object.
-	/// </summary>
-	virtual ~interactive_event_args() {}
-};
-
-/// <summary>
-/// Base class for all Interactive events. Mixer Interactivity
-/// is an event-driven service.
-/// </summary>
-class interactive_event
-{
-public:
-
-	/// <summary>
-	/// Constructor for the interactive event object.
-	/// </summary>
-	interactive_event(
-		_In_ std::chrono::milliseconds time,
-		_In_ std::error_code errorCode,
-		_In_ string_t errorMessage,
-		_In_ interactive_event_type eventType,
-		_In_ std::shared_ptr<interactive_event_args> eventArgs
-	);
-
-	/// <summary>
-	/// The time (in UTC) when this event is raised.
-	/// </summary>
-	_MIXERIMP const std::chrono::milliseconds& time() const;
-
-	/// <summary>
-	/// The error code indicating the result of the operation.
-	/// </summary>
-	_MIXERIMP const std::error_code& err() const;
-
-	/// <summary>
-	/// Returns call specific error message with debug information.
-	/// Message is not localized as it is meant to be used for debugging only.
-	/// </summary>
-	_MIXERIMP const string_t& err_message() const;
-
-	/// <summary>
-	/// Type of the event raised.
-	/// </summary>
-	_MIXERIMP interactive_event_type event_type() const;
-
-	/// <summary>
-	/// Returns a pointer to an event argument. Cast the event arg to a specific
-	/// event arg class type before retrieving the data.
-	/// </summary>
-	_MIXERIMP const std::shared_ptr<interactive_event_args>& event_args() const;
-
-private:
-
-	std::chrono::milliseconds m_time;
-	std::error_code m_errorCode;
-	string_t m_errorMessage;
-	interactive_event_type m_eventType;
-	std::shared_ptr<interactive_event_args> m_eventArgs;
-};
-
-
-/// <summary>
-/// Contains information when the state of interactivity changes.
-/// </summary>
-class interactivity_state_change_event_args : public interactive_event_args
-{
-public:
-
-	/// <summary>
-	/// The current interactivity state.
-	/// </summary>
-	_MIXERIMP const interactivity_state new_state() const;
-
-	/// <summary>
-	/// Constructor for the interactivity state change event args object.
-	/// </summary>
-	interactivity_state_change_event_args(
-		_In_ interactivity_state newState
-	);
-
-private:
-
-	interactivity_state    m_newState;
-};
-
-
-/// <summary>
-/// Contains information for a participant state change event. 
-/// The state changes when a participant joins or leaves the channel.
-/// </summary>
-class interactive_participant_state_change_event_args : public interactive_event_args
-{
-public:
-
-	/// <summary>
-	/// The participant whose state has changed. For example, a 
-	/// participant who has just joined the Mixer channel.
-	/// </summary>
-	_MIXERIMP const std::shared_ptr<interactive_participant>& participant() const;
-
-	/// <summary>
-	/// The current state of the participant.
-	/// </summary>
-	_MIXERIMP const interactive_participant_state& state() const;
-
-	/// <summary>
-	/// Constructor for the interactive_participant_state_change_event_args object.
-	/// </summary>
-	interactive_participant_state_change_event_args(
-		_In_ std::shared_ptr<interactive_participant> participant,
-		_In_ interactive_participant_state state
-	);
-
-private:
-
-	std::shared_ptr<interactive_participant> m_participant;
-	interactive_participant_state m_state;
-};
-
-
-/// <summary>
-/// Contains information for a button event.
-/// </summary>
-class interactive_button_event_args : public interactive_event_args
-{
-public:
-
-	/// <summary>
-	/// Unique string identifier for this control
-	/// </summary>
-	_MIXERIMP const string_t& control_id() const;
-
-	/// <summary>
-	/// Unique string identifier for the spark transaction associated with this control event.
-	/// </summary>
-	_MIXERIMP const string_t& transaction_id() const;
-
-	/// <summary>
-	/// Spark cost assigned to the button control.
-	/// </summary>
-	_MIXERIMP uint32_t cost() const;
-
-	/// <summary>
-	/// The user who raised this event.
-	/// </summary>
-	_MIXERIMP const std::shared_ptr<interactive_participant>& participant() const;
-
-	/// <summary>
-	/// Boolean to indicate if the button is up or down.
-	/// Returns TRUE if button is down.
-	/// </summary>
-	_MIXERIMP bool is_pressed() const;
-
-	/// <summary>
-	/// Constructor for the interactive button event args object.
-	/// </summary>
-	interactive_button_event_args(
-		_In_ string_t controlId,
-		_In_ string_t transaction_id,
-		_In_ uint32_t cost,
-		_In_ std::shared_ptr<interactive_participant> participant,
-		_In_ bool isPressed
-	);
-
-private:
-
-	string_t m_controlId;
-	string_t m_transactionId;
-	uint32_t m_cost;
-	std::shared_ptr<interactive_participant> m_participant;
-	bool m_isPressed;
-};
-
-/// <summary>
-/// Contains information for a joystick event. These arguments are sent 
-/// at an interval frequency configured via the Mixer Interactive Studio.
-/// </summary>
-class interactive_joystick_event_args : public interactive_event_args
-{
-public:
-
-	/// <summary>
-	/// Unique string identifier for this control.
-	/// </summary>
-	_MIXERIMP const string_t& control_id() const;
-
-	/// <summary>
-	/// The X coordinate of the joystick, in the range of [-1, 1].
-	/// </summary>
-	_MIXERIMP double x() const;
-	/// <summary>
-	/// The Y coordinate of the joystick, in the range of [-1, 1].
-	/// </summary>
-	_MIXERIMP double y() const;
-
-	/// <summary>
-	/// Participant whose action this event represents.
-	/// </summary>
-	_MIXERIMP const std::shared_ptr<interactive_participant>& participant() const;
-
-	/// <summary>
-	/// Constructor for the interactive_joystick_event_args object.
-	/// </summary>
-	interactive_joystick_event_args(
-		_In_ std::shared_ptr<interactive_participant> participant,
-		_In_ double x,
-		_In_ double y,
-		_In_ string_t control_id
-	);
-
-private:
-
-	string_t m_controlId;
-	double m_x;
-	double m_y;
-	std::shared_ptr<interactive_participant> m_participant;
-};
-
-/// <summary>
-/// Contains information for a message from the interactive service.
-/// </summary>
-class interactive_custom_message_event_args : public interactive_event_args
-{
-public:
-
-	/// <summary>
-	/// The raw text of the message. Messages are in JSON format.
-	/// </summary>
-	_MIXERIMP const string_t& message() const;
-
-	/// <summary>
-	/// Constructor for the interactive button event args object.
-	/// </summary>
-	interactive_custom_message_event_args(
-		_In_ string_t message
-	);
-
-private:
-
-	string_t m_message;
-};
-
-/// <summary>
-/// Base class for all interactive controls.
-/// All controls are created and configured using the Mixer Interactive Lab.
-/// </summary>
-class interactive_control
-{
-public:
-
-	/// <summary>
-	/// The type of control.
-	/// </summary>
-	_MIXERIMP const interactive_control_type& control_type() const;
-
-	/// <summary>
-	/// Unique string identifier for the control.
-	/// </summary>
-	_MIXERIMP const string_t& control_id() const;
-
-	/// <summary>
-	/// Returns the list of meta properties for the control
-	///</summary>
-	_MIXERIMP const std::map<string_t, string_t, ci_less>& meta_properties() const;
-
-protected:
-
-	/// <summary>
-	/// Internal constructor for the interactive_control object.
-	/// </summary>
-	interactive_control();
-
-	/// <summary>
-	/// Internal virtual destructor for the interactive_control object.
-	/// </summary>
-	virtual ~interactive_control()
+	struct interactive_object
 	{
-	}
-
-	/// <summary>
-	/// Internal constructor for the interactive_control object.
-	/// </summary>
-	interactive_control(
-		_In_ string_t parentScene,
-		_In_ string_t controlId,
-		_In_ bool disabled
-	);
-
-	/// <summary>
-	/// Internal function to clear the state of the interactive_control object.
-	/// </summary>
-	virtual void clear_state() = 0;
-
-	/// <summary>
-	/// Internal function to update the state of the interactive_control object.
-	/// </summary>
-	virtual bool update(web::json::value json, bool overwrite) = 0;
-
-	/// <summary>
-	/// Internal function to initialize interactive_control object.
-	/// </summary>
-	virtual bool init_from_json(_In_ web::json::value json) = 0;
-
-	std::shared_ptr<interactivity_manager> m_interactivityManager;
-	string_t m_parentScene;
-	interactive_control_type m_type;
-	string_t m_controlId;
-	bool m_disabled;
-	string_t m_etag;
-	std::map<string_t, string_t, ci_less> m_metaProperties;
-
-	friend interactive_control_builder;
-	friend interactivity_manager_impl;
-};
-
-
-/// <summary>
-/// Represents an interactivity button control. This class is 
-/// derived from interactive_control. All controls are created and 
-/// configured using the Mixer Interactive Lab.
-/// </summary>
-class interactive_button_control : public interactive_control
-{
-public:
-
-	/// <summary>
-	/// Text displayed on the button control.
-	/// </summary>
-	_MIXERIMP const string_t& button_text() const;
-
-	/// <summary>
-	/// Spark cost assigned to the button control.
-	/// </summary>
-	_MIXERIMP uint32_t cost() const;
-
-	/// <summary>
-	/// Indicates whether the button is enabled or disabled. If TRUE, 
-	/// button is disabled.
-	/// </summary>
-	_MIXERIMP bool disabled() const;
-
-	/// <summary>
-	/// Function to enable or disable the button.
-	/// </summary>
-	/// <param name="disabled">Value to enable or disable the button. 
-	/// Set this value to TRUE to disable the button.</param>
-	_MIXERIMP void set_disabled(_In_ bool disabled);
-
-	/// <summary>
-	/// Sets the cooldown duration (in milliseconds) required between triggers. 
-	/// Disables the button for a period of time.
-	/// </summary>
-	/// <param name="cooldown">Duration (in milliseconds) required between triggers.</param>
-	_MIXERIMP void trigger_cooldown(std::chrono::milliseconds cooldown) const;
-
-	/// <summary>
-	/// Time remaining (in milliseconds) before the button can be triggered again.
-	/// </summary>
-	_MIXERIMP std::chrono::milliseconds remaining_cooldown() const;
-
-	/// <summary>
-	/// Current progress of the button control.
-	/// </summary>
-	_MIXERIMP float progress() const;
-
-	/// <summary>
-	/// Sets the progress value for the button control.
-	/// </summary>
-	/// <param name="progress">The progress value, in the range of 0.0 to 1.0.</param>
-	_MIXERIMP void set_progress(_In_ float progress);
-
-	/// <summary>
-	/// Returns the total count of button downs since the last call to do_work().
-	/// </summary>
-	_MIXERIMP uint32_t count_of_button_downs();
-
-	/// <summary>
-	/// Returns the total count of button downs by the specified participant
-	/// since the last call to do_work().
-	/// </summary>
-	_MIXERIMP uint32_t count_of_button_downs(_In_ uint32_t mixerId);
-
-	/// <summary>
-	/// Returns the total count of button presses since the last call to do_work().
-	/// </summary>
-	_MIXERIMP uint32_t count_of_button_presses();
-
-	/// <summary>
-	/// Returns the total count of button presses by the specified participant
-	/// since the last call to do_work().
-	/// </summary>
-	_MIXERIMP uint32_t count_of_button_presses(_In_ uint32_t mixerId);
-
-	/// <summary>
-	/// Returns the total count of button ups since the last call to do_work().
-	/// </summary>
-	_MIXERIMP uint32_t count_of_button_ups();
-
-	/// <summary>
-	/// Returns the total count of button ups by the specified participant
-	/// since the last call to do_work().
-	/// </summary>
-	_MIXERIMP uint32_t count_of_button_ups(_In_ uint32_t mixerId);
-
-	/// <summary>
-	/// Returns TRUE if button is currently pressed.
-	/// </summary>
-	_MIXERIMP bool is_pressed();
-
-	/// <summary>
-	/// Returns TRUE if the button is currently pressed by the specified participant.
-	/// </summary>
-	_MIXERIMP bool is_pressed(_In_ uint32_t mixerId);
-
-	/// <summary>
-	/// Returns TRUE if button is currently down.
-	/// </summary>
-	_MIXERIMP bool is_down();
-
-	/// <summary>
-	/// Returns TRUE if the button is clicked down by the specified participant.
-	/// </summary>
-	_MIXERIMP bool is_down(_In_ uint32_t mixerId);
-
-	/// <summary>
-	/// Returns TRUE if button is currently up.
-	/// </summary>
-	_MIXERIMP bool is_up();
-
-	/// <summary>
-	/// Returns TRUE if the button is currently up for the specified participant.
-	/// </summary>
-	_MIXERIMP bool is_up(_In_ uint32_t mixerId);
-
-private:
-
-	/// <summary>
-	/// Constructor for interactive_button_control object.
-	/// </summary>
-	interactive_button_control();
-
-	/// <summary>
-	/// Constructor for interactive_button_control object.
-	/// </summary>
-	interactive_button_control(
-		_In_ string_t parentSceneId,
-		_In_ string_t controlId,
-		_In_ bool enabled,
-		_In_ float progress,
-		_In_ std::chrono::milliseconds m_cooldownDeadline,
-		_In_ string_t buttonText,
-		_In_ uint32_t sparkCost
-	);
-
-	/// <summary>
-	/// Internal function to initialize a interactive_button_control object.
-	/// </summary>
-	bool init_from_json(web::json::value json);
-
-	/// <summary>
-	/// Internal function to clear the state of the interactive_button_control object.
-	/// </summary>
-	void clear_state();
-
-	/// <summary>
-	/// Internal function to update the state of the interactive_control object.
-	/// </summary>
-	bool update(web::json::value json, bool overwrite);
-
-	float                     m_progress;
-	std::chrono::milliseconds m_cooldownDeadline;
-	string_t                  m_buttonText;
-	uint32_t                  m_sparkCost;
-	std::map<uint32_t, std::shared_ptr<interactive_button_state>> m_buttonStateByMixerId;
-	std::shared_ptr<interactive_button_count> m_buttonCount;
-
-	friend interactive_control_builder;
-	friend interactivity_manager_impl;
-};
-
-
-/// <summary>
-/// Represents an interactivity joystick control. This class is derived from interactive_control. 
-/// All controls are created and configured using the Mixer Interactive Lab.
-/// </summary>
-class interactive_joystick_control : public interactive_control
-{
-public:
-
-	/// <summary>
-	/// The current X coordinate of the joystick, in the range of [-1, 1].
-	/// </summary>
-	_MIXERIMP double x() const;
-
-	/// <summary>
-	/// The current X coordinate of the joystick, in the range of [-1, 1] for the specified participant.
-	/// </summary>
-	_MIXERIMP double x(_In_ uint32_t mixerId);
-
-	/// <summary>
-	/// The current Y coordinate of the joystick, in the range of [-1, 1].
-	/// </summary>
-	_MIXERIMP double y() const;
-
-	/// <summary>
-	/// The current Y coordinate of the joystick, in the range of [-1, 1] for the specified participant.
-	/// </summary>
-	_MIXERIMP double y(_In_ uint32_t mixerId);
-
-	/// <summary>
-	/// Internal function to clear the state of the interactive_button_control object.
-	/// </summary>
-	void clear_state();
-
-private:
-
-	/// <summary>
-	/// Constructor for the interactive_joystick_control object.
-	/// </summary>
-	interactive_joystick_control();
-
-	/// <summary>
-	/// Constructor for the interactive_joystick_control object.
-	/// </summary>
-	interactive_joystick_control(
-		_In_ string_t parentSceneId,
-		_In_ string_t controlId,
-		_In_ bool enabled,
-		_In_ double x,
-		_In_ double y
-	);
-
-	/// <summary>
-	/// Internal function to initialize a interactive_joystick_control object.
-	/// </summary>
-	bool init_from_json(web::json::value json);
-
-	/// <summary>
-	/// Internal function to update the state of the interactive_joystick_control object.
-	/// </summary>
-	bool update(web::json::value json, bool overwrite);
-
-	double m_x;
-	double m_y;
-
-	std::map<uint32_t, std::shared_ptr<interactive_joystick_state>> m_joystickStateByMixerId;
-
-	friend interactive_control_builder;
-	friend interactivity_manager_impl;
-};
-
-
-/// <summary>
-/// Represents an interactive group. This group functionality is used to 
-/// segment your audience watching a stream. interactive_group is useful when you want 
-/// portions of your audience to be shown a different scene while watching a stream. 
-/// Participants can only be assigned to a single group.
-/// </summary>
-class interactive_group
-{
-public:
-
-	/// <summary>
-	/// Constructor for the interactive_group object. If no scene is specified, 
-	/// the group is shown the "default" scene.
-	/// </summary>
-	/// <param name="groupId">The unique string identifier for the group.</param>
-	interactive_group(
-		_In_ string_t groupId
-	);
-
-	/// <summary>
-	/// Constructor for the interactive_group object.
-	/// </summary>
-	/// <param name="groupId">The unique string identifier for the group.</param>
-	/// <param name="scene">The scene shown to the group.</param>
-	interactive_group(
-		_In_ string_t groupId,
-		_In_ std::shared_ptr<interactive_scene> scene
-	);
-
-	/// <summary>
-	/// Unique string identifier for the group.
-	/// </summary>
-	_MIXERIMP const string_t& group_id() const;
-
-	/// <summary>
-	/// Returns a pointer to the scene assigned to the group.
-	/// </summary>
-	_MIXERIMP std::shared_ptr<interactive_scene> scene();
-
-	/// <summary>
-	/// Assigns a scene to the group.
-	/// </summary>
-	_MIXERIMP void set_scene(std::shared_ptr<interactive_scene> currentScene);
-
-	/// <summary>
-	/// Gets all the participants assigned to the group. The list may be empty.
-	/// </summary>
-	_MIXERIMP const std::vector<std::shared_ptr<interactive_participant>> participants();
-
-private:
-
-	/// <summary>
-	/// Internal function to construct a interactive_group object.
-	/// </summary>
-	interactive_group();
-
-	std::shared_ptr<MICROSOFT_MIXER_NAMESPACE::interactivity_manager> m_interactivityManager;
-	std::shared_ptr<MICROSOFT_MIXER_NAMESPACE::interactive_group_impl> m_impl;
-
-	friend interactive_group_impl;
-	friend interactivity_manager_impl;
-	friend interactivity_manager;
-};
-
-
-/// <summary>
-/// Represents an interactive scene. These scenes are configured 
-/// using the Mixer Interactive Lab.
-/// </summary>
-class interactive_scene
-{
-public:
-
-	/// <summary>
-	/// Unique string identifier for the scene.
-	/// </summary>
-	_MIXERIMP const string_t& scene_id() const;
-
-	/// <summary>
-	/// Returns all the groups that the scene is assigned to. This list may be empty.
-	/// </summary>
-	_MIXERIMP const std::vector<string_t> groups();
-
-	/// <summary>
-	/// Returns a list of all the buttons in the scene. This list may be empty.
-	/// </summary>
-	_MIXERIMP const std::vector<std::shared_ptr<interactive_button_control>> buttons();
-
-	/// <summary>
-	/// Returns the pointer to the specified button, if it exist.
-	/// </summary>
-	/// <param name="controlId">The unique string identifier of the button.</param>
-	_MIXERIMP const std::shared_ptr<interactive_button_control> button(_In_ const string_t& controlId);
-
-	/// <summary>
-	/// Returns a list of all the joysticks in the scene. This list may be empty.
-	/// </summary>
-	_MIXERIMP const std::vector<std::shared_ptr<interactive_joystick_control>> joysticks();
-
-	/// <summary>
-	/// Returns the pointer to the specified joystick, if it exist.
-	/// </summary>
-	/// <param name="controlId">The unique string identifier of the joystick.</param>
-	_MIXERIMP const std::shared_ptr<interactive_joystick_control> joystick(_In_ const string_t& controlId);
-
-private:
-
-	/// <summary>
-	/// Constructor for the interactive_scene object.
-	/// </summary>
-	interactive_scene();
-
-	/// <summary>
-	/// Constructor for the interactive_scene object.
-	/// </summary>
-	interactive_scene(
-		_In_ string_t sceneId,
-		_In_ bool enabled
-	);
-
-	std::shared_ptr<MICROSOFT_MIXER_NAMESPACE::interactivity_manager> m_interactivityManager;
-	std::shared_ptr<MICROSOFT_MIXER_NAMESPACE::interactive_scene_impl> m_impl;
-
-	friend interactive_scene_impl;
-	friend interactivity_manager_impl;
-	friend interactivity_manager;
-};
-
-
-
-/// <summary>
-/// Manager service class that handles the interactivity event 
-/// experience between the Mixer service and the title.
-/// </summary>
-class interactivity_manager : public std::enable_shared_from_this<interactivity_manager>
-{
-public:
-
-	/// <summary>
-	/// Gets the singleton instance of interactivity_manager.
-	/// </summary>
-	_MIXERIMP static std::shared_ptr<interactivity_manager> get_singleton_instance();
-
-	/// <summary>
-	/// Sets up the connection for the Mixer interactivity event experience by
-	/// initializing a background task.
-	/// </summary>
-	/// <returns>Value that indicates whether the initialization request is accepted or not. 
-	/// If TRUE, the initialization request is accepted.</returns>
-	/// <param name="interactiveVersion"> The version of the Mixer interactivity experience created for the title.</param>
-	/// <param name="goInteractive">Value that indicates whether or not to start interactivity immediately. 
-	/// If FALSE, you need to actively start_interactive() to intiate interactivity after initialization.</param>
-	/// <remarks></remarks>
-	_MIXERIMP bool initialize(
-		_In_ string_t interactiveVersion,
-		_In_ bool goInteractive = true,
-		_In_ string_t sharecode = _XPLATSTR("")
-	);
-
-#if TV_API | XBOX_UWP
-	/// <summary>
-	/// Sets the local user to be used for authentication for the Mixer interactivity experience.
-	/// </summary>
-	/// <param name="user">The user's Xbox Live identifier.</param>
-	/// <returns>Returns an interactive event to report any potential error. A nullptr is returned if there's no error.</returns>
-	_MIXERIMP std::shared_ptr<interactive_event> set_local_user(_In_ xbox_live_user_t user);
-#else
-	/// <summary>
-	/// Set an xtoken retrieved from a signed in user. This is used to authenticate into the Mixer interactivity experience.
-	/// </summary>
-	/// <param name="token">The user's xtoken.</param>
-	/// <returns>Returns an interactive event to report any potential error. A nullptr is returned if there's no error.</returns>
-	_MIXERIMP std::shared_ptr<interactive_event> set_xtoken(_In_ string_t token);
-
-	/// <summary>
-	/// Set an OAuth token for the Mixer user obtained via some flow external to the C++ SDK.
-	/// </summary>
-	/// <param name="token">The user's OAuth token.</param>
-	/// <returns>Returns an interactive event to report any potential error. A nullptr is returned if there's no error.</returns>
-	_MIXERIMP std::shared_ptr<interactive_event> set_oauth_token(_In_ string_t token);
-#endif
-
-#if 0
-	/// <summary>
-	/// Requests an OAuth account authorization code from the Mixer services. The title needs to display this 
-	/// code and prompt the user to enter it at mixer.com/go. This process allows the user's Mixer account to 
-	/// be linked to an interactivity stream.
-	/// </summary>
-	/// <param name="mixer_id">The Mixer ID of the user.</param>
-	_MIXERIMP void request_linking_code(_In_ uint32_t mixer_id) const;
-#endif
-
-	/// <summary>
-	/// The time of the Mixer interactivity service, in UTC. Used to maintain the 
-	/// title's synchronization with the Mixer interactivity experience.
-	/// </summary>
-	_MIXERIMP const std::chrono::milliseconds get_server_time();
-
-	/// <summary>
-	/// Returns the version of the Mixer interactivity experience created.
-	/// </summary>
-	_MIXERIMP const string_t& interactive_version() const;
-
-	/// <summary>
-	/// The enum value that indicates the interactivity state of the Interactivity manager.
-	/// </summary>
-	_MIXERIMP const interactivity_state interactivity_state();
-
-	/// <summary>
-	/// Used by the title to inform the Mixer service that it is ready to receive interactivity input.
-	/// </summary>
-	/// <remarks></remarks>
-	_MIXERIMP bool start_interactive();
-
-	/// <summary>
-	/// Used by the title to inform the Mixer service that it is no longer receiving interactivity input.
-	/// </summary>
-	/// <returns></returns>
-	/// <remarks></remarks>
-	_MIXERIMP bool suspend_interactive();
-
-	/// <summary>
-	/// Used by the title to disconnect from the Mixer service.
-	/// </summary>
-	/// <returns></returns>
-	/// <remarks></remarks>
-	_MIXERIMP bool stop_interactive();
-
-	/// <summary>
-	/// Returns currently active participants of this interactivity experience.
-	/// </summary>
-	_MIXERIMP std::vector<std::shared_ptr<interactive_participant>> participants();
-
-	/// <summary>
-	/// Gets all the groups associated with the current interactivity instance.
-	/// Empty list is returned if initialization is not yet completed.
-	/// </summary>
-	_MIXERIMP std::vector<std::shared_ptr<interactive_group>> groups();
-
-	/// <summary>
-	/// Gets the pointer to a specific group. Returns a NULL pointer if initialization
-	/// is not yet completed or if the group does not exist.
-	/// </summary>
-	_MIXERIMP std::shared_ptr<interactive_group> group(_In_ const string_t& group_id = _XPLATSTR("default"));
-
-	/// <summary>
-	/// Gets all the scenes associated with the current interactivity instance.
-	/// Returns a NULL pointer if initialization is not yet completed.
-	/// </summary>
-	_MIXERIMP std::vector<std::shared_ptr<interactive_scene>> scenes();
-
-	/// <summary>
-	/// Gets the pointer to a specific scene. Returns a NULL pointer if initialization 
-	/// is not yet completed or if the scene does not exist.
-	/// </summary>
-	_MIXERIMP std::shared_ptr<interactive_scene> scene(_In_ const string_t&  scene_id);
-
-	/// <summary>
-	/// Function to enable or disable the button.
-	/// </summary>
-	/// <param name="control_id">The unique string identifier of the control.</param>
-	/// <param name="disabled">Value to enable or disable the button. 
-	/// Set this value to TRUE to disable the button.</param>
-	_MIXERIMP void set_disabled(_In_ const string_t& control_id, _In_ bool disabled) const;
-
-	/// <summary>
-	/// Current progress of the button control.
-	/// </summary>
-	_MIXERIMP float progress() const;
-
-	/// <summary>
-	/// Sets the progress value for the button control.
-	/// </summary>
-	/// <param name="progress">The progress value, in the range of 0.0 to 1.0.</param>
-	_MIXERIMP void set_progress(_In_ const string_t& control_id, _In_ float progress);
-
-	/// <summary>
-	/// Disables a specific control for a period of time, specified in milliseconds.
-	/// </summary>
-	/// <param name="control_id">The unique string identifier of the control.</param>
-	/// <param name="cooldown">Cooldown duration (in milliseconds).</param>
-	_MIXERIMP void trigger_cooldown(_In_ const string_t& control_id, _In_ const std::chrono::milliseconds& cooldown) const;
-
-	/// <summary>
-	/// Sends a JSON RPC message to the interactivity service.
-	/// </summary>
-	/// <param name="method">The name of the method.</param>
-	/// <param name="parameters">A string that can contain any data so long as it is valid JSON.</param>
-	_MIXERIMP void send_rpc_message(_In_ const string_t& method, _In_ const string_t& parameters) const;
-
-	/// <summary>
-	/// Captures a given interactive event transaction, charging the sparks to the appropriate Participant.
-	/// </summary>
-	/// <param name="transaction_id">The unique string identifier of the transaction to be captured.</param>
-	_MIXERIMP void capture_transaction(_In_ const string_t& transaction_id) const;
-
-	/// <summary>
-	/// Manages and maintains proper state updates between the title and the Interactivity Service.
-	/// To ensure best performance, do_work() must be called frequently, such as once per frame.
-	/// Title needs to be thread safe when calling do_work() since this is when states are changed.
-	/// This also clears the state of the input controls.
-	/// </summary>
-	/// <returns>A list of all the events the title has to handle. Empty if no events have been triggered
-	/// during this update.</returns>
-	_MIXERIMP std::vector<MICROSOFT_MIXER_NAMESPACE::interactive_event> do_work();
-
-private:
-
-	/// <summary>
-	/// Internal function
-	/// </summary>
-	interactivity_manager();
-
-	std::shared_ptr<interactivity_manager_impl> m_impl;
-
-	friend interactive_control_builder;
-	friend interactivity_mock_util;
-	friend interactive_scene_impl;
-	friend interactive_group;
-	friend interactive_group_impl;
-	friend interactive_participant_impl;
-};
+		const char* id;
+		size_t idLength;
+	};
+
+	struct interactive_participant : public interactive_object
+	{	
+		unsigned int userId;
+		const char* userName;
+		size_t usernameLength;
+		unsigned int level;
+		unsigned long long lastInputAtMs;
+		unsigned long long connectedAtMs;
+		bool disabled;
+		const char* groupId;
+		size_t groupIdLength;
+	};
+
+	struct interactive_control : public interactive_object
+	{
+		const char* kind;
+		size_t kindLength;
+	};
+
+	struct interactive_input
+	{
+		interactive_control control;
+		const char* participantId;
+		size_t participantIdLength;
+	};
+
+	enum button_action
+	{
+		up,
+		down
+	};
+
+	struct interactive_button_input : interactive_input
+	{
+		button_action action;
+		const char* transactionId;
+		size_t transactionIdLength;
+	};
+
+	struct interactive_coordinate_input : interactive_input
+	{
+		float x;
+		float y;
+	};
+
+	struct interactive_group : public interactive_object
+	{
+		const char* sceneId;
+		size_t sceneIdLength;
+	};
+
+	struct interactive_scene : public interactive_object
+	{
+	};
+
+	typedef void* interactive_session;
+	
+	// Interactive events
+	typedef void(*on_error)(void* context, interactive_session session, int errorCode, const char* errorMessage, size_t errorMessageLength);
+	typedef void(*on_state_changed)(void* context, interactive_session session, interactive_state previousState, interactive_state newState);
+	typedef void(*on_button_input)(void* context, interactive_session session, const interactive_button_input* input);
+	typedef void(*on_coordinate_input)(void* context, interactive_session session, const interactive_coordinate_input* input);
+	typedef void(*on_unhandled_method)(void* context, interactive_session session, const char* methodJson, size_t methodJsonLength);
+
+	// Enumeration callbacks
+	typedef void(*on_group_enumerate)(void* context, interactive_session session, interactive_group* group);
+	typedef void(*on_scene_enumerate)(void* context, interactive_session session, interactive_scene* scene);
+	typedef void(*on_control_enumerate)(void* context, interactive_session session, interactive_control* control);
+	typedef void(*on_participant_enumerate)(void* context, interactive_session session, interactive_participant* participant);
+
+	enum participant_action
+	{
+		participant_join,
+		participant_leave,
+		participant_update
+	};
+
+	typedef void(*on_participants_changed)(void* context, interactive_session session, participant_action action, const interactive_participant* participant);
+
+	// Interactive authorization helpers
+	int interactive_auth_get_short_code(const char* clientId, char* shortCode, size_t* shortCodeLength, char* shortCodeHandle, size_t* shortCodeHandleLength);
+	int interactive_auth_wait_short_code(const char* clientId, const char* shortCodeHandle, char* refreshToken, size_t* refreshTokenLength);
+	int interactive_auth_is_token_stale(const char* token, bool* isStale);
+	int interactive_auth_refresh_token(const char* clientId, const char* staleToken, char* refreshToken, size_t* refreshTokenLength);
+	int interactive_auth_parse_refresh_token(const char* token, char* authorization, size_t* authorizationLength);
+
+	/// <summary>
+	/// Connect to an interactive session with the supplied <c>interactive_config</c>. 
+	/// </summary>
+	int interactive_connect(const char* auth, const char* versionId, const char* shareCode, bool manualStart, interactive_session* sessionPtr);
+
+	/// <summary>
+	/// Disconnect from an interactive session and destroy it. This must not be called from inside an event handler as the lifetime of registered event handlers is assumed to outlive 
+	/// the session. Only call this when there is no thread processing events via interactive_run.
+	/// </summary>
+	void interactive_disconnect(interactive_session session);
+
+	int interactive_get_state(interactive_session session, interactive_state* state);
+	int interactive_set_ready(interactive_session session, bool isReady);
+
+	/// <summary>
+	/// Set a session context that will be passed to every event callback.
+	/// </summary>
+	int interactive_set_session_context(interactive_session session, void* context);
+
+	// Event handlers
+	int interactive_reg_error_handler(interactive_session session, on_error onError);
+	int interactive_reg_state_changed_handler(interactive_session session, on_state_changed onStateChanged);
+	int interactive_reg_button_input_handler(interactive_session session, on_button_input onButtonInput);
+	int interactive_reg_coordinate_input_handler(interactive_session session, on_coordinate_input onCoordinateInput);
+	int interactive_reg_participants_changed_handler(interactive_session session, on_participants_changed onParticipantsChanged);
+	int interactive_reg_unhandled_method_handler(interactive_session session, on_unhandled_method onUnhandledMethod);
+
+	int interactive_run(interactive_session session, unsigned int maxEventsToProcess);
+
+	/// <summary>
+	/// Send a method to the interactive session. This may be used to interface with the interactive protocol directly and implement functionality 
+	/// that this SDK does not provide out of the box.
+	/// </summary>
+	int interactive_send_method(interactive_session session, const char* method, const char* paramsJson, bool discardReply, unsigned int* id);
+
+	/// <summary>
+	/// Recieve a reply for a method with the specified id. This may be used to interface with the interactive protocol directly and implement functionality
+	/// that this SDK does not provide out of the box.
+	/// </summary>
+	int interactive_receive_reply(interactive_session session, unsigned int id, unsigned int timeoutMs, char* replyJson, size_t* replyJsonLength);
+	
+	int interactive_capture_transaction(interactive_session session, const char* transactionId);
+
+	// Interactive Group
+	int interactive_get_groups(interactive_session session, on_group_enumerate onGroup);
+	int interactive_create_group(interactive_session session, const char* groupId, const char* sceneId);
+	int interactive_group_set_scene(interactive_session session, const char* groupId, const char* sceneId);
+
+	// Interactive Scene
+	int interactive_get_scenes(interactive_session session, on_scene_enumerate onScene);
+	int interactive_scene_get_groups(interactive_session session, const char* sceneId, on_group_enumerate onGroup);
+	int interactive_scene_get_controls(interactive_session session, const char* sceneId, on_control_enumerate onControl);
+	
+	// Interactive control
+	typedef enum interactive_property_type
+	{
+		unknown_t,
+		int_t,
+		bool_t,
+		float_t,
+		string_t,
+		array_t,
+		object_t
+	} interactive_property_type;
+
+	int interactive_control_trigger_cooldown(interactive_session session, const char* controlId, const unsigned int cooldownMs);
+
+	int interactive_control_get_property_count(interactive_session session, const char* controlId, size_t* count);
+	int interactive_control_get_property_data(interactive_session session, const char* controlId, size_t index, char* propName, size_t* propNameLength, interactive_property_type* type);
+	int interactive_control_get_meta_property_count(interactive_session session, const char* controlId, size_t* count);
+	int interactive_control_get_meta_property_data(interactive_session session, const char* controlId, size_t index, char* propName, size_t* propNameLength, interactive_property_type* type);
+
+	int interactive_control_get_property_int(interactive_session session, const char* controlId, const char* key, int* property);
+	int interactive_control_get_property_bool(interactive_session session, const char* controlId, const char* key, bool* property);
+	int interactive_control_get_property_float(interactive_session session, const char* controlId, const char* key, float* property);
+	int interactive_control_get_property_string(interactive_session session, const char* controlId, const char* key, char* property, size_t* propertyLength);
+
+	int interactive_control_get_meta_property_int(interactive_session session, const char* controlId, const char* key, int* property);
+	int interactive_control_get_meta_property_bool(interactive_session session, const char* controlId, const char* key, bool* property);
+	int interactive_control_get_meta_property_float(interactive_session session, const char* controlId, const char* key, float* property);
+	int interactive_control_get_meta_property_string(interactive_session session, const char* controlId, const char* key, char* property, size_t* propertyLength);
+
+	// Interactive participant
+	int interactive_get_participants(interactive_session session, on_participant_enumerate onParticipant);
+	int interactive_set_participant_group(interactive_session session, const char* participantId, const char* groupId);
+
+	int interactive_get_participant_user_id(interactive_session session, const char* participantId, unsigned int* userId);
+	int interactive_get_participant_user_name(interactive_session session, const char* participantId, char* userName, size_t* userNameLength);
+	int interactive_get_participant_level(interactive_session session, const char* participantId, unsigned int* level);
+	int interactive_get_participant_last_input_at(interactive_session session, const char* participantId, unsigned long long* lastInputAt);
+	int interactive_get_participant_connected_at(interactive_session session, const char* participantId, unsigned long long* connectedAt);
+	int interactive_get_participant_is_disabled(interactive_session session, const char* participantId, bool* isDisabled);
+	int interactive_get_participant_group(interactive_session session, const char* participantId, char* group, size_t* groupLength);
+
+	// Debugging
+	enum interactive_debug_level
+	{
+		debug_none = 0,
+		debug_error,
+		debug_warning,
+		debug_info,
+		debug_trace
+	};
+
+	typedef void(*on_debug_msg)(const interactive_debug_level dbgMsgType, const char* dbgMsg, size_t dbgMsgSize);
+
+	void interactive_config_debug_level(const interactive_debug_level dbgLevel);
+	void interactive_config_debug(const interactive_debug_level dbgLevel, on_debug_msg dbgCallback);
+}
 
 }
-}
+
+

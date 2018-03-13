@@ -1,265 +1,147 @@
-//*********************************************************
-//
-// Copyright (c) Microsoft. All rights reserved.
-// THIS CODE IS PROVIDED *AS IS* WITHOUT WARRANTY OF
-// ANY KIND, EITHER EXPRESS OR IMPLIED, INCLUDING ANY
-// IMPLIED WARRANTIES OF FITNESS FOR A PARTICULAR
-// PURPOSE, MERCHANTABILITY, OR NON-INFRINGEMENT.
-//
-//*********************************************************
-#include "pch.h"
+#include "interactive_session.h"
+#include "common.h"
 
-NAMESPACE_MICROSOFT_MIXER_BEGIN
-static std::mutex s_singletonLock;
-
-const string_t&
-interactive_scene::scene_id() const
+namespace mixer
 {
-	return m_impl->scene_id();
-}
-
-const std::vector<string_t>
-interactive_scene::groups()
+int cache_scenes(interactive_session_internal& session)
 {
-	return m_impl->groups();
-}
-
-const std::vector<std::shared_ptr<interactive_button_control>>
-interactive_scene::buttons()
-{
-	return m_impl->buttons();
-}
-
-const std::shared_ptr<interactive_button_control>
-interactive_scene::button(_In_ const string_t& controlId)
-{
-	return m_impl->button(controlId);
-}
-
-const std::vector<std::shared_ptr<interactive_joystick_control>>
-interactive_scene::joysticks()
-{
-	return m_impl->joysticks();
-}
-
-const std::shared_ptr<interactive_joystick_control>
-interactive_scene::joystick(_In_ const string_t& controlId)
-{
-	return m_impl->joystick(controlId);
-}
-
-interactive_scene::interactive_scene()
-{
-	m_interactivityManager = interactivity_manager::get_singleton_instance();
-	m_impl = std::make_shared<interactive_scene_impl>();
-}
-
-interactive_scene::interactive_scene(
-	_In_ string_t sceneId,
-	_In_ bool enabled
-)
-{
-	m_interactivityManager = interactivity_manager::get_singleton_instance();
-	m_impl = std::make_shared<interactive_scene_impl>(sceneId, _XPLATSTR("") /*etag filled in by service call*/, enabled);
-}
-
-//
-// Backing implementation
-//
-
-const string_t&
-interactive_scene_impl::scene_id() const
-{
-	return m_sceneId;
-}
-
-const bool&
-interactive_scene_impl::disabled() const
-{
-	return m_disabled;
-}
-
-void
-interactive_scene_impl::set_disabled(bool disabled)
-{
-	m_disabled = disabled;
-}
-
-const std::vector<string_t>
-interactive_scene_impl::groups()
-{
-	std::vector<string_t> groups;
-	groups.reserve(m_groupIds.size());
-
-	for (auto iter = m_groupIds.begin(); iter != m_groupIds.end(); iter++)
-	{
-		string_t currGroupId = (*iter);
-		groups.push_back(currGroupId);
-	}
-
-	return groups;
-}
-
-const std::vector<std::shared_ptr<interactive_button_control>>
-interactive_scene_impl::buttons()
-{
-	std::vector<std::shared_ptr<interactive_button_control>> buttons;
-	buttons.reserve(m_buttonIds.size());
-
-	for (auto iter = m_buttonIds.begin(); iter != m_buttonIds.end(); iter++)
-	{
-		string_t currButtonId = (*iter);
-		buttons.push_back(m_interactivityManager->m_impl->m_buttons[currButtonId]);
-	}
-
-	return buttons;
-}
-
-const std::shared_ptr<interactive_button_control>
-interactive_scene_impl::button(_In_ const string_t& controlId)
-{
-	std::shared_ptr<interactive_button_control> currControl = nullptr;
-	for (auto iter = m_buttonIds.begin(); iter != m_buttonIds.end(); iter++)
-	{
-		string_t currButtonId = (*iter);
-		if (0 == currButtonId.compare(controlId))
-		{
-			currControl = m_interactivityManager->m_impl->m_buttons[currButtonId];
-			break;
-		}
-	}
-
-	return currControl;
-}
-
-
-const std::vector<std::shared_ptr<interactive_joystick_control>>
-interactive_scene_impl::joysticks()
-{
-	std::vector<std::shared_ptr<interactive_joystick_control>> joysticks;
-	joysticks.reserve(m_joystickIds.size());
-
-	for (auto iter = m_joystickIds.begin(); iter != m_joystickIds.end(); iter++)
-	{
-		string_t currControlId = (*iter);
-		joysticks.push_back(m_interactivityManager->m_impl->m_joysticks[currControlId]);
-	}
-
-	return joysticks;
-}
-
-
-const std::shared_ptr<interactive_joystick_control>
-interactive_scene_impl::joystick(_In_ const string_t& controlId)
-{
-	std::shared_ptr<interactive_joystick_control> currControl = nullptr;
-	for (auto iter = m_joystickIds.begin(); iter != m_joystickIds.end(); iter++)
-	{
-		string_t currControlId = (*iter);
-		if (0 == currControlId.compare(controlId))
-		{
-			currControl = m_interactivityManager->m_impl->m_joysticks[currControlId];
-			break;
-		}
-	}
-
-	return currControl;
-}
-
-void
-interactive_scene_impl::init_from_json(web::json::value json)
-{
-	string_t errorString;
-	bool success = true;
+	DEBUG_INFO("Caching scenes.");
+	unsigned int id;
+	RETURN_IF_FAILED(send_method(session, RPC_METHOD_GET_SCENES, nullptr, false, &id));
+	std::shared_ptr<rapidjson::Document> reply;
+	RETURN_IF_FAILED(receive_reply(session, id, reply));
 
 	try
 	{
-		if (json.has_field(RPC_SCENE_ID))
-		{
-			m_sceneId = json[RPC_SCENE_ID].as_string();
-		}
-		else
-		{
-			errorString = _XPLATSTR("Trying to construct scene, no scene id");
-			success = false;
-		}
+		// Get the scenes array from the result and set up pointers to scenes and controls.
+		std::unique_lock<std::shared_mutex> l(session.scenesMutex);
+		session.controls.clear();
+		session.scenes.clear();
+		session.scenesRoot.RemoveAllMembers();
 
-		if (success && json.has_field(RPC_ETAG))
-		{
-			m_etag = json[RPC_ETAG].as_string();
-		}
-		else
-		{
-			errorString = _XPLATSTR("Trying to construct scene, no etag");
-			success = false;
-		}
+		// Copy just the scenes array portion of the reply into the cached scenes root.
+		rapidjson::Value scenesArray(rapidjson::kArrayType);
+		rapidjson::Value replyScenesArray = (*reply)[RPC_RESULT][RPC_PARAM_SCENES].GetArray();
+		scenesArray.CopyFrom(replyScenesArray, session.scenesRoot.GetAllocator());
+		session.scenesRoot.AddMember(RPC_PARAM_SCENES, scenesArray, session.scenesRoot.GetAllocator());
 
-		if (success && json.has_field(RPC_PARAM_CONTROLS) && json.at(RPC_PARAM_CONTROLS).is_array())
+		// Iterate through each scene and set up a pointer to each control.
+		int sceneIndex = 0;
+		for (auto& scene : session.scenesRoot[RPC_PARAM_SCENES].GetArray())
 		{
-			try
+			std::string scenePointer = "/" + std::string(RPC_PARAM_SCENES) + "/" + std::to_string(sceneIndex++);
+			auto controlsArray = scene.FindMember(RPC_PARAM_CONTROLS);
+			if (controlsArray != scene.MemberEnd() && controlsArray->value.IsArray())
 			{
-				web::json::array controls = json.at(RPC_PARAM_CONTROLS).as_array();
-
-				for (auto iter = controls.begin(); iter != controls.end(); ++iter)
+				int controlIndex = 0;
+				for (auto& control : controlsArray->value.GetArray())
 				{
-					auto control = *iter;
-					if (0 == control[RPC_CONTROL_KIND].as_string().compare(RPC_CONTROL_BUTTON))
-					{
-						std::shared_ptr<interactive_button_control> newButton = interactive_control_builder::build_button_control(m_sceneId, control);
-
-						if (nullptr != newButton)
-						{
-							m_buttonIds.push_back(newButton->control_id());
-						}
-					}
-					else if (0 == control[RPC_CONTROL_KIND].as_string().compare(RPC_CONTROL_JOYSTICK))
-					{
-						std::shared_ptr<interactive_joystick_control> newJoystick = interactive_control_builder::build_joystick_control(m_sceneId, control);
-
-						if (nullptr != newJoystick)
-						{
-							m_joystickIds.push_back(newJoystick->control_id());
-						}
-					}
-					else
-					{
-						DEBUG_ERROR(string_t(_XPLATSTR("Unknown control type: ")) + control[RPC_CONTROL_KIND].as_string());
-					}
+					session.controls.emplace(control[RPC_CONTROL_ID].GetString(), scenePointer + "/" + std::string(RPC_PARAM_CONTROLS) + "/" + std::to_string(controlIndex++));
 				}
 			}
-			catch (std::exception e)
-			{
-				DEBUG_EXCEPTION(_XPLATSTR("Exception while creating scenes in interactive_scene_impl::init_from_json: "), e.what());
-			}
+
+			session.scenes.emplace(scene[RPC_SCENE_ID].GetString(), scenePointer);
 		}
 	}
 	catch (std::exception e)
 	{
-		DEBUG_EXCEPTION(_XPLATSTR("Exception in interactive_scene_impl::init_from_json: "), e.what());
+		return MIXER_ERROR_JSON_PARSE;
 	}
 
-	if (!success)
+	return MIXER_OK;
+}
+
+int interactive_get_scenes(interactive_session session, on_scene_enumerate onScene)
+{
+	if (nullptr == session || nullptr == onScene)
 	{
-		DEBUG_ERROR(errorString);
-		// TODO: return error
+		return MIXER_ERROR_INVALID_POINTER;
 	}
+
+	interactive_session_internal* sessionInternal = reinterpret_cast<interactive_session_internal*>(session);
+	// Lock the scenes while they are being enumerated.
+	std::shared_lock<std::shared_mutex> l(sessionInternal->scenesMutex);
+	for (auto sceneItr = sessionInternal->scenes.begin(); sessionInternal->scenes.end() != sceneItr; ++sceneItr)
+	{
+		std::string sceneId = sceneItr->first;
+
+		// Construct an interactive_scene object to pass to the caller.
+		interactive_scene scene;
+		scene.id = sceneId.c_str();
+		scene.idLength = sceneId.length();
+		onScene(sessionInternal->callerContext, sessionInternal, &scene);
+	}
+
+	return MIXER_OK;
 }
 
-interactive_scene_impl::interactive_scene_impl()
+int interactive_scene_get_groups(interactive_session session, const char* sceneId, on_group_enumerate onGroup)
 {
-	m_interactivityManager = interactivity_manager::get_singleton_instance();
+	if (nullptr == session || nullptr == onGroup)
+	{
+		return MIXER_ERROR_INVALID_POINTER;
+	}
+
+	interactive_session_internal* sessionInternal = reinterpret_cast<interactive_session_internal*>(session);
+
+	// Lock the scenes while they are being enumerated.
+	std::shared_lock<std::shared_mutex> l(sessionInternal->scenesMutex);
+	auto sceneItr = sessionInternal->scenes.find(sceneId);
+	if (sessionInternal->scenes.end() == sceneItr)
+	{
+		return MIXER_ERROR_OBJECT_NOT_FOUND;
+	}
+
+	// Find the cached scene and enumerate all controls.
+	rapidjson::Value* sceneVal = rapidjson::Pointer(sceneItr->second.c_str()).Get(sessionInternal->scenesRoot);
+	if (sceneVal->HasMember(RPC_PARAM_GROUPS) && (*sceneVal)[RPC_PARAM_GROUPS].IsArray() && !(*sceneVal)[RPC_PARAM_GROUPS].Empty())
+	{
+		for (auto& groupObj : (*sceneVal)[RPC_PARAM_GROUPS].GetArray())
+		{
+			interactive_group group;
+			group.id = groupObj[RPC_GROUP_ID].GetString();
+			group.idLength = groupObj[RPC_GROUP_ID].GetStringLength();
+			group.sceneId = sceneId;
+			group.sceneIdLength = strlen(sceneId);
+			onGroup(sessionInternal->callerContext, sessionInternal, &group);
+		}
+	}
+
+	return MIXER_OK;
 }
 
-interactive_scene_impl::interactive_scene_impl(
-	_In_ string_t sceneId,
-	_In_ string_t etag,
-	_In_ bool disabled
-) :
-	m_sceneId(std::move(sceneId)),
-	m_etag(std::move(etag)),
-	m_disabled(std::move(disabled))
+int interactive_scene_get_controls(interactive_session session, const char* sceneId, on_control_enumerate onControl)
 {
-	m_interactivityManager = interactivity_manager::get_singleton_instance();
-}
+	if (nullptr == session || nullptr == onControl)
+	{
+		return MIXER_ERROR_INVALID_POINTER;
+	}
 
-NAMESPACE_MICROSOFT_MIXER_END
+	interactive_session_internal* sessionInternal = reinterpret_cast<interactive_session_internal*>(session);
+
+	// Lock the scenes while they are being enumerated.
+	std::shared_lock<std::shared_mutex> l(sessionInternal->scenesMutex);
+	auto sceneItr = sessionInternal->scenes.find(sceneId);
+	if (sessionInternal->scenes.end() == sceneItr)
+	{
+		return MIXER_ERROR_OBJECT_NOT_FOUND;
+	}
+
+	// Find the cached scene and enumerate all controls.
+	rapidjson::Value* sceneVal = rapidjson::Pointer(sceneItr->second.c_str()).Get(sessionInternal->scenesRoot);
+	if (sceneVal->HasMember(RPC_PARAM_CONTROLS) && (*sceneVal)[RPC_PARAM_CONTROLS].IsArray() && !(*sceneVal)[RPC_PARAM_CONTROLS].Empty())
+	{
+		for (auto& controlObj : (*sceneVal)[RPC_PARAM_CONTROLS].GetArray())
+		{
+			interactive_control control;
+			control.id = controlObj[RPC_CONTROL_ID].GetString();
+			control.idLength = controlObj[RPC_CONTROL_ID].GetStringLength();
+			control.kind = controlObj[RPC_CONTROL_KIND].GetString();
+			control.kindLength = controlObj[RPC_CONTROL_KIND].GetStringLength();
+			onControl(sessionInternal->callerContext, sessionInternal, &control);
+		}
+	}
+
+	return MIXER_OK;
+}
+}

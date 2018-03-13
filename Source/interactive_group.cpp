@@ -1,201 +1,122 @@
-//*********************************************************
-//
-// Copyright (c) Microsoft. All rights reserved.
-// THIS CODE IS PROVIDED *AS IS* WITHOUT WARRANTY OF
-// ANY KIND, EITHER EXPRESS OR IMPLIED, INCLUDING ANY
-// IMPLIED WARRANTIES OF FITNESS FOR A PARTICULAR
-// PURPOSE, MERCHANTABILITY, OR NON-INFRINGEMENT.
-//
-//*********************************************************
-#include "pch.h"
-#include "namespaces.h"
+#include "interactive_session.h"
+#include "common.h"
 
-NAMESPACE_MICROSOFT_MIXER_BEGIN
-
-interactive_group::interactive_group(_In_ string_t groupId)
+namespace mixer
 {
-	m_interactivityManager = interactivity_manager::get_singleton_instance();
-	m_impl = std::make_shared<interactive_group_impl>(groupId);
-	m_interactivityManager->m_impl->add_group_to_map(m_impl);
-}
 
-interactive_group::interactive_group(
-	_In_ string_t groupId,
-	_In_ std::shared_ptr<interactive_scene> scene
-)
+int cache_groups(interactive_session_internal& session)
 {
-	m_interactivityManager = interactivity_manager::get_singleton_instance();
-	m_impl = std::make_shared<interactive_group_impl>(groupId);
-	m_impl->m_sceneId = scene->scene_id();
-	m_interactivityManager->m_impl->add_group_to_map(m_impl);
-}
-
-interactive_group::interactive_group()
-{
-	m_interactivityManager = interactivity_manager::get_singleton_instance();
-	m_impl = std::make_shared<interactive_group_impl>();
-	m_interactivityManager->m_impl->add_group_to_map(m_impl);
-}
-
-const string_t&
-interactive_group::group_id() const
-{
-	return m_impl->m_groupId;
-}
-
-std::shared_ptr<interactive_scene>
-interactive_group::scene()
-{
-	return m_impl->scene();
-}
-
-void interactive_group::set_scene(std::shared_ptr<interactive_scene> currentScene)
-{
-	m_impl->set_scene(currentScene);
-}
-
-const std::vector<std::shared_ptr<interactive_participant>>
-interactive_group::participants()
-{
-	return m_impl->participants();
-}
-
-/// interactive_group_impl
-
-interactive_group_impl::interactive_group_impl(string_t groupId) :
-	m_groupId(std::move(groupId)),
-	m_sceneId(RPC_SCENE_DEFAULT),
-	m_sceneChanged(false),
-	m_participantsChanged(false)
-{
-	m_interactivityManager = interactivity_manager::get_singleton_instance();
-}
-
-interactive_group_impl::interactive_group_impl(
-	string_t groupId,
-	string_t etag,
-	string_t sceneId
-) :
-	m_groupId(std::move(groupId)),
-	m_etag(std::move(etag)),
-	m_sceneId(std::move(sceneId)),
-	m_sceneChanged(false),
-	m_participantsChanged(false)
-{
-	m_interactivityManager = interactivity_manager::get_singleton_instance();
-}
-
-interactive_group_impl::interactive_group_impl(web::json::value json)
-{
-	m_interactivityManager = interactivity_manager::get_singleton_instance();
-	update(json, true);
-}
-
-string_t
-interactive_group_impl::group_id() const
-{
-	return m_groupId;
-}
-
-string_t
-interactive_group_impl::etag() const
-{
-	return m_etag;
-}
-
-string_t
-interactive_group_impl::scene_id()
-{
-	return m_sceneId;
-}
-
-const std::vector<std::shared_ptr<interactive_participant>>
-interactive_group_impl::participants()
-{
-	std::vector<std::shared_ptr<interactive_participant>> participants;
-
-	auto participantIds = m_interactivityManager->m_impl->m_participantsByGroupId[m_groupId];
-
-	if (0 != participantIds.size())
-	{
-		participants.reserve(participantIds.size());
-		for (auto iter = participantIds.begin(); iter != participantIds.end(); iter++)
-		{
-			uint32_t participantId = (*iter);
-			participants.push_back(m_interactivityManager->m_impl->m_participants[participantId]);
-		}
-	}
-
-	return participants;
-}
-
-void
-interactive_group_impl::set_scene(std::shared_ptr<interactive_scene> currentScene)
-{
-	auto oldScene = m_sceneId;
-	m_sceneId = currentScene->scene_id();
-	m_sceneChanged = true;
-	auto result = m_interactivityManager->m_impl->try_set_current_scene(m_sceneId, m_groupId);
-
-	if (result && result->event_type() == interactive_event_type::error)
-	{
-		m_sceneChanged = false;
-		m_sceneId = oldScene;
-	}
-}
-
-std::shared_ptr<interactive_scene>
-interactive_group_impl::scene() const
-{
-	return m_interactivityManager->scene(m_sceneId);
-}
-
-bool
-interactive_group_impl::update(web::json::value json, bool overwrite)
-{
-	std::string errorString;
-	bool success = true;
-
-	std::lock_guard<std::recursive_mutex> lock(m_lock);
+	DEBUG_INFO("Caching groups.");
+	unsigned int id;
+	RETURN_IF_FAILED(send_method(session, RPC_METHOD_GET_GROUPS, nullptr, false, &id));
+	std::shared_ptr<rapidjson::Document> reply;
+	RETURN_IF_FAILED(receive_reply(session, id, reply));
 
 	try
 	{
-		if (success && json.has_field(RPC_ETAG))
+		std::unique_lock<std::shared_mutex> l(session.scenesMutex);
+		session.scenesByGroup.clear();
+		rapidjson::Value& groups = (*reply)[RPC_RESULT][RPC_PARAM_GROUPS];
+		for (auto& group : groups.GetArray())
 		{
-			m_etag = json[RPC_ETAG].as_string();
-		}
-		else if (overwrite)
-		{
-			errorString = "Trying to construct group, no etag";
-			success = false;
-		}
+			std::string groupId = group[RPC_GROUP_ID].GetString();
+			std::string sceneId;
+			if (group.HasMember(RPC_SCENE_ID))
+			{
+				sceneId = group[RPC_SCENE_ID].GetString();
+			}
 
-		if (success && json.has_field(RPC_SCENE_ID))
-		{
-			m_sceneId = json[RPC_SCENE_ID].as_string();
-		}
-		else if (overwrite)
-		{
-			errorString = "Trying to construct group, no sceneID";
-			success = false;
-		}
-
-		if (success && json.has_field(RPC_GROUP_ID))
-		{
-			m_groupId = json[RPC_GROUP_ID].as_string();
-		}
-		else if (overwrite)
-		{
-			errorString = "Trying to construct group, no groupID";
-			success = false;
+			session.scenesByGroup.emplace(groupId, sceneId);
 		}
 	}
 	catch (std::exception e)
 	{
-		DEBUG_EXCEPTION(_XPLATSTR("Exception in interactive_group::update"), e.what());
+		return MIXER_ERROR_JSON_PARSE;
 	}
 
-	return success;
+	return MIXER_OK;
 }
 
-NAMESPACE_MICROSOFT_MIXER_END
+int interactive_get_groups(interactive_session session, on_group_enumerate onGroup)
+{
+	if (nullptr == session || nullptr == onGroup)
+	{
+		return MIXER_ERROR_INVALID_POINTER;
+	}
+
+	interactive_session_internal* sessionInternal = reinterpret_cast<interactive_session_internal*>(session);
+
+	// Lock the scene cache
+	std::shared_lock<std::shared_mutex> l(sessionInternal->scenesMutex);
+	for (auto& sceneByGroup : sessionInternal->scenesByGroup)
+	{
+		interactive_group group;
+		group.id = sceneByGroup.first.c_str();
+		group.idLength = sceneByGroup.first.length();
+		group.sceneId = sceneByGroup.second.c_str();
+		group.sceneIdLength = sceneByGroup.second.length();
+		onGroup(sessionInternal->callerContext, sessionInternal, &group);
+	}
+
+	return MIXER_OK;
+}
+
+int interactive_create_group(interactive_session session, const char* groupId, const char* sceneId)
+{
+	if (nullptr == session || nullptr == groupId)
+	{
+		return MIXER_ERROR_INVALID_POINTER;
+	}
+
+	interactive_session_internal* sessionInternal = reinterpret_cast<interactive_session_internal*>(session);
+
+	unsigned int packetId;
+	std::string sceneIdStr = RPC_SCENE_DEFAULT;
+	if (nullptr != sceneId)
+	{
+		sceneIdStr = sceneId;
+	}
+	RETURN_IF_FAILED(send_method(*sessionInternal, RPC_METHOD_CREATE_GROUPS, [&](rapidjson::Document::AllocatorType& allocator, rapidjson::Value& params)
+	{
+		rapidjson::Value groups(rapidjson::kArrayType);
+		rapidjson::Value group(rapidjson::kObjectType);
+		group.AddMember(RPC_GROUP_ID, rapidjson::StringRef(groupId), allocator);
+		group.AddMember(RPC_SCENE_ID, rapidjson::StringRef(sceneIdStr.c_str(), sceneIdStr.length()), allocator);
+		groups.PushBack(group, allocator);
+		params.AddMember(RPC_PARAM_GROUPS, groups, allocator);
+	}, false, &packetId));
+
+	// Receive a reply to ensure that creation was successful.
+	std::shared_ptr<rapidjson::Document> replyDoc;
+	RETURN_IF_FAILED(receive_reply(*sessionInternal, packetId, replyDoc));
+
+	return MIXER_OK;
+}
+
+int interactive_group_set_scene(interactive_session session, const char* groupId, const char* sceneId)
+{
+	if (nullptr == session || nullptr == groupId || nullptr == sceneId)
+	{
+		return MIXER_ERROR_INVALID_POINTER;
+	}
+
+	interactive_session_internal* sessionInternal = reinterpret_cast<interactive_session_internal*>(session);
+
+	unsigned int packetId;
+	RETURN_IF_FAILED(send_method(*sessionInternal, RPC_METHOD_UPDATE_GROUPS, [&](rapidjson::Document::AllocatorType& allocator, rapidjson::Value& params)
+	{
+		rapidjson::Value groups(rapidjson::kArrayType);
+		rapidjson::Value group(rapidjson::kObjectType);
+		group.AddMember(RPC_GROUP_ID, rapidjson::StringRef(groupId), allocator);
+		group.AddMember(RPC_SCENE_ID, rapidjson::StringRef(sceneId), allocator);
+		groups.PushBack(group, allocator);
+		params.AddMember(RPC_PARAM_GROUPS, groups, allocator);
+	}, false, &packetId));
+
+	// Receive a reply to ensure that creation was successful.
+	std::shared_ptr<rapidjson::Document> replyDoc;
+	RETURN_IF_FAILED(receive_reply(*sessionInternal, packetId, replyDoc));
+
+	return MIXER_OK;
+}
+}

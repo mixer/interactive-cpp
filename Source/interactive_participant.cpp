@@ -1,345 +1,221 @@
-//*********************************************************
-//
-// Copyright (c) Microsoft. All rights reserved.
-// THIS CODE IS PROVIDED *AS IS* WITHOUT WARRANTY OF
-// ANY KIND, EITHER EXPRESS OR IMPLIED, INCLUDING ANY
-// IMPLIED WARRANTIES OF FITNESS FOR A PARTICULAR
-// PURPOSE, MERCHANTABILITY, OR NON-INFRINGEMENT.
-//
-//*********************************************************
-#include "pch.h"
+#include "interactive_session.h"
 
-NAMESPACE_MICROSOFT_MIXER_BEGIN
-static std::mutex s_singletonLock;
-
-
-uint32_t
-interactive_participant::mixer_id() const
+namespace mixer
 {
-	return m_impl->mixer_id();
+
+
+void parse_participant(rapidjson::Value& participantJson, interactive_participant& participant)
+{
+	participant.id = participantJson[RPC_SESSION_ID].GetString();
+	participant.idLength = participantJson[RPC_SESSION_ID].GetStringLength();
+	participant.userId = participantJson[RPC_USER_ID].GetUint();
+	participant.userName = participantJson[RPC_USERNAME].GetString();
+	participant.usernameLength = participantJson[RPC_USERNAME].GetStringLength();
+	participant.level = participantJson[RPC_LEVEL].GetUint();
+	participant.lastInputAtMs = participantJson[RPC_PART_LAST_INPUT].GetUint64();
+	participant.connectedAtMs = participantJson[RPC_PART_CONNECTED].GetUint64();
+	participant.disabled = participantJson[RPC_DISABLED].GetBool();
+	participant.groupId = participantJson[RPC_GROUP_ID].GetString();
+	participant.groupIdLength = participantJson[RPC_GROUP_ID].GetStringLength();
 }
 
-const string_t&
-interactive_participant::username() const
+int interactive_get_participants(interactive_session session, on_participant_enumerate onParticipant)
 {
-	return m_impl->username();
-}
-
-uint32_t
-interactive_participant::level() const
-{
-	return m_impl->level();
-}
-
-const interactive_participant_state
-interactive_participant::state() const
-{
-	return m_impl->state();
-}
-
-void
-interactive_participant::set_group(std::shared_ptr<interactive_group> group)
-{
-	return m_impl->set_group(group);
-}
-
-const std::shared_ptr<interactive_group>
-interactive_participant::group()
-{
-	return m_impl->group();
-}
-
-const std::chrono::milliseconds&
-interactive_participant::last_input_at() const
-{
-	return m_impl->last_input_at();
-}
-
-const std::chrono::milliseconds&
-interactive_participant::connected_at() const
-{
-	return m_impl->connected_at();
-}
-
-bool
-interactive_participant::input_disabled() const
-{
-	return m_impl->input_disabled();
-}
-
-
-interactive_participant::interactive_participant(
-	unsigned int mixerId,
-	string_t username,
-	uint32_t level,
-	string_t groupId,
-	std::chrono::milliseconds lastInputAt,
-	std::chrono::milliseconds connectedAt,
-	bool disabled
-)
-{
-	m_impl = std::make_shared<interactive_participant_impl>(mixerId, username, _XPLATSTR(""), level, groupId, lastInputAt, connectedAt, disabled);
-}
-
-
-interactive_participant::interactive_participant()
-{
-	m_impl = std::make_shared<interactive_participant_impl>();
-}
-
-//
-// Backing implementation
-//
-
-uint32_t
-interactive_participant_impl::mixer_id() const
-{
-	return m_mixerId;
-}
-
-const string_t&
-interactive_participant_impl::username() const
-{
-	return m_username;
-}
-
-uint32_t
-interactive_participant_impl::level() const
-{
-	return m_level;
-}
-
-const interactive_participant_state
-interactive_participant_impl::state() const
-{
-	return m_state;
-}
-
-void
-interactive_participant_impl::set_group(std::shared_ptr<interactive_group> group)
-{
-	string_t oldGroup = m_groupId;
-	m_groupIdUpdated = true;
-	m_groupId = group->group_id();
-	m_interactivityManager->m_impl->move_participant_group(m_mixerId, oldGroup, m_groupId);
-}
-
-const std::shared_ptr<interactive_group>
-interactive_participant_impl::group()
-{
-	return m_interactivityManager->group(m_groupId);
-}
-
-const std::chrono::milliseconds&
-interactive_participant_impl::last_input_at() const
-{
-	return m_lastInputAt;
-}
-
-const std::chrono::milliseconds&
-interactive_participant_impl::connected_at() const
-{
-	return m_connectedAt;
-}
-
-bool
-interactive_participant_impl::input_disabled() const
-{
-	return m_disabled;
-}
-
-#if 0
-std::shared_ptr<interactive_button_control> MICROSOFT_MIXER_NAMESPACE::interactive_participant_impl::button(const string_t & control_id)
-{
-	return std::shared_ptr<interactive_button_control>();
-}
-
-std::vector<std::shared_ptr<interactive_button_control>> MICROSOFT_MIXER_NAMESPACE::interactive_participant_impl::buttons()
-{
-	return std::vector<std::shared_ptr<interactive_button_control>>();
-}
-
-std::shared_ptr<interactive_joystick_control> MICROSOFT_MIXER_NAMESPACE::interactive_participant_impl::joystick(const string_t & control_id)
-{
-	return std::shared_ptr<interactive_joystick_control>();
-}
-
-std::vector<std::shared_ptr<interactive_joystick_control>> MICROSOFT_MIXER_NAMESPACE::interactive_participant_impl::joysticks()
-{
-	return std::vector<std::shared_ptr<interactive_joystick_control>>();
-}
-#endif
-
-
-interactive_participant_impl::interactive_participant_impl(
-	unsigned int mixerId,
-	string_t username,
-	string_t sessionId,
-	uint32_t level,
-	string_t groupId,
-	std::chrono::milliseconds lastInputAt,
-	std::chrono::milliseconds connectedAt,
-	bool disabled
-) :
-	m_mixerId(std::move(mixerId)),
-	m_username(std::move(username)),
-	m_sessionId(std::move(sessionId)),
-	m_level(std::move(level)),
-	m_groupId(std::move(groupId)),
-	m_lastInputAt(std::move(lastInputAt)),
-	m_connectedAt(std::move(connectedAt)),
-	m_disabled(std::move(disabled)),
-	m_groupIdUpdated(false),
-	m_disabledUpdated(false),
-	m_stateUpdated(false)
-{
-	m_interactivityManager = interactivity_manager::get_singleton_instance();
-}
-
-interactive_participant_impl::interactive_participant_impl() :
-	m_groupId(RPC_GROUP_DEFAULT),
-	m_disabled(false),
-	m_groupIdUpdated(false),
-	m_disabledUpdated(false),
-	m_stateUpdated(false)
-{
-	m_interactivityManager = interactivity_manager::get_singleton_instance();
-}
-
-bool
-interactive_participant_impl::update(web::json::value json, bool overwrite)
-{
-	string_t errorString;
-	bool success = true;
-
-	try
+	if (nullptr == session || nullptr == onParticipant)
 	{
-		if (success)
-		{
-			if (json.has_field(RPC_USER_ID))
-			{
-				m_mixerId = json[RPC_USER_ID].as_number().to_uint32();
-			}
-			else if (overwrite)
-			{
-				errorString = _XPLATSTR("Trying to construct participant, no id");
-				success = false;
-			}
-		}
-
-		if (success)
-		{
-			if (json.has_field(RPC_USERNAME))
-			{
-				m_username = json[RPC_USERNAME].as_string();
-			}
-			else if (overwrite)
-			{
-				errorString = _XPLATSTR("Trying to construct participant, no username");
-				success = false;
-			}
-		}
-
-		if (success)
-		{
-			if (json.has_field(RPC_SESSION_ID))
-			{
-				m_sessionId = json[RPC_SESSION_ID].as_string();
-			}
-			else if (overwrite)
-			{
-				errorString = _XPLATSTR("Trying to construct participant, no sessionId");
-				success = false;
-			}
-		}
-
-		if (success)
-		{
-			if (json.has_field(RPC_PART_CONNECTED))
-			{
-				auto connectedAtUnix = json[RPC_PART_CONNECTED].as_number().to_uint64();
-				std::chrono::milliseconds connectedAtChrono(connectedAtUnix);
-
-				m_connectedAt = connectedAtChrono;
-			}
-			else if (overwrite)
-			{
-				errorString = _XPLATSTR("Trying to construct participant, no connectedAt timestamp");
-				success = false;
-			}
-		}
-
-		if (success)
-		{
-			if (json.has_field(RPC_PART_LAST_INPUT))
-			{
-				auto inputAtUnix = json[RPC_PART_LAST_INPUT].as_number().to_uint64();
-				std::chrono::milliseconds inputAtChrono(inputAtUnix);
-
-				m_connectedAt = inputAtChrono;
-			}
-			else if (overwrite)
-			{
-				errorString = _XPLATSTR("Trying to construct participant, no lastInputAt timestamp");
-				success = false;
-			}
-		}
-
-		if (success)
-		{
-			if (json.has_field(RPC_ETAG))
-			{
-				m_etag = json[RPC_ETAG].as_string();
-			}
-			else if (overwrite)
-			{
-				errorString = _XPLATSTR("Trying to construct participant, no etag");
-				success = false;
-			}
-		}
-
-		if (success)
-		{
-			if (json.has_field(RPC_LEVEL))
-			{
-				m_level = json[RPC_LEVEL].as_number().to_uint32();
-			}
-			else if (overwrite)
-			{
-				errorString = _XPLATSTR("Trying to construct participant, no level");
-				success = false;
-			}
-		}
-
-		if (success)
-		{
-			if (json.has_field(RPC_GROUP_ID))
-			{
-				m_groupId = json[RPC_GROUP_ID].as_string();
-			}
-			else if (overwrite)
-			{
-				errorString = _XPLATSTR("Trying to construct participant, no group");
-				success = false;
-			}
-		}
-	}
-	catch (std::exception e)
-	{
-		DEBUG_EXCEPTION(_XPLATSTR("Exception while parsing participant json: "), e.what());
+		return MIXER_ERROR_INVALID_POINTER;
 	}
 
-	if (!success)
+	interactive_session_internal* sessionInternal = reinterpret_cast<interactive_session_internal*>(session);
+	for (auto& participantById : sessionInternal->participants)
 	{
-		DEBUG_ERROR(errorString);
+		interactive_participant participant;
+		parse_participant(*participantById.second, participant);
+		onParticipant(sessionInternal->callerContext, sessionInternal, &participant);
 	}
 
-	return success;
+	return MIXER_OK;
 }
 
-bool MICROSOFT_MIXER_NAMESPACE::interactive_participant_impl::init_from_json(web::json::value json)
+int interactive_set_participant_group(interactive_session session, const char* participantId, const char* groupId)
 {
-	return update(json, true);
+	if (nullptr == session || nullptr == participantId || nullptr == groupId)
+	{
+		return MIXER_ERROR_INVALID_POINTER;
+	}
+
+	interactive_session_internal* sessionInternal = reinterpret_cast<interactive_session_internal*>(session);
+
+	unsigned int packetId;
+	RETURN_IF_FAILED(send_method(*sessionInternal, RPC_METHOD_UPDATE_PARTICIPANTS, [&](rapidjson::Document::AllocatorType& allocator, rapidjson::Value& params)
+	{
+		rapidjson::Value participants(rapidjson::kArrayType);
+		rapidjson::Value participant(rapidjson::kObjectType);
+		participant.AddMember(RPC_SESSION_ID, rapidjson::StringRef(participantId), allocator);
+		participant.AddMember(RPC_GROUP_ID, rapidjson::StringRef(groupId), allocator);
+		participants.PushBack(participant, allocator);
+		params.AddMember(RPC_PARAM_PARTICIPANTS, participants, allocator);
+		params.AddMember("priority", 0, allocator);
+	}, false, &packetId));
+
+	// Receive a reply to ensure that creation was successful.
+	std::shared_ptr<rapidjson::Document> replyDoc;
+	RETURN_IF_FAILED(receive_reply(*sessionInternal, packetId, replyDoc));
+
+	return MIXER_OK;
 }
 
-NAMESPACE_MICROSOFT_MIXER_END
+int interactive_get_participant_user_id(interactive_session session, const char* participantId, unsigned int* userId)
+{
+	if (nullptr == session || nullptr == participantId || nullptr == userId)
+	{
+		return MIXER_ERROR_INVALID_POINTER;
+	}
+
+	interactive_session_internal* sessionInternal = reinterpret_cast<interactive_session_internal*>(session);
+	auto participantItr = sessionInternal->participants.find(std::string(participantId));
+	if (sessionInternal->participants.end() == participantItr)
+	{
+		return MIXER_ERROR_OBJECT_NOT_FOUND;
+	}
+
+	std::shared_ptr<rapidjson::Document> participantDoc = participantItr->second;
+	*userId = (*participantDoc)[RPC_USER_ID].GetUint();
+	return MIXER_OK;
+}
+
+int interactive_get_participant_user_name(interactive_session session, const char* participantId, char* userName, size_t* userNameLength)
+{
+	if (nullptr == session || nullptr == participantId || nullptr == userNameLength)
+	{
+		return MIXER_ERROR_INVALID_POINTER;
+	}
+
+	interactive_session_internal* sessionInternal = reinterpret_cast<interactive_session_internal*>(session);
+	auto participantItr = sessionInternal->participants.find(std::string(participantId));
+	if (sessionInternal->participants.end() == participantItr)
+	{
+		return MIXER_ERROR_OBJECT_NOT_FOUND;
+	}
+
+	std::shared_ptr<rapidjson::Document> participantDoc = participantItr->second;
+
+	size_t actualLength = (*participantDoc)[RPC_USERNAME].GetStringLength();
+	if (nullptr == userName || *userNameLength < actualLength + 1)
+	{
+		*userNameLength = actualLength + 1;
+		return MIXER_ERROR_BUFFER_SIZE;
+	}
+
+	memcpy(userName, (*participantDoc)[RPC_USERNAME].GetString(), actualLength);
+	userName[actualLength] = 0;
+	*userNameLength = actualLength + 1;
+	return MIXER_OK;
+}
+
+int interactive_get_participant_level(interactive_session session, const char* participantId, unsigned int* level)
+{
+	if (nullptr == session || nullptr == participantId || nullptr == level)
+	{
+		return MIXER_ERROR_INVALID_POINTER;
+	}
+
+	interactive_session_internal* sessionInternal = reinterpret_cast<interactive_session_internal*>(session);
+	auto participantItr = sessionInternal->participants.find(std::string(participantId));
+	if (sessionInternal->participants.end() == participantItr)
+	{
+		return MIXER_ERROR_OBJECT_NOT_FOUND;
+	}
+
+	std::shared_ptr<rapidjson::Document> participantDoc = participantItr->second;
+	*level = (*participantDoc)[RPC_LEVEL].GetUint();
+	return MIXER_OK;
+}
+
+int interactive_get_participant_last_input_at(interactive_session session, const char* participantId, unsigned long long* lastInputAt)
+{
+	if (nullptr == session || nullptr == participantId || nullptr == lastInputAt)
+	{
+		return MIXER_ERROR_INVALID_POINTER;
+	}
+
+	interactive_session_internal* sessionInternal = reinterpret_cast<interactive_session_internal*>(session);
+	auto participantItr = sessionInternal->participants.find(std::string(participantId));
+	if (sessionInternal->participants.end() == participantItr)
+	{
+		return MIXER_ERROR_OBJECT_NOT_FOUND;
+	}
+
+	std::shared_ptr<rapidjson::Document> participantDoc = participantItr->second;
+	*lastInputAt = (*participantDoc)[RPC_PART_LAST_INPUT].GetUint64();
+	return MIXER_OK;
+}
+
+int interactive_get_participant_connected_at(interactive_session session, const char* participantId, unsigned long long* connectedAt)
+{
+	if (nullptr == session || nullptr == participantId || nullptr == connectedAt)
+	{
+		return MIXER_ERROR_INVALID_POINTER;
+	}
+
+	interactive_session_internal* sessionInternal = reinterpret_cast<interactive_session_internal*>(session);
+	auto participantItr = sessionInternal->participants.find(std::string(participantId));
+	if (sessionInternal->participants.end() == participantItr)
+	{
+		return MIXER_ERROR_OBJECT_NOT_FOUND;
+	}
+
+	std::shared_ptr<rapidjson::Document> participantDoc = participantItr->second;
+	*connectedAt = (*participantDoc)[RPC_PART_CONNECTED].GetUint64();
+	return MIXER_OK;
+}
+
+int interactive_get_participant_is_disabled(interactive_session session, const char* participantId, bool* isDisabled)
+{
+	if (nullptr == session || nullptr == participantId || nullptr == isDisabled)
+	{
+		return MIXER_ERROR_INVALID_POINTER;
+	}
+
+	interactive_session_internal* sessionInternal = reinterpret_cast<interactive_session_internal*>(session);
+	auto participantItr = sessionInternal->participants.find(std::string(participantId));
+	if (sessionInternal->participants.end() == participantItr)
+	{
+		return MIXER_ERROR_OBJECT_NOT_FOUND;
+	}
+
+	std::shared_ptr<rapidjson::Document> participantDoc = participantItr->second;
+	*isDisabled = (*participantDoc)[RPC_DISABLED].GetBool();
+	return MIXER_OK;
+}
+
+int interactive_get_participant_group(interactive_session session, const char* participantId, char* group, size_t* groupLength)
+{
+	if (nullptr == session || nullptr == participantId || nullptr == groupLength)
+	{
+		return MIXER_ERROR_INVALID_POINTER;
+	}
+
+	interactive_session_internal* sessionInternal = reinterpret_cast<interactive_session_internal*>(session);
+	auto participantItr = sessionInternal->participants.find(std::string(participantId));
+	if (sessionInternal->participants.end() == participantItr)
+	{
+		return MIXER_ERROR_OBJECT_NOT_FOUND;
+	}
+
+	std::shared_ptr<rapidjson::Document> participantDoc = participantItr->second;
+	size_t actualLength = (*participantDoc)[RPC_GROUP_ID].GetStringLength();
+	if (nullptr == group || *groupLength < actualLength + 1)
+	{
+		*groupLength = actualLength + 1;
+		return MIXER_ERROR_BUFFER_SIZE;
+	}
+
+	memcpy(group, (*participantDoc)[RPC_GROUP_ID].GetString(), actualLength);
+	group[actualLength] = 0;
+	*groupLength = actualLength + 1;
+	return MIXER_OK;
+}
+
+
+}

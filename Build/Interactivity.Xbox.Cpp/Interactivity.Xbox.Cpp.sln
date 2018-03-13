@@ -1,11 +1,9 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 14
-VisualStudioVersion = 14.0.25420.1
+# Visual Studio 15
+VisualStudioVersion = 15.0.27130.2026
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Interactivity.Xbox.Cpp", "Interactivity.Xbox.Cpp.vcxproj", "{8A112040-CDA1-4490-B518-62DFCC451FA7}"
-EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "casablanca140.xbox", "..\..\cpprestsdk\Release\src\build\vs14.xbox\casablanca140.Xbox.vcxproj", "{E621C269-D177-4C1B-80EA-C0A274B7A151}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -17,12 +15,11 @@ Global
 		{8A112040-CDA1-4490-B518-62DFCC451FA7}.Debug|Durango.Build.0 = Debug|Durango
 		{8A112040-CDA1-4490-B518-62DFCC451FA7}.Release|Durango.ActiveCfg = Release|Durango
 		{8A112040-CDA1-4490-B518-62DFCC451FA7}.Release|Durango.Build.0 = Release|Durango
-		{E621C269-D177-4C1B-80EA-C0A274B7A151}.Debug|Durango.ActiveCfg = Debug|Durango
-		{E621C269-D177-4C1B-80EA-C0A274B7A151}.Debug|Durango.Build.0 = Debug|Durango
-		{E621C269-D177-4C1B-80EA-C0A274B7A151}.Release|Durango.ActiveCfg = Release|Durango
-		{E621C269-D177-4C1B-80EA-C0A274B7A151}.Release|Durango.Build.0 = Release|Durango
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {5D4AC624-81AB-4D88-BBF4-24E6A7530AF5}
 	EndGlobalSection
 EndGlobal
