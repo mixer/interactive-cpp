@@ -13,7 +13,7 @@ $ git clone https://github.com/mixer/interactive-cpp.git interactive-cpp
 
 Copy the `source` directory into your C++ game project (you will likely want to rename it). Add `interactivity.cpp` to your compilation list and include `interactivity.h` to get started.
 
-See the [InteractiveSample]() for an example of how you might handle authorization and connect to an interactive session.
+See the [InteractiveSample](https://github.com/mixer/interactive-cpp/tree/v2/samples/InteractiveSample) for an example of how you might handle authorization and connect to an interactive session.
 
 ### Authorization
 If you don't plan on handling authorization yourself you can use the provided authorization helper functions. To do so you will need an OAuth client ID which you can obtain here: https://mixer.com/lab/oauth
