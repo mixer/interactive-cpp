@@ -1,4 +1,4 @@
-﻿//*********************************************************
+//*********************************************************
 //
 // Copyright (c) Microsoft. All rights reserved.
 // THIS CODE IS PROVIDED *AS IS* WITHOUT WARRANTY OF
@@ -74,8 +74,7 @@ int receive_reply(interactive_session_internal& session, unsigned int id, std::s
 
 	// Wait for a reply
 	std::shared_ptr<rapidjson::Document> spReply;
-	auto replyItr = session.replies.find(id);
-	if (session.replies.end() == replyItr)
+	auto replyItr = session.replies.end();
 	{
 		std::unique_lock<std::mutex> l(session.repliesMutex);
 		replyItr = session.replies.find(id);
@@ -577,12 +576,12 @@ int interactive_run(interactive_session session, unsigned int maxEventsToProcess
 	}
 
 	// Process methods
-	if (processed < maxEventsToProcess && !sessionInternal->methods.empty())
+	if (processed < maxEventsToProcess)
 	{
 		std::queue<std::shared_ptr<rapidjson::Document>> methods;
 		{
 			std::lock_guard<std::mutex> l(sessionInternal->methodsMutex);
-			while (processed++ < maxEventsToProcess)
+			while (!sessionInternal->methods.empty() && processed++ < maxEventsToProcess)
 			{
 				methods.emplace(sessionInternal->methods.front());
 				sessionInternal->methods.pop();
