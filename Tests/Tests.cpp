@@ -1,7 +1,6 @@
 #include "stdafx.h"
 #include "CppUnitTest.h"
-#include <Mixer.h>
-#include <common.h>
+#include <interactivity.h>
 #include <iostream>
 #include <fstream>
 #include <thread>
@@ -19,9 +18,9 @@ using namespace mixer;
 namespace MixerTests
 {
 
-#define CLIENT_ID "f0d20e2d263b75894f5cdaabc8a344b99b1ea6f9ecb7fa4f";
-#define VERSION_ID "135704";
-#define SHARE_CODE "xe7dpqd5";
+#define CLIENT_ID "f0d20e2d263b75894f5cdaabc8a344b99b1ea6f9ecb7fa4f"
+#define VERSION_ID "135704"
+#define SHARE_CODE "xe7dpqd5"
 
 interactive_session g_activeSession = nullptr;
 

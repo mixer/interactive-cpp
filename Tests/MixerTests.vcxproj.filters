@@ -29,7 +29,7 @@
     <ClCompile Include="Tests.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\Mixer\Mixer.cpp">
+    <ClCompile Include="..\source\interactivity.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
