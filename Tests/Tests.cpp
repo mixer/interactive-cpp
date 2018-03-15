@@ -232,8 +232,8 @@ void handle_button_input(void* context, interactive_session session, const inter
 		ASSERT_NOERR(interactive_capture_transaction(session, input->transactionId));
 
 		// Look for a cooldown metadata property and tigger it if it exists.
-		int cooldown = 0;
-		int err = interactive_control_get_meta_property_int(session, input->control.id, BUTTON_PROP_COOLDOWN, &cooldown);
+		long long cooldown = 0;
+		int err = interactive_control_get_meta_property_int64(session, input->control.id, BUTTON_PROP_COOLDOWN, &cooldown);
 		Assert::IsTrue(MIXER_OK == err || MIXER_ERROR_PROPERTY_NOT_FOUND == err);
 		if (MIXER_OK == err && cooldown > 0)
 		{
