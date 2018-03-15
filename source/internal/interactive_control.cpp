@@ -243,6 +243,19 @@ int interactive_control_get_property_int(interactive_session session, const char
 	return MIXER_OK;
 }
 
+int interactive_control_get_property_int64(interactive_session session, const char* controlId, const char* key, long long* property)
+{
+	rapidjson::Value* controlValue;
+	RETURN_IF_FAILED(verify_get_property_args_and_get_control_value(session, controlId, key, property, &controlValue));
+	if (!controlValue->IsInt64())
+	{
+		return MIXER_ERROR_INVALID_PROPERTY_TYPE;
+	}
+
+	*property = controlValue->GetInt64();
+	return MIXER_OK;
+}
+
 int interactive_control_get_property_bool(interactive_session session, const char* controlId, const char* key, bool* property)
 {
 	rapidjson::Value* controlValue;
@@ -315,6 +328,20 @@ int interactive_control_get_meta_property_int(interactive_session session, const
 	}
 
 	*property = controlValue->GetInt();
+	return MIXER_OK;
+}
+
+int interactive_control_get_meta_property_int64(interactive_session session, const char* controlId, const char* key, long long* property)
+{
+	rapidjson::Value* controlValue;
+	std::string metaKey = std::string(RPC_METADATA) + "/" + std::string(key) + "/value";
+	RETURN_IF_FAILED(verify_get_property_args_and_get_control_value(session, controlId, metaKey.c_str(), property, &controlValue));
+	if (!controlValue->IsInt64())
+	{
+		return MIXER_ERROR_INVALID_PROPERTY_TYPE;
+	}
+
+	*property = controlValue->GetInt64();
 	return MIXER_OK;
 }
 

@@ -236,11 +236,13 @@ extern "C" {
 	int interactive_control_get_meta_property_data(interactive_session session, const char* controlId, size_t index, char* propName, size_t* propNameLength, interactive_property_type* type);
 
 	int interactive_control_get_property_int(interactive_session session, const char* controlId, const char* key, int* property);
+	int interactive_control_get_property_int64(interactive_session session, const char* controlId, const char* key, long long* property);
 	int interactive_control_get_property_bool(interactive_session session, const char* controlId, const char* key, bool* property);
 	int interactive_control_get_property_float(interactive_session session, const char* controlId, const char* key, float* property);
 	int interactive_control_get_property_string(interactive_session session, const char* controlId, const char* key, char* property, size_t* propertyLength);
 
 	int interactive_control_get_meta_property_int(interactive_session session, const char* controlId, const char* key, int* property);
+	int interactive_control_get_meta_property_int64(interactive_session session, const char* controlId, const char* key, long long* property);
 	int interactive_control_get_meta_property_bool(interactive_session session, const char* controlId, const char* key, bool* property);
 	int interactive_control_get_meta_property_float(interactive_session session, const char* controlId, const char* key, float* property);
 	int interactive_control_get_meta_property_string(interactive_session session, const char* controlId, const char* key, char* property, size_t* propertyLength);
