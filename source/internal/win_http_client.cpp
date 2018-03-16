@@ -118,7 +118,7 @@ win_http_client::make_request(const std::string& uri, const std::string& verb, c
 	}
 
 	hinternet_ptr request(hRequest);
-	if (!WinHttpSendRequest(request.get(), utf8_to_wstring(headers).c_str(), (DWORD)headers.length(), (void*)body.c_str(), body.length(), body.length(), 0))
+	if (!WinHttpSendRequest(request.get(), utf8_to_wstring(headers).c_str(), (DWORD)headers.length(), (void*)body.c_str(), (DWORD)body.length(), (DWORD)body.length(), 0))
 	{
 		return GetLastError();
 	}

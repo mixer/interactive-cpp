@@ -42,10 +42,57 @@
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
   </ImportGroup>
   <ItemGroup>
-    <ClCompile Include="..\..\Source\interactivity.cpp" />
+    <ClCompile Include="..\..\Source\interactivity.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">false</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">false</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\source\internal\common.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\source\internal\http_client.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\source\internal\interactive_auth.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\source\internal\interactive_control.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\source\internal\interactive_group.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\source\internal\interactive_participant.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\source\internal\interactive_scene.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\source\internal\interactive_session.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\source\internal\interactive_session_internal.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\source\internal\winapp_http_client.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">true</ExcludedFromBuild>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\source\interactivity.h" />
+    <ClInclude Include="..\..\source\internal\common.h" />
+    <ClInclude Include="..\..\source\internal\http_client.h" />
+    <ClInclude Include="..\..\source\internal\interactive_session.h" />
+    <ClInclude Include="..\..\source\internal\winapp_http_client.h" />
   </ItemGroup>
   <PropertyGroup>
     <ProjectFolder>$(MSBuildProjectName)</ProjectFolder>

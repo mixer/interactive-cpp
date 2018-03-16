@@ -19,10 +19,12 @@ public:
 	win_http_client();
 	~win_http_client();
 
-	int make_request(const std::string& uri, const std::string& requestType, const std::string& headers, const std::string& body, http_response& response) const;
+	int add_header(const std::string& headerName, const std::string& headerValue);
+	int make_request(const std::string& uri, const std::string& requestType, const std::string& body, http_response& response) const;
 
 private:
 	hinternet_ptr m_internet;
 	mutable std::map<std::string, hinternet_ptr> m_sessionsByHostname;
+	std::map<std::string, std::string> headers;
 };
 }
