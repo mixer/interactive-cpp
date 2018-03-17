@@ -43,7 +43,8 @@ int authorize(std::string& authorization)
 	if (err) return err;
 
 	std::wstring oauthUrl = converter.from_bytes(std::string("https://www.mixer.com/go?code=") + shortCode);
-	Windows::System::Launcher::LaunchUriAsync(ref new Windows::Foundation::Uri(Platform::StringReference(oauthUrl.c_str())));
+	concurrency::task<bool> task(Windows::System::Launcher::LaunchUriAsync(ref new Windows::Foundation::Uri(Platform::StringReference(oauthUrl.c_str()))));
+	task.wait();
 
 	// Wait for OAuth token response.
 	char refreshTokenBuffer[1024];
