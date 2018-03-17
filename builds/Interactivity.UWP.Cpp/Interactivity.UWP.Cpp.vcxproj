@@ -115,9 +115,6 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <None Include="packages.config" />
-  </ItemGroup>
-  <ItemGroup>
     <ClInclude Include="..\..\source\interactivity.h" />
     <ClInclude Include="..\..\source\internal\common.h" />
     <ClInclude Include="..\..\source\internal\http_client.h" />

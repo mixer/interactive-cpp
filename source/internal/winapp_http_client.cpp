@@ -2,10 +2,13 @@
 #include "common.h"
 #include <mutex>
 #include <condition_variable>
+#include <sstream>
 
 #if _DURANGO
+#define CALLING_CONVENTION
 #include <ixmlhttprequest2.h>
 #else
+#define CALLING_CONVENTION __stdcall
 #include <MsXml6.h>
 #endif
 
@@ -39,7 +42,7 @@ public:
 	}
 
 	// ISequentialStream interface
-	HRESULT Read(void *buffer, unsigned long bufferSize, unsigned long *bytesRead)
+	HRESULT CALLING_CONVENTION Read(void *buffer, unsigned long bufferSize, unsigned long *bytesRead)
 	{
 		if (buffer == nullptr)
 		{
@@ -63,16 +66,16 @@ public:
 
 		return result;
 	}
-	HRESULT Write(const void *, unsigned long, unsigned long *) { return E_NOTIMPL; }
+	HRESULT CALLING_CONVENTION Write(const void *, unsigned long, unsigned long *) { return E_NOTIMPL; }
 
 	// IDispatch interface is required but not used in this context.  The methods are empty.
-	HRESULT GetTypeInfoCount(unsigned int FAR*) { return E_NOTIMPL; }
-	HRESULT GetTypeInfo(unsigned int, LCID, ITypeInfo FAR* FAR*) { return E_NOTIMPL; }
-	HRESULT GetIDsOfNames(REFIID, OLECHAR FAR* FAR*, unsigned int, LCID, DISPID FAR*) { return DISP_E_UNKNOWNNAME; }
-	HRESULT Invoke(DISPID, REFIID, LCID, WORD, DISPPARAMS FAR*, VARIANT FAR*, EXCEPINFO FAR*, unsigned int FAR*) { return S_OK; }
+	HRESULT CALLING_CONVENTION GetTypeInfoCount(unsigned int FAR*) { return E_NOTIMPL; }
+	HRESULT CALLING_CONVENTION GetTypeInfo(unsigned int, LCID, ITypeInfo FAR* FAR*) { return E_NOTIMPL; }
+	HRESULT CALLING_CONVENTION GetIDsOfNames(REFIID, OLECHAR FAR* FAR*, unsigned int, LCID, DISPID FAR*) { return DISP_E_UNKNOWNNAME; }
+	HRESULT CALLING_CONVENTION Invoke(DISPID, REFIID, LCID, WORD, DISPPARAMS FAR*, VARIANT FAR*, EXCEPINFO FAR*, unsigned int FAR*) { return S_OK; }
 
 	// Methods created for simplicity when creating and passing along the buffer
-	HRESULT Open(const void *buffer, size_t bufferSize)
+	HRESULT CALLING_CONVENTION Open(const void *buffer, size_t bufferSize)
 	{
 		AllocateInternalBuffer(bufferSize);
 
@@ -80,9 +83,9 @@ public:
 
 		return S_OK;
 	}
-	size_t Size() const { return m_bufferSize; }
+	size_t CALLING_CONVENTION Size() const { return m_bufferSize; }
 private:
-	void AllocateInternalBuffer(size_t size)
+	void CALLING_CONVENTION AllocateInternalBuffer(size_t size)
 	{
 		if (m_buffer != nullptr)
 		{
@@ -92,7 +95,7 @@ private:
 		m_bufferSize = size;
 		m_buffer = new unsigned char[size];
 	}
-	void FreeInternalBuffer()
+	void CALLING_CONVENTION FreeInternalBuffer()
 	{
 		delete[] m_buffer;
 		m_buffer = nullptr;
@@ -123,12 +126,12 @@ public:
 	{
 	}
 
-	HRESULT WaitForResponse(ULONG timeoutMs, DWORD& status, std::string& response)
+	HRESULT WaitForResponse(DWORD& status, std::string& response)
 	{
 		std::unique_lock<std::mutex> l(m_responseMutex);
 		if (!m_responseReceived)
 		{
-			m_responseCV.wait_for(l, std::chrono::milliseconds(timeoutMs));
+			m_responseCV.wait(l);
 		}
 
 		if (!m_responseReceived)
@@ -138,41 +141,43 @@ public:
 
 		status = m_status;
 		response = m_response;
+		return S_OK;
 	}
 
 	// IXMLHTTPRequest2Callback
-	HRESULT OnDataAvailable(IXMLHTTPRequest2* request, ISequentialStream* responseStream)
+	HRESULT CALLING_CONVENTION OnDataAvailable(IXMLHTTPRequest2* request, ISequentialStream* responseStream)
 	{
 		return S_OK;
 	};
 
-	HRESULT OnError(IXMLHTTPRequest2 *request, HRESULT error)
+	HRESULT CALLING_CONVENTION OnError(IXMLHTTPRequest2 *request, HRESULT error)
 	{
 		return S_OK;
 	}
 
-	HRESULT OnHeadersAvailable(IXMLHTTPRequest2 *request, DWORD status, const WCHAR *statusMessage)
+	HRESULT CALLING_CONVENTION OnHeadersAvailable(IXMLHTTPRequest2 *request, DWORD status, const WCHAR *statusMessage)
 	{
 		m_status = status;
 		m_statusMessage = wstring_to_utf8(statusMessage);
 		return S_OK;
 	}
 
-	HRESULT OnRedirect(IXMLHTTPRequest2 *request, const WCHAR *redirectUrl)
+	HRESULT CALLING_CONVENTION OnRedirect(IXMLHTTPRequest2 *request, const WCHAR *redirectUrl)
 	{
 		return S_OK;
 	}
 	
-	HRESULT OnResponseReceived(IXMLHTTPRequest2 *request, ISequentialStream *responseStream)
+	HRESULT CALLING_CONVENTION OnResponseReceived(IXMLHTTPRequest2 *request, ISequentialStream *responseStream)
 	{
 		std::stringstream s;
+		// Chunk the response in the stack rather than heap allocate.
 		char buffer[1024];
-		size_t bufferSize = sizeof(buffer) - 1; // Save space for the null character
+		size_t bufferSize = sizeof(buffer) - 1; // Save a spot for the null terminator.
 		HRESULT hr = S_OK;
 		do
 		{
 			ULONG bytesRead = 0;
-			hr = responseStream->Read(buffer, bufferSize, &bytesRead);
+			hr = responseStream->Read(buffer, (ULONG)bufferSize, &bytesRead);
 			if (FAILED(hr) || 0 == bytesRead)
 			{
 				break;
@@ -186,8 +191,12 @@ public:
 		{
 			m_response = s.str();
 		}
-		
-		return hr;
+
+		std::unique_lock<std::mutex> l(m_responseMutex);
+		m_responseReceived = true;
+		m_responseCV.notify_one();
+
+		return S_OK;
 	}
 };
 
@@ -200,45 +209,47 @@ winapp_http_client::~winapp_http_client()
 }
 
 int
-winapp_http_client::make_request(const std::string& uri, const std::string& verb, const std::map<std::string, std::string>& headers, const std::string& body, http_response& response, unsigned long timeoutMs = 5000) const
+winapp_http_client::make_request(const std::string& uri, const std::string& verb, const std::map<std::string, std::string>* headers, const std::string& body, http_response& response, unsigned long timeoutMs) const
 {
 	HRESULT hr = S_OK;
 	ComPtr<IXMLHTTPRequest2> request;
-	RequestCallback callback;
+	ComPtr<RequestCallback> callback = Make<RequestCallback>();
 
-	DWORD context = CLSCTX_INPROC;
 #if _DURANGO
-	DWORD context = CLSCTX_INPROC;
-#else
 	DWORD context = CLSCTX_SERVER;
+#else
+	DWORD context = CLSCTX_INPROC;
 #endif
 	RETURN_HR_IF_FAILED(CoCreateInstance(__uuidof(FreeThreadedXMLHTTP60), nullptr, CLSCTX_INPROC, __uuidof(IXMLHTTPRequest2), reinterpret_cast<void**>(request.GetAddressOf())));
 
-	for (auto header : headers)
+	if (nullptr != headers)
 	{
-		RETURN_HR_IF_FAILED(request->SetRequestHeader(utf8_to_wstring(header.first).c_str(), utf8_to_wstring(header.second).c_str()));
+		for (auto header : *headers)
+		{	
+			RETURN_HR_IF_FAILED(request->SetRequestHeader(utf8_to_wstring(header.first).c_str(), utf8_to_wstring(header.second).c_str()));
+		}
 	}
 
-	RETURN_HR_IF_FAILED(request->Open(utf8_to_wstring(verb).c_str(), utf8_to_wstring(uri).c_str(), &callback, nullptr, nullptr, nullptr, nullptr));
+	ComPtr<IXMLHTTPRequest2Callback> xhrRequestCallback;
+	RETURN_HR_IF_FAILED(callback.As<IXMLHTTPRequest2Callback>(&xhrRequestCallback));
+	RETURN_HR_IF_FAILED(request->Open(utf8_to_wstring(verb).c_str(), utf8_to_wstring(uri).c_str(), xhrRequestCallback.Get(), nullptr, nullptr, nullptr, nullptr));
+
+	RETURN_HR_IF_FAILED(request->SetProperty(XHR_PROP_TIMEOUT, timeoutMs));
 
 	if (body.empty())
 	{
 		RETURN_HR_IF_FAILED(request->Send(nullptr, 0));
+		RETURN_HR_IF_FAILED(callback->WaitForResponse((DWORD&)response.statusCode, response.body));
 	}
 	else
 	{
-		ComPtr<IStream> bodyStream;
-		raStream->Write(
-			/*
-		auto writer = ref new DataWriter(raStream->(0));
-		writer->WriteString(StringReference(utf8_to_wstring(body).c_str()));*/
-
-		
-		bodyStream = raStream->GetInputStreamAt(0);
+		HttpRequestStream requestStream;
+		RETURN_HR_IF_FAILED(requestStream.Open(body.c_str(), body.length()));
+		RETURN_HR_IF_FAILED(request->Send(&requestStream, body.length()));
+		RETURN_HR_IF_FAILED(callback->WaitForResponse((DWORD&)response.statusCode, response.body));
 	}
-
-	RETURN_HR_IF_FAILED(callback.WaitForResponse(timeoutMs, (DWORD&)response.statusCode, response.body));
-	return hr;
+	
+	return S_OK;
 }
 
 }

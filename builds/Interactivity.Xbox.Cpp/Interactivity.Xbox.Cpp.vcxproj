@@ -23,6 +23,7 @@
     <ConfigurationType>StaticLibrary</ConfigurationType>
     <UseXboxServices>false</UseXboxServices>
     <GenerateManifest>false</GenerateManifest>
+    <WindowsTargetPlatformVersion>8.1</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <PropertyGroup Label="Configuration">
     <PlatformToolset>v141</PlatformToolset>
@@ -36,6 +37,12 @@
     <CharacterSet>Unicode</CharacterSet>
     <UseDebugLibraries>false</UseDebugLibraries>
     <WholeProgramOptimization>false</WholeProgramOptimization>
+  </PropertyGroup>
+  <PropertyGroup Label="Configuration" Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">
+    <CLRSupport>true</CLRSupport>
+  </PropertyGroup>
+  <PropertyGroup Label="Configuration" Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">
+    <CLRSupport>true</CLRSupport>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
   <ImportGroup Label="PropertySheets">
