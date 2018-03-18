@@ -12,9 +12,51 @@
     <ClCompile Include="..\..\Source\interactivity.cpp">
       <Filter>C++ Source</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\source\internal\common.cpp">
+      <Filter>C++ Source</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\source\internal\http_client.cpp">
+      <Filter>C++ Source</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\source\internal\interactive_auth.cpp">
+      <Filter>C++ Source</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\source\internal\interactive_control.cpp">
+      <Filter>C++ Source</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\source\internal\interactive_group.cpp">
+      <Filter>C++ Source</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\source\internal\interactive_participant.cpp">
+      <Filter>C++ Source</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\source\internal\interactive_scene.cpp">
+      <Filter>C++ Source</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\source\internal\interactive_session.cpp">
+      <Filter>C++ Source</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\source\internal\interactive_session_internal.cpp">
+      <Filter>C++ Source</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\source\internal\winapp_http_client.cpp">
+      <Filter>C++ Source</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\source\interactivity.h">
+      <Filter>Includes</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\source\internal\common.h">
+      <Filter>Includes</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\source\internal\http_client.h">
+      <Filter>Includes</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\source\internal\interactive_session.h">
+      <Filter>Includes</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\source\internal\winapp_http_client.h">
       <Filter>Includes</Filter>
     </ClInclude>
   </ItemGroup>

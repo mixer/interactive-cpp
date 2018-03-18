@@ -19,11 +19,12 @@ See the [InteractiveSample](https://github.com/mixer/interactive-cpp/tree/v2/sam
 If you don't plan on handling authorization yourself you can use the provided authorization helper functions. To do so you will need an OAuth client ID which you can obtain here: https://mixer.com/lab/oauth
 
 ## Design choices
-This library is designed to be easily consumed by any game project. Some of major design decisions include:
+This source code was designed to be easily consumed by any game project. Some of major design decisions include:
 * A single header and [unity build](https://en.wikipedia.org/wiki/Single_Compilation_Unit) style cpp file.
 * An extern "C" interface.
 * No dependencies exposed in the header, all usage of STL and other libraries are quarantined from your game.
 * Callbacks for easy memory management and managed language interop.
+* All interactive functions assume UTF-8 strings for input and output parameters.
 
 ## Release Notes
 

@@ -328,7 +328,7 @@ int do_short_code_auth(const std::string& clientId, std::string& refreshToken)
 
 	// Get an OAuth short code to display to the user.
 	ASSERT_RETERR(interactive_auth_get_short_code(clientId.c_str(), shortCode, &shortCodeLength, shortCodeHandle, &shortCodeHandleLength));
-	Logger::WriteMessage(("Enter short code at https://www.mixer.com/go: " + std::string(shortCode, shortCodeLength)).c_str());
+	Logger::WriteMessage(("Approve access here: https://www.mixer.com/go?code=" + std::string(shortCode, shortCodeLength)).c_str());
 
 	// Wait for OAuth token response.
 	char refreshTokenBuffer[1024];
@@ -435,7 +435,7 @@ public:
 	TEST_METHOD(ConnectTest)
 	{
 		g_start = std::chrono::high_resolution_clock::now();
-		interactive_config_debug(debug_trace, handle_debug_message);
+		interactive_config_debug(debug_warning, handle_debug_message);
 
 		int err = 0;
 		std::string clientId = CLIENT_ID;
