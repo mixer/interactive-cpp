@@ -56,6 +56,7 @@ struct interactive_session_internal
 	// Event handlers
 	on_button_input onButtonInput;
 	on_coordinate_input onCoordinateInput;
+	on_custom_input onCustomInput;
 	on_error onError;
 	on_state_changed onStateChanged;
 	on_participants_changed onParticipantsChanged;

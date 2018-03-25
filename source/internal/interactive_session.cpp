@@ -205,7 +205,10 @@ int handle_input(interactive_session_internal& session, rapidjson::Document& doc
 				session.onCoordinateInput(session.callerContext, &session, &coordinateInput);
 			}
 		}
-		else
+		else if (0 == inputEvent.compare(RPC_INPUT_EVENT_KEY_DOWN) ||
+				0 == inputEvent.compare(RPC_INPUT_EVENT_KEY_UP) ||
+				0 == inputEvent.compare(RPC_INPUT_EVENT_MOUSE_DOWN) ||
+				0 == inputEvent.compare(RPC_INPUT_EVENT_MOUSE_UP))
 		{
 			if (session.onButtonInput)
 			{
@@ -231,6 +234,10 @@ int handle_input(interactive_session_internal& session, rapidjson::Document& doc
 				buttonInput.action = keyDown ? button_action::down : button_action::up;
 				session.onButtonInput(session.callerContext, &session, &buttonInput);
 			}
+		}
+		else
+		{
+			
 		}
 
 	}
@@ -820,6 +827,19 @@ int interactive_reg_coordinate_input_handler(interactive_session session, on_coo
 
 	interactive_session_internal* sessionInternal = reinterpret_cast<interactive_session_internal*>(session);
 	sessionInternal->onCoordinateInput = onCoordinateInput;
+
+	return MIXER_OK;
+}
+
+int interactive_reg_custom_input_handler(interactive_session session, on_custom_input onCustomInput)
+{
+	if (nullptr == session)
+	{
+		return MIXER_ERROR_INVALID_POINTER;
+	}
+
+	interactive_session_internal* sessionInternal = reinterpret_cast<interactive_session_internal*>(session);
+	sessionInternal->onCustomInput = onCustomInput;
 
 	return MIXER_OK;
 }
