@@ -217,46 +217,62 @@ void print_participant_properties(interactive_session session, const std::string
 	delete[] userName;
 }
 
-void handle_button_input(void* context, interactive_session session, const interactive_button_input* input)
+void handle_input(void* context, interactive_session session, const interactive_input* input)
 {
 	int err;
-	if (input->action == button_action::down)
+
+	Logger::WriteMessage((std::string("Input detected, raw JSON: ") + std::string(input->jsonData, input->jsonDataLength)).c_str());
+
+	switch (input->type)
 	{
-		Logger::WriteMessage("KEYDOWN");
-		// Print transaction id.
-		std::stringstream s;
-		s << "[Transaction] " << input->transactionId;
-		Logger::WriteMessage(s.str().c_str());
-
-		// Capture the transaction.
-		ASSERT_NOERR(interactive_capture_transaction(session, input->transactionId));
-
-		// Look for a cooldown metadata property and tigger it if it exists.
-		long long cooldown = 0;
-		int err = interactive_control_get_meta_property_int64(session, input->control.id, BUTTON_PROP_COOLDOWN, &cooldown);
-		Assert::IsTrue(MIXER_OK == err || MIXER_ERROR_PROPERTY_NOT_FOUND == err);
-		if (MIXER_OK == err && cooldown > 0)
+	case input_type_button:
+	{
+		if (input->buttonData.action == button_action::down)
 		{
-			ASSERT_NOERR(interactive_control_trigger_cooldown(session, input->control.id, cooldown * 1000));
+			Logger::WriteMessage("KEYDOWN");
+			// Print transaction id.
+			std::string s = std::string("[Transaction]") + input->transactionId;
+			Logger::WriteMessage(s.c_str());
+
+			// Capture the transaction.
+			ASSERT_NOERR(interactive_capture_transaction(session, input->transactionId));
+
+			// Look for a cooldown metadata property and tigger it if it exists.
+			long long cooldown = 0;
+			int err = interactive_control_get_meta_property_int64(session, input->control.id, BUTTON_PROP_COOLDOWN, &cooldown);
+			Assert::IsTrue(MIXER_OK == err || MIXER_ERROR_PROPERTY_NOT_FOUND == err);
+			if (MIXER_OK == err && cooldown > 0)
+			{
+				ASSERT_NOERR(interactive_control_trigger_cooldown(session, input->control.id, cooldown * 1000));
+			}
 		}
+		else
+		{
+			Logger::WriteMessage("KEYUP");
+		}
+		break;
 	}
-	else
+	case input_type_coordinate:
 	{
-		Logger::WriteMessage("KEYUP");
+		Logger::WriteMessage(("MOVEMENT on " + std::string(input->control.id, input->control.idLength)).c_str());
+		Logger::WriteMessage(("X:\t" + std::to_string(input->coordinateData.x)).c_str());
+		Logger::WriteMessage(("Y:\t" + std::to_string(input->coordinateData.y)).c_str());
+
+		break;
 	}
-
+	case input_type_custom:
+	default:
+	{
+		Logger::WriteMessage("CUSTOM input.");
+		break;
+	}
+	}
+	
 	print_control_properties(session, input->control.id);
-	print_participant_properties(session, std::string(input->participantId, input->participantIdLength));
-}
-
-void handle_coordinate_input(void* context, interactive_session session, const interactive_coordinate_input* input)
-{
-	Logger::WriteMessage(("MOVEMENT on " + std::string(input->control.id, input->control.idLength)).c_str());
-	Logger::WriteMessage(("X:\t" + std::to_string(input->x)).c_str());
-	Logger::WriteMessage(("Y:\t" + std::to_string(input->y)).c_str());
-
-	print_control_properties(session, input->control.id);
-	print_participant_properties(session, std::string(input->participantId, input->participantIdLength));
+	if (0 != input->participantIdLength)
+	{
+		print_participant_properties(session, std::string(input->participantId, input->participantIdLength));
+	}
 }
 
 void handle_state_changed(void* context, interactive_session session, interactive_state previousState, interactive_state newState)
@@ -479,8 +495,7 @@ public:
 
 		interactive_session session;
 		ASSERT_NOERR(interactive_connect(auth.c_str(), versionId.c_str(), shareCode.c_str(), false, &session));
-		ASSERT_NOERR(interactive_reg_button_input_handler(session, handle_button_input));
-		ASSERT_NOERR(interactive_reg_coordinate_input_handler(session, handle_coordinate_input));
+		ASSERT_NOERR(interactive_reg_input_handler(session, handle_input));
 		ASSERT_NOERR(interactive_reg_state_changed_handler(session, handle_state_changed));
 		ASSERT_NOERR(interactive_reg_error_handler(session, handle_error));
 		ASSERT_NOERR(interactive_reg_participants_changed_handler(session, handle_participants_changed));

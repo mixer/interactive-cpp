@@ -171,9 +171,9 @@ void App::OnLaunched(Windows::ApplicationModel::Activation::LaunchActivatedEvent
 		if (err) throw err;
 
 		// Register a callback for button presses.
-		err = interactive_reg_button_input_handler(session, [](void* context, interactive_session session, const interactive_button_input* input)
+		err = interactive_reg_input_handler(session, [](void* context, interactive_session session, const interactive_input* input)
 		{
-			if (button_action::down == input->action)
+			if (input_type_button == input->type && button_action::down == input->buttonData.action)
 			{
 				// Capture the transaction on button down to deduct sparks
 				int err = interactive_capture_transaction(session, input->transactionId);
