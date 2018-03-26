@@ -221,6 +221,8 @@ void handle_input(void* context, interactive_session session, const interactive_
 {
 	int err;
 
+	Logger::WriteMessage((std::string("Input detected, raw JSON: ") + std::string(input->jsonData, input->jsonDataLength)).c_str());
+
 	switch (input->type)
 	{
 	case input_type_button:
@@ -265,7 +267,7 @@ void handle_input(void* context, interactive_session session, const interactive_
 		break;
 	}
 	}
-
+	
 	print_control_properties(session, input->control.id);
 	if (0 != input->participantIdLength)
 	{

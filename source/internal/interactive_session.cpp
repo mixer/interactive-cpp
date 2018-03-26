@@ -162,12 +162,16 @@ int handle_input(interactive_session_internal& session, rapidjson::Document& doc
 	}
 
 	try
-	{
-		rapidjson::Value input = doc[RPC_PARAMS][RPC_PARAM_INPUT].GetObject();
+	{	
 		interactive_input inputData;
 		memset(&inputData, 0, sizeof(inputData));
+		std::string inputJson = jsonStringify(doc[RPC_PARAMS]);
+		inputData.jsonData = inputJson.c_str();
+		inputData.jsonDataLength = inputJson.length();
+		rapidjson::Value& input = doc[RPC_PARAMS][RPC_PARAM_INPUT];
 		inputData.control.id = input[RPC_CONTROL_ID].GetString();
 		inputData.control.idLength = input[RPC_CONTROL_ID].GetStringLength();
+		
 		if (doc[RPC_PARAMS].HasMember(RPC_PARTICIPANT_ID))
 		{
 			inputData.participantId = doc[RPC_PARAMS][RPC_PARTICIPANT_ID].GetString();
@@ -203,9 +207,6 @@ int handle_input(interactive_session_internal& session, rapidjson::Document& doc
 
 		inputData.control.kind = control->GetObject()[RPC_CONTROL_KIND].GetString();
 		inputData.control.kindLength = control->GetObject()[RPC_CONTROL_KIND].GetStringLength();
-		std::string inputJson = jsonStringify(doc[RPC_PARAMS]);
-		inputData.jsonData = inputJson.c_str();
-		inputData.jsonDataLength = inputJson.length();
 		if (doc[RPC_PARAMS].HasMember(RPC_PARAM_TRANSACTION_ID))
 		{
 			inputData.transactionId = doc[RPC_PARAMS][RPC_PARAM_TRANSACTION_ID].GetString();
