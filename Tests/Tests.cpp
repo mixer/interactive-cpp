@@ -223,6 +223,15 @@ void handle_input(void* context, interactive_session session, const interactive_
 
 	Logger::WriteMessage((std::string("Input detected, raw JSON: ") + std::string(input->jsonData, input->jsonDataLength)).c_str());
 
+	// Print transaction id if there is one.
+	if (nullptr != input->transactionId)
+	{
+		std::string s = std::string("[Transaction]") + input->transactionId;
+		Logger::WriteMessage(s.c_str());
+		// Capture the transaction.
+		ASSERT_NOERR(interactive_capture_transaction(session, input->transactionId));
+	}
+
 	switch (input->type)
 	{
 	case input_type_button:
@@ -230,12 +239,6 @@ void handle_input(void* context, interactive_session session, const interactive_
 		if (input->buttonData.action == button_action::down)
 		{
 			Logger::WriteMessage("KEYDOWN");
-			// Print transaction id.
-			std::string s = std::string("[Transaction]") + input->transactionId;
-			Logger::WriteMessage(s.c_str());
-
-			// Capture the transaction.
-			ASSERT_NOERR(interactive_capture_transaction(session, input->transactionId));
 
 			// Look for a cooldown metadata property and tigger it if it exists.
 			long long cooldown = 0;
