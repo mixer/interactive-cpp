@@ -99,12 +99,11 @@ void Game::Initialize(IUnknown* window)
 	}
 
 	// Connect to the user's interactive channel, using the interactive project specified by the version ID.
-	interactive_session session;
-	err = interactive_connect(authorization.c_str(), INTERACTIVE_ID, SHARE_CODE, false, &session);
+	err = interactive_connect(authorization.c_str(), INTERACTIVE_ID, SHARE_CODE, false, &m_interactiveSession);
 	if (err) throw err;
 
 	// Register a callback for button presses.
-	err = interactive_reg_input_handler(session, [](void* context, interactive_session session, const interactive_input* input)
+	err = interactive_reg_input_handler(m_interactiveSession, [](void* context, interactive_session session, const interactive_input* input)
 	{
 		(context);
 		if (input_type_button == input->type && button_action::down == input->buttonData.action)
