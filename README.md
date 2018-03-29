@@ -1,3 +1,8 @@
+# New SDK!
+
+We are currently rewriting this C++ SDK so that it is easier to integrate and build into your game project. If you are building on Win32, Xbox, and/or UWP please check out our new source in our v2 branch [here](https://github.com/mixer/interactive-cpp/tree/v2).
+Android and iOS support will be coming soon.
+
 # Mixer Interactivity C++ SDK
 
 The C++ Interactivity SDK supports client-side development with Mixer Interactivity.
