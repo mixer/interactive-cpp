@@ -1,7 +1,7 @@
-# Beta!
+# New SDK!
 
-We are currently rewriting this C++ API and you can check out that source in our v2 branch [here](https://github.com/mixer/interactive-cpp/tree/v2).
-The v2 branch currently supports Win32, Xbox, and UWP with Android and iOS support coming soon.
+We are currently rewriting this C++ SDK so that it is easier to integrate and build into your game project. If you are building on Win32, Xbox, and/or UWP please check out our new source in our v2 branch [here](https://github.com/mixer/interactive-cpp/tree/v2).
+Android and iOS support will be coming soon.
 
 # Mixer Interactivity C++ SDK
 
