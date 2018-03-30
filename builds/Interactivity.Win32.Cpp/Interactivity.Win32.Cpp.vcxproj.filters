@@ -42,6 +42,9 @@
     <ClCompile Include="..\..\source\internal\win_http_client.cpp">
       <Filter>C++ Source</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\source\internal\simplewebsocketcpp\simplewebsocketwin.cpp">
+      <Filter>C++ Source</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\source\interactivity.h">
