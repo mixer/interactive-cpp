@@ -1,12 +1,7 @@
-# New SDK!
-
-We are currently rewriting this C++ SDK so that it is easier to integrate and build into your game project. If you are building on Win32, Xbox, and/or UWP please check out our new source in our v2 branch [here](https://github.com/mixer/interactive-cpp/tree/v2).
-Android and iOS support will be coming soon.
-
 # Mixer Interactivity C++ SDK
 
 The C++ Interactivity SDK supports client-side development with Mixer Interactivity.
-If you have not read through our [Interactive Reference Documentation](https://dev.mixer.com/reference/interactive/) now is a great time to do that. 
+If you have not read through our [Interactive Reference Documentation](https://dev.mixer.com/reference/interactive/) now is a great time to do that.
 
 ## Quick Start
 
@@ -18,7 +13,7 @@ $ git clone https://github.com/mixer/interactive-cpp.git interactive-cpp
 
 Copy the `source` directory into your C++ game project (you will likely want to rename it). Add `interactivity.cpp` to your compilation list and include `interactivity.h` to get started.
 
-See the [InteractiveSample](https://github.com/mixer/interactive-cpp/tree/v2/samples/InteractiveSample) for an example of how you might handle authorization and connect to an interactive session.
+See the [InteractiveSample](https://github.com/mixer/interactive-cpp/tree/master/samples/InteractiveSample) for an example of how you might handle authorization and connect to an interactive session.
 
 ### Authorization
 If you don't plan on handling authorization yourself you can use the provided authorization helper functions. To do so you will need an OAuth client ID which you can obtain here: https://mixer.com/lab/oauth
@@ -28,7 +23,7 @@ This source code was designed to be easily consumed by any game project. Some of
 * A single header and [unity build](https://en.wikipedia.org/wiki/Single_Compilation_Unit) style cpp file.
 * An extern "C" interface.
 * No dependencies exposed in the header, all usage of STL and other libraries are quarantined from your game.
-* Callbacks for easy memory management and managed language interop.
+* Callbacks on the caller's thread for easy memory management and managed language interop.
 * All interactive functions assume UTF-8 strings for input and output parameters.
 
 ## Release Notes
@@ -44,7 +39,11 @@ library? Let us know and we'd love to work with you. For a good starting point o
 we are headed and feature ideas, take a look at our [requested features and bugs](https://github.com/mixer/interactive-cpp/issues) or [backlog](https://github.com/mixer/interactive-cpp/blob/master/backlog.md).
 
 Big or small we'd like to take your contributions to help improve the Mixer Interactivity
-API for everyone. 
+API for everyone.
+
+## Legacy SDK
+
+If you are looking for the previous version of the SDK it is preserved [here](https://github.com/mixer/interactive-cpp/tree/legacy).
 
 ## Having Trouble?
 
