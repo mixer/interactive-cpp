@@ -47,21 +47,16 @@ int interactive_set_participant_group(interactive_session session, const char* p
 
 	interactive_session_internal* sessionInternal = reinterpret_cast<interactive_session_internal*>(session);
 
-	unsigned int packetId;
-	RETURN_IF_FAILED(send_method(*sessionInternal, RPC_METHOD_UPDATE_PARTICIPANTS, [&](rapidjson::Document::AllocatorType& allocator, rapidjson::Value& params)
+	RETURN_IF_FAILED(queue_method(*sessionInternal, RPC_METHOD_UPDATE_PARTICIPANTS, [&](rapidjson::Document::AllocatorType& allocator, rapidjson::Value& params)
 	{
 		rapidjson::Value participants(rapidjson::kArrayType);
 		rapidjson::Value participant(rapidjson::kObjectType);
-		participant.AddMember(RPC_SESSION_ID, rapidjson::StringRef(participantId), allocator);
-		participant.AddMember(RPC_GROUP_ID, rapidjson::StringRef(groupId), allocator);
+		participant.AddMember(RPC_SESSION_ID, std::string(participantId), allocator);
+		participant.AddMember(RPC_GROUP_ID, std::string(groupId), allocator);
 		participants.PushBack(participant, allocator);
 		params.AddMember(RPC_PARAM_PARTICIPANTS, participants, allocator);
 		params.AddMember("priority", 0, allocator);
-	}, false, &packetId));
-
-	// Receive a reply to ensure that creation was successful.
-	std::shared_ptr<rapidjson::Document> replyDoc;
-	RETURN_IF_FAILED(receive_reply(*sessionInternal, packetId, replyDoc));
+	}, nullptr));
 
 	return MIXER_OK;
 }

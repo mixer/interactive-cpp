@@ -5,8 +5,9 @@
 #pragma once
 
 #include "StepTimer.h"
-#include <interactivity.h>
+#include "../../source/interactivity.h"
 
+#include <map>
 
 // A basic game implementation that creates a D3D11 device and
 // provides a game loop.
@@ -58,6 +59,7 @@ private:
 
 	// Mixer interactive session
 	mixer::interactive_session						m_interactiveSession;
+	std::map<std::string, std::string>				m_controlsById;
 };
 
 // PIX event colors

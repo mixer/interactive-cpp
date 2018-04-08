@@ -1,7 +1,7 @@
 #pragma once
 #include "interactivity.h"
 #include <codecvt>
-
+#define RAPIDJSON_HAS_STDSTRING 1
 #include "rapidjson\document.h"
 
 namespace mixer

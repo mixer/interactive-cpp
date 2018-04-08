@@ -20,7 +20,7 @@
     <MinimumVisualStudioVersion>11.0</MinimumVisualStudioVersion>
     <AppContainerApplication Condition="'$(Platform)'!='Durango'">true</AppContainerApplication>
     <ConsumeWinRT>true</ConsumeWinRT>
-    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
     <UseXboxServices>false</UseXboxServices>
     <GenerateManifest>false</GenerateManifest>
     <WindowsTargetPlatformVersion>8.1</WindowsTargetPlatformVersion>

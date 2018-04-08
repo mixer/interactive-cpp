@@ -5,6 +5,8 @@
 #include <fstream>
 #include <thread>
 #include <iomanip>      // std::setprecision
+#include <condition_variable>
+#include <map>
 #if _WIN32
 #include <Windows.h>
 #endif
@@ -23,6 +25,16 @@ namespace MixerTests
 #define SHARE_CODE "xe7dpqd5"
 
 interactive_session g_activeSession = nullptr;
+
+template <typename T>
+struct async_context
+{
+	async_context() : taskComplete(false), taskData(nullptr) {};
+	std::mutex taskMutex;
+	std::condition_variable taskCV;
+	volatile bool taskComplete;
+	const T* taskData;
+};
 
 void print_control_properties(interactive_session session, const std::string& controlId)
 {
@@ -217,20 +229,61 @@ void print_participant_properties(interactive_session session, const std::string
 	delete[] userName;
 }
 
+struct transaction_data
+{
+	interactive_input_type type;
+	std::string participantName;
+	std::string controlId;
+};
+
+static std::map<std::string, transaction_data> g_dataByTransaction;
+
+void handle_transaction_complete(void* context, interactive_session session, const char* transactionId, size_t transactionIdLength, unsigned int errorCode, const char* errorMessage, size_t errorMessageSize)
+{
+	if (errorCode)
+	{
+		std::string message = std::string("Failed to capture transaction '") + transactionId + "', " + errorMessage + " ( " + std::to_string(errorCode) + ")";
+		Logger::WriteMessage(message.c_str());
+
+		// Remove any stored transaction data.
+		g_dataByTransaction.erase(std::string(transactionId, transactionIdLength));
+		return;
+	}
+
+	auto transactionItr = g_dataByTransaction.find(transactionId);
+	if (transactionItr != g_dataByTransaction.end())
+	{
+		transaction_data data = transactionItr->second;
+		switch (data.type)
+		{
+		case input_type_button:
+			Logger::WriteMessage((std::string("Executing button press for participant: ") + data.participantName).c_str());
+
+			// Look for a cooldown metadata property and tigger it if it exists.
+			long long cooldown = 0;
+			int err = interactive_control_get_meta_property_int64(session, data.controlId.c_str(), BUTTON_PROP_COOLDOWN, &cooldown);
+			Assert::IsTrue(MIXER_OK == err || MIXER_ERROR_PROPERTY_NOT_FOUND == err);
+			if (MIXER_OK == err && cooldown > 0)
+			{
+				ASSERT_NOERR(interactive_control_trigger_cooldown(session, data.controlId.c_str(), cooldown * 1000));
+			}
+			break;
+		}
+
+		// This data is no longer necessary, clean it up.
+		g_dataByTransaction.erase(transactionItr);
+	}
+	else
+	{
+		Logger::WriteMessage("Transaction captured but found no associated transaction data.");
+	}
+}
+
 void handle_input(void* context, interactive_session session, const interactive_input* input)
 {
-	int err;
+	int err = 0;
 
 	Logger::WriteMessage((std::string("Input detected, raw JSON: ") + std::string(input->jsonData, input->jsonDataLength)).c_str());
-
-	// Print transaction id if there is one.
-	if (nullptr != input->transactionId)
-	{
-		std::string s = std::string("[Transaction]") + input->transactionId;
-		Logger::WriteMessage(s.c_str());
-		// Capture the transaction.
-		ASSERT_NOERR(interactive_capture_transaction(session, input->transactionId));
-	}
 
 	switch (input->type)
 	{
@@ -238,16 +291,17 @@ void handle_input(void* context, interactive_session session, const interactive_
 	{
 		if (input->buttonData.action == button_action::down)
 		{
-			Logger::WriteMessage("KEYDOWN");
-
-			// Look for a cooldown metadata property and tigger it if it exists.
-			long long cooldown = 0;
-			int err = interactive_control_get_meta_property_int64(session, input->control.id, BUTTON_PROP_COOLDOWN, &cooldown);
-			Assert::IsTrue(MIXER_OK == err || MIXER_ERROR_PROPERTY_NOT_FOUND == err);
-			if (MIXER_OK == err && cooldown > 0)
-			{
-				ASSERT_NOERR(interactive_control_trigger_cooldown(session, input->control.id, cooldown * 1000));
-			}
+			// This requries a transaction. Store relevant data.
+			transaction_data data;
+			memset(&data, 0, sizeof(transaction_data));
+			data.type = input->type;
+			size_t nameLength = 0;
+			int err = interactive_get_participant_user_name(session, input->participantId, nullptr, &nameLength);
+			Assert::IsTrue(MIXER_ERROR_BUFFER_SIZE == err);
+			data.participantName.resize(nameLength);
+			ASSERT_NOERR(interactive_get_participant_user_name(session, input->participantId, (char*)data.participantName.data(), &nameLength));
+			data.controlId = std::string(input->control.id, input->control.idLength);
+			g_dataByTransaction[std::string(input->transactionId, input->transactionIdLength)] = data;
 		}
 		else
 		{
@@ -257,7 +311,7 @@ void handle_input(void* context, interactive_session session, const interactive_
 	}
 	case input_type_coordinate:
 	{
-		Logger::WriteMessage(("MOVEMENT on " + std::string(input->control.id, input->control.idLength)).c_str());
+		Logger::WriteMessage((std::string("MOVEMENT on ") + input->control.id).c_str());
 		Logger::WriteMessage(("X:\t" + std::to_string(input->coordinateData.x)).c_str());
 		Logger::WriteMessage(("Y:\t" + std::to_string(input->coordinateData.y)).c_str());
 
@@ -270,7 +324,16 @@ void handle_input(void* context, interactive_session session, const interactive_
 		break;
 	}
 	}
-	
+
+	// Print transaction id if there is one.
+	if (nullptr != input->transactionId)
+	{
+		std::string s = std::string("Capturing transaction: ") + input->transactionId;
+		Logger::WriteMessage(s.c_str());
+		// Capture the transaction asynchronously.
+		ASSERT_NOERR(interactive_capture_transaction(session, input->transactionId));
+	}
+
 	print_control_properties(session, input->control.id);
 	if (0 != input->participantIdLength)
 	{
@@ -353,7 +416,7 @@ int do_short_code_auth(const std::string& clientId, std::string& refreshToken)
 	char refreshTokenBuffer[1024];
 	size_t refreshTokenLength = sizeof(refreshTokenBuffer);
 	ASSERT_RETERR(interactive_auth_wait_short_code(clientId.c_str(), shortCodeHandle, refreshTokenBuffer, &refreshTokenLength));
-	
+
 	refreshToken = std::string(refreshTokenBuffer, refreshTokenLength);
 	return 0;
 }
@@ -392,7 +455,7 @@ int do_auth(const std::string& clientId, std::string& auth)
 				size_t tokenBufferLength = sizeof(tokenBuffer);
 				err = interactive_auth_refresh_token(clientId.c_str(), refreshToken.c_str(), tokenBuffer, &tokenBufferLength);
 				if (!err)
-				{	
+				{
 					refreshToken = std::string(tokenBuffer, tokenBufferLength);
 				}
 			}
@@ -454,7 +517,7 @@ public:
 	TEST_METHOD(ConnectTest)
 	{
 		g_start = std::chrono::high_resolution_clock::now();
-		interactive_config_debug(debug_warning, handle_debug_message);
+		interactive_config_debug(debug_trace, handle_debug_message);
 
 		int err = 0;
 		std::string clientId = CLIENT_ID;
@@ -466,7 +529,7 @@ public:
 
 		interactive_session session;
 		Logger::WriteMessage("Connecting...");
-		ASSERT_NOERR(interactive_connect(auth.c_str(), versionId.c_str(), shareCode.c_str(), false, &session));
+		ASSERT_NOERR(interactive_open_session(auth.c_str(), versionId.c_str(), shareCode.c_str(), true, &session));
 
 		// Simulate 60 frames/sec for 1 seconds.
 		const int fps = 60;
@@ -478,7 +541,7 @@ public:
 		}
 
 		Logger::WriteMessage("Disconnecting...");
-		interactive_disconnect(session);
+		interactive_close_session(session);
 
 		Assert::IsTrue(0 == err);
 	}
@@ -497,16 +560,17 @@ public:
 		ASSERT_NOERR(do_auth(clientId, auth));
 
 		interactive_session session;
-		ASSERT_NOERR(interactive_connect(auth.c_str(), versionId.c_str(), shareCode.c_str(), false, &session));
-		ASSERT_NOERR(interactive_reg_input_handler(session, handle_input));
-		ASSERT_NOERR(interactive_reg_state_changed_handler(session, handle_state_changed));
-		ASSERT_NOERR(interactive_reg_error_handler(session, handle_error));
-		ASSERT_NOERR(interactive_reg_participants_changed_handler(session, handle_participants_changed));
-		ASSERT_NOERR(interactive_reg_unhandled_method_handler(session, handle_unhandled_method));
+		ASSERT_NOERR(interactive_open_session(auth.c_str(), versionId.c_str(), shareCode.c_str(), true, &session));
+		ASSERT_NOERR(interactive_register_input_handler(session, handle_input));
+		ASSERT_NOERR(interactive_register_state_changed_handler(session, handle_state_changed));
+		ASSERT_NOERR(interactive_register_error_handler(session, handle_error));
+		ASSERT_NOERR(interactive_register_participants_changed_handler(session, handle_participants_changed));
+		ASSERT_NOERR(interactive_register_unhandled_method_handler(session, handle_unhandled_method));
+		ASSERT_NOERR(interactive_register_transaction_complete_handler(session, handle_transaction_complete));
 
-		// Simulate 60 frames/sec for 10 seconds.
+		// Simulate 60 frames/sec
 		const int fps = 60;
-		const int seconds = 10;
+		const int seconds = 15;
 		for (int i = 0; i < fps * seconds; ++i)
 		{
 			ASSERT_NOERR(interactive_run(session, 1));
@@ -514,7 +578,7 @@ public:
 		}
 
 		Logger::WriteMessage("Disconnecting...");
-		interactive_disconnect(session);
+		interactive_close_session(session);
 
 		Assert::IsTrue(0 == err);
 	}
@@ -533,37 +597,39 @@ public:
 		ASSERT_NOERR(do_auth(clientId, auth));
 
 		interactive_session session;
-		ASSERT_NOERR(interactive_connect(auth.c_str(), versionId.c_str(), shareCode.c_str(), true, &session));
-		interactive_state state = disconnected;
-		ASSERT_NOERR(interactive_get_state(session, &state));
-		Assert::IsTrue(state == disconnected);
-
-		while (disconnected == state)
+		ASSERT_NOERR(interactive_open_session(auth.c_str(), versionId.c_str(), shareCode.c_str(), false, &session));
+		interactive_register_state_changed_handler(session, [](void* context, interactive_session session, interactive_state prevState, interactive_state newState)
 		{
-			ASSERT_NOERR(interactive_run(session, 1));
-			ASSERT_NOERR(interactive_get_state(session, &state));
-		}
-		Assert::IsTrue(state == not_ready);
-		
+			Logger::WriteMessage(("Interactive state changed: " + std::to_string(prevState) + " -> " + std::to_string(newState)).c_str());
+			static int order = 0;
+			if (disconnected == prevState)
+			{
+				Assert::IsTrue(0 == order++ && not_ready == newState);
+			}
+			else if (not_ready == prevState)
+			{
+				Assert::IsTrue(1 == order++ && ready == newState);
+			}
+			else if (ready == prevState)
+			{
+				Assert::IsTrue(2 == order++ && not_ready == newState);
+			}
+		});
+
 		ASSERT_NOERR(interactive_set_ready(session, true));
-
-		while (not_ready == state)
-		{
-			ASSERT_NOERR(interactive_run(session, 1));
-			ASSERT_NOERR(interactive_get_state(session, &state));
-		}
-		Assert::IsTrue(state == ready);
-
 		ASSERT_NOERR(interactive_set_ready(session, false));
-		while (ready == state)
+
+		// Simulate 60/fps
+		const int fps = 60;
+		const int seconds = 1;
+		for (int i = 0; i < fps * seconds; ++i)
 		{
 			ASSERT_NOERR(interactive_run(session, 1));
-			ASSERT_NOERR(interactive_get_state(session, &state));
+			std::this_thread::sleep_for(std::chrono::milliseconds(1000 / fps));
 		}
-		Assert::IsTrue(state == not_ready);
 
 		Logger::WriteMessage("Disconnecting...");
-		interactive_disconnect(session);
+		interactive_close_session(session);
 
 		Assert::IsTrue(0 == err);
 	}
@@ -583,10 +649,10 @@ public:
 
 		interactive_session session;
 		Logger::WriteMessage("Connecting...");
-		ASSERT_NOERR(interactive_connect(auth.c_str(), versionId.c_str(), shareCode.c_str(), false, &session));
-		ASSERT_NOERR(interactive_reg_participants_changed_handler(session, handle_participants_changed));
+		ASSERT_NOERR(interactive_open_session(auth.c_str(), versionId.c_str(), shareCode.c_str(), true, &session));
+		ASSERT_NOERR(interactive_register_participants_changed_handler(session, handle_participants_changed));
 
-		// Simulate 60 frames/sec for 1 second.
+		// Simulate 60fps
 		const int fps = 60;
 		const int seconds = 1;
 		for (int i = 0; i < fps * seconds; ++i)
@@ -607,7 +673,7 @@ public:
 		std::string groupId = "Test group";
 		ASSERT_NOERR(interactive_create_group(session, groupId.c_str(), nullptr));
 
-		// Simulate 60 frames/sec for 1 second.
+		// Simulate 60fps
 		for (int i = 0; i < fps * seconds; ++i)
 		{
 			ASSERT_NOERR(interactive_run(session, 1));
@@ -648,7 +714,7 @@ public:
 		});
 
 		Logger::WriteMessage("Disconnecting...");
-		interactive_disconnect(session);
+		interactive_close_session(session);
 
 		Assert::IsTrue(0 == err);
 	}
@@ -668,9 +734,8 @@ public:
 
 		interactive_session session;
 		Logger::WriteMessage("Connecting...");
-		ASSERT_NOERR(interactive_connect(auth.c_str(), versionId.c_str(), shareCode.c_str(), false, &session));
-		ASSERT_NOERR(interactive_reg_participants_changed_handler(session, handle_participants_changed));
-
+		ASSERT_NOERR(interactive_open_session(auth.c_str(), versionId.c_str(), shareCode.c_str(), true, &session));
+		ASSERT_NOERR(interactive_register_participants_changed_handler(session, handle_participants_changed));
 		// Simulate 60 frames/sec for 1 second.
 		const int fps = 60;
 		const int seconds = 1;
@@ -707,9 +772,9 @@ public:
 			ASSERT_NOERR(interactive_run(session, 1));
 			std::this_thread::sleep_for(std::chrono::milliseconds(1000 / fps));
 		}
-		
+
 		Logger::WriteMessage("Disconnecting...");
-		interactive_disconnect(session);
+		interactive_close_session(session);
 
 		Assert::IsTrue(0 == err);
 	}

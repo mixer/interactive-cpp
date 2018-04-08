@@ -18,23 +18,19 @@ namespace mixer
 
 typedef std::function<void(rapidjson::Document::AllocatorType& allocator, rapidjson::Value& value)> on_get_params;
 
-int send_method(interactive_session_internal& session, const std::string& method, on_get_params getParams, bool discard, unsigned int* id)
+int create_method_json(interactive_session_internal& session, const std::string& method, on_get_params getParams, bool discard, unsigned int* id, std::shared_ptr<rapidjson::Document>& methodDoc)
 {
-	if (session.shutdownRequested)
-	{
-		return MIXER_OK;
-	}
-
 	try
 	{
-		rapidjson::Document doc;
-		doc.SetObject();
-		rapidjson::Document::AllocatorType& allocator = doc.GetAllocator();
+		std::shared_ptr<rapidjson::Document> doc(std::make_shared<rapidjson::Document>());
+		doc->SetObject();
+		rapidjson::Document::AllocatorType& allocator = doc->GetAllocator();
+
 		unsigned int packetID = session.packetId++;
-		doc.AddMember(RPC_ID, packetID, allocator);
-		doc.AddMember(RPC_METHOD, rapidjson::StringRef(method.c_str(), method.length()), allocator);
-		doc.AddMember(RPC_DISCARD, discard, allocator);
-		doc.AddMember(RPC_SEQUENCE, session.sequenceId, allocator);
+		doc->AddMember(RPC_ID, packetID, allocator);
+		doc->AddMember(RPC_METHOD, method, allocator);
+		doc->AddMember(RPC_DISCARD, discard, allocator);
+		doc->AddMember(RPC_SEQUENCE, session.sequenceId, allocator);
 
 		// Get the parameters from the caller.
 		rapidjson::Value params(rapidjson::kObjectType);
@@ -42,63 +38,94 @@ int send_method(interactive_session_internal& session, const std::string& method
 		{
 			getParams(allocator, params);
 		}
-		doc.AddMember(RPC_PARAMS, params, allocator);
-
-		std::string packet = jsonStringify(doc);
-		DEBUG_TRACE("Sending websocket message: " + packet);
-		int errc = session.ws->send(packet);
-		if (errc)
-		{
-			return MIXER_ERROR_WS_SEND_FAILED;
-		}
+		doc->AddMember(RPC_PARAMS, params, allocator);
 
 		if (nullptr != id)
 		{
 			*id = packetID;
 		}
+		methodDoc = doc;
 	}
 	catch (std::exception e)
 	{
-		return MIXER_ERROR_WS_SEND_FAILED;
+		int err = MIXER_ERROR_METHOD_CREATE;
+		if (session.onError)
+		{
+			std::string errorMessage = "Failed to create method JSON for method: " + method;
+			DEBUG_ERROR(errorMessage);
+			session.onError(session.callerContext, &session, err, errorMessage.c_str(), errorMessage.length());
+		}
+
+		return err;
 	}
 
 	return MIXER_OK;
 }
 
-int receive_reply(interactive_session_internal& session, unsigned int id, std::shared_ptr<rapidjson::Document>& replyPtr, unsigned int timeoutMs)
+int send_method(interactive_session_internal& session, const std::string& method, on_get_params getParams, bool discard, unsigned int* id)
 {
-	if (session.shutdownRequested)
+	std::shared_ptr<rapidjson::Document> methodDoc;
+	RETURN_IF_FAILED(create_method_json(session, method, getParams, discard, id, methodDoc));
+
+	// Synchronize access to the websocket.
+	std::string methodJson = jsonStringify(*methodDoc);
+	std::lock_guard<std::mutex> sendLock(session.sendMutex);
+
+	DEBUG_TRACE("Sending websocket message: " + methodJson);
+	return session.ws->send(methodJson);
+}
+
+int queue_method(interactive_session_internal& session, const std::string& method, on_get_params getParams, method_handler onReply)
+{
+	std::shared_ptr<rapidjson::Document> methodDoc;
+	unsigned int packetId = 0;
+	RETURN_IF_FAILED(create_method_json(session, method, getParams, nullptr == onReply, &packetId, methodDoc));
+	DEBUG_TRACE(std::string("Queueing method: ") + jsonStringify(*methodDoc));
+	if (onReply)
 	{
-		return MIXER_OK;
+		session.replyHandlersById[packetId] = onReply;
 	}
 
-	// Wait for a reply
-	std::shared_ptr<rapidjson::Document> spReply;
-	auto replyItr = session.replies.end();
+	// Synchronize write access to the queue.
+	std::unique_lock<std::mutex> queueLock(session.outgoingMutex);
+	session.outgoingMethods.emplace(methodDoc);
+	session.outgoingCV.notify_one();
+
+	return MIXER_OK;
+}
+
+int queue_request(interactive_session_internal& session, const std::string uri,  std::string& verb, const std::map<std::string, std::string>* headers, const std::string* body, http_response_handler onResponse)
+{
+	http_request_data httpRequest;
+	httpRequest.packetId = session.packetId++;
+	httpRequest.uri = uri;
+	httpRequest.verb = verb;
+	if (nullptr != headers)
 	{
-		std::unique_lock<std::mutex> l(session.repliesMutex);
-		replyItr = session.replies.find(id);
-		while (session.replies.end() == replyItr)
-		{
-			session.repliesCV.wait_for(l, std::chrono::milliseconds(timeoutMs));
-			if (session.shutdownRequested)
-			{
-				return MIXER_ERROR_CANCELLED;
-			}
-			replyItr = session.replies.find(id);
-		}
-
-		if (session.replies.end() == replyItr)
-		{
-			return MIXER_ERROR_RECEIVE_TIMED_OUT;
-		}
-
-		spReply = (*replyItr).second;
-		session.replies.erase(id);
+		httpRequest.headers = *headers;
+	}
+	if (nullptr != body)
+	{
+		httpRequest.body = *body;
 	}
 
-	// Check for errors.
-	rapidjson::Document& reply = *spReply;
+	if (nullptr != onResponse)
+	{
+		session.httpResponseHandlers[httpRequest.packetId] = onResponse;
+	}
+
+	// Queue the request, synchronizing access.
+	{
+		std::unique_lock<std::mutex> lock(session.outgoingMutex);
+		session.outgoingRequests.emplace(httpRequest);
+		session.outgoingCV.notify_one();
+	}
+
+	return MIXER_OK;
+}
+
+int check_reply_errors(interactive_session_internal& session, rapidjson::Document& reply)
+{
 	try
 	{
 		if (reply.HasMember(RPC_SEQUENCE) && !reply[RPC_SEQUENCE].IsNull())
@@ -123,16 +150,59 @@ int receive_reply(interactive_session_internal& session, unsigned int id, std::s
 		return MIXER_ERROR_UNRECOGNIZED_DATA_FORMAT;
 	}
 
+	return MIXER_OK;
+}
+
+int receive_reply(interactive_session_internal& session, unsigned int id, std::shared_ptr<rapidjson::Document>& replyPtr, unsigned int timeoutMs)
+{
+	if (session.shutdownRequested)
+	{
+		return MIXER_OK;
+	}
+
+	// Wait for a reply
+	std::shared_ptr<rapidjson::Document> spReply;
+	{
+		std::unique_lock<std::mutex> l(session.repliesMutex);
+		auto replyItr = session.replies.end();
+		replyItr = session.replies.find(id);
+		while (session.replies.end() == replyItr)
+		{
+			auto waitStatus = session.repliesCV.wait_for(l, std::chrono::milliseconds(timeoutMs));
+			if (waitStatus == std::cv_status::timeout)
+			{
+				return MIXER_ERROR_TIMED_OUT;
+			}
+
+			if (session.shutdownRequested)
+			{
+				return MIXER_ERROR_CANCELLED;
+			}
+			replyItr = session.replies.find(id);
+		}
+
+		if (session.replies.end() == replyItr)
+		{
+			return MIXER_ERROR_TIMED_OUT;
+		}
+
+		spReply = (*replyItr).second;
+		session.replies.erase(replyItr);
+	}
+
+	// Check for errors.
+	RETURN_IF_FAILED(check_reply_errors(session, *spReply));
+
 	replyPtr = spReply;
 	return MIXER_OK;
 }
 
 int send_ready_message(interactive_session_internal& session, bool ready = true)
 {
-	return send_method(session, RPC_METHOD_READY, [&](rapidjson::Document::AllocatorType& allocator, rapidjson::Value& params)
+	return queue_method(session, RPC_METHOD_READY, [&](rapidjson::Document::AllocatorType& allocator, rapidjson::Value& params)
 	{
 		params.AddMember(RPC_PARAM_IS_READY, ready, allocator);
-	}, true, nullptr);
+	}, nullptr);
 }
 
 int handle_hello(interactive_session_internal& session, rapidjson::Document& doc)
@@ -145,7 +215,7 @@ int handle_hello(interactive_session_internal& session, rapidjson::Document& doc
 		session.onStateChanged(session.callerContext, &session, previousState, session.state);
 	}
 
-	if (!session.manualStart)
+	if (session.isReady && interactive_state::ready != session.state)
 	{
 		return send_ready_message(session);
 	}
@@ -162,7 +232,7 @@ int handle_input(interactive_session_internal& session, rapidjson::Document& doc
 	}
 
 	try
-	{	
+	{
 		interactive_input inputData;
 		memset(&inputData, 0, sizeof(inputData));
 		std::string inputJson = jsonStringify(doc[RPC_PARAMS]);
@@ -171,7 +241,7 @@ int handle_input(interactive_session_internal& session, rapidjson::Document& doc
 		rapidjson::Value& input = doc[RPC_PARAMS][RPC_PARAM_INPUT];
 		inputData.control.id = input[RPC_CONTROL_ID].GetString();
 		inputData.control.idLength = input[RPC_CONTROL_ID].GetStringLength();
-		
+
 		if (doc[RPC_PARAMS].HasMember(RPC_PARTICIPANT_ID))
 		{
 			inputData.participantId = doc[RPC_PARAMS][RPC_PARTICIPANT_ID].GetString();
@@ -253,7 +323,6 @@ int handle_input(interactive_session_internal& session, rapidjson::Document& doc
 
 	return MIXER_OK;
 }
-
 
 int handle_participants_change(interactive_session_internal& session, rapidjson::Document& doc, participant_action action)
 {
@@ -368,6 +437,19 @@ int route_method(interactive_session_internal& session, rapidjson::Document& doc
 	return MIXER_OK;
 }
 
+void register_method_handlers(interactive_session_internal& session)
+{
+	session.methodHandlers.emplace(RPC_METHOD_HELLO, handle_hello);
+	session.methodHandlers.emplace(RPC_METHOD_ON_READY_CHANGED, handle_ready);
+	session.methodHandlers.emplace(RPC_METHOD_ON_INPUT, handle_input);
+	session.methodHandlers.emplace(RPC_METHOD_ON_PARTICIPANT_JOIN, handle_participants_join);
+	session.methodHandlers.emplace(RPC_METHOD_ON_PARTICIPANT_LEAVE, handle_participants_leave);
+	session.methodHandlers.emplace(RPC_METHOD_ON_PARTICIPANT_UPDATE, handle_participants_update);
+	session.methodHandlers.emplace(RPC_METHOD_ON_GROUP_UPDATE, handle_group_changed);
+	session.methodHandlers.emplace(RPC_METHOD_ON_GROUP_CREATE, handle_group_changed);
+	session.methodHandlers.emplace(RPC_METHOD_UPDATE_SCENES, handle_scene_changed);
+}
+
 int get_hosts(interactive_session_internal& session)
 {
 	DEBUG_INFO("Retrieving hosts.");
@@ -407,19 +489,6 @@ int get_hosts(interactive_session_internal& session)
 	return MIXER_OK;
 }
 
-void register_method_handlers(interactive_session_internal& session)
-{
-	session.methodHandlers.emplace(RPC_METHOD_HELLO, handle_hello);
-	session.methodHandlers.emplace(RPC_METHOD_ON_READY_CHANGED, handle_ready);
-	session.methodHandlers.emplace(RPC_METHOD_ON_INPUT, handle_input);
-	session.methodHandlers.emplace(RPC_METHOD_ON_PARTICIPANT_JOIN, handle_participants_join);
-	session.methodHandlers.emplace(RPC_METHOD_ON_PARTICIPANT_LEAVE, handle_participants_leave);
-	session.methodHandlers.emplace(RPC_METHOD_ON_PARTICIPANT_UPDATE, handle_participants_update);
-	session.methodHandlers.emplace(RPC_METHOD_ON_GROUP_UPDATE, handle_group_changed);
-	session.methodHandlers.emplace(RPC_METHOD_ON_GROUP_CREATE, handle_group_changed);
-	session.methodHandlers.emplace(RPC_METHOD_UPDATE_SCENES, handle_scene_changed);
-}
-
 int update_server_time_offset(interactive_session_internal& session)
 {
 	// Calculate the server time offset.
@@ -443,7 +512,6 @@ int update_server_time_offset(interactive_session_internal& session)
 
 	auto receivedTime = std::chrono::time_point_cast<std::chrono::milliseconds>(std::chrono::system_clock::now());
 	auto latency = (receivedTime - sentTime) / 2;
-
 	try
 	{
 		unsigned long long serverTime = (*replyDoc)[RPC_RESULT][RPC_TIME].GetUint64();
@@ -460,8 +528,67 @@ int update_server_time_offset(interactive_session_internal& session)
 	return MIXER_OK;
 }
 
-// Connect to and interactive session with the supplied interactive configuration. 
-int interactive_connect(const char* auth, const char* versionId, const char* shareCode, bool manualStart, interactive_session* sessionPtr)
+int do_connect(interactive_session_internal& session, bool isReady)
+{
+	session.isReady = isReady;
+
+	int err = 0;
+	if (session.shutdownRequested)
+	{
+		return MIXER_OK;
+	}
+
+	err = get_hosts(session);
+	if (err && session.onError)
+	{
+		std::string errorMessage = "Failed to acquire interactive host servers.";
+		session.onError(session.callerContext, &session, err, errorMessage.c_str(), errorMessage.length());
+		return err;
+	}
+
+	// Connect long running websocket.
+	session.ws->add_header("X-Protocol-Version", "2.0");
+	session.ws->add_header("Authorization", session.authorization);
+	session.ws->add_header("X-Interactive-Version", session.versionId);
+	if (!session.shareCode.empty())
+	{
+		session.ws->add_header("X-Interactive-Sharecode", session.shareCode);
+	}
+
+	// Create thread to open websocket and receive messages.
+	session.incomingThread = std::thread(std::bind(&interactive_session_internal::run_incoming_thread, &session));
+
+	std::unique_lock<std::mutex> wsOpenLock(session.wsOpenMutex);
+	if (!session.wsOpen)
+	{
+		session.wsOpenCV.wait(wsOpenLock);
+	}
+
+	if (!session.wsOpen)
+	{
+		return MIXER_ERROR_WS_CONNECT_FAILED;
+	}
+
+	// Create thread to send messages over the open websocket.
+	session.outgoingThread = std::thread(std::bind(&interactive_session_internal::run_outgoing_thread, &session));
+
+	// Get the server time offset.
+	err = update_server_time_offset(session);
+	if (err)
+	{
+		// Warn about this but don't fail interactive connecting as this may only affect control cooldowns.
+		DEBUG_WARNING("Failed to update server time offset: " + std::to_string(err));
+	}
+
+	// Cache scene and group data.
+	RETURN_IF_FAILED(cache_scenes(session));
+	DEBUG_TRACE("Cached scene data: " + jsonStringify(session.scenesRoot));
+	RETURN_IF_FAILED(cache_groups(session));
+
+	return MIXER_OK;
+}
+
+int interactive_open_session(const char* auth, const char* versionId, const char* shareCode, bool setReady, interactive_session* sessionPtr)
 {
 	if (nullptr == auth || nullptr == versionId || nullptr == sessionPtr)
 	{
@@ -474,54 +601,23 @@ int interactive_connect(const char* auth, const char* versionId, const char* sha
 		return MIXER_ERROR_INVALID_VERSION_ID;
 	}
 
-	std::auto_ptr<interactive_session_internal> session(new interactive_session_internal(manualStart));
+	std::auto_ptr<interactive_session_internal> session(new interactive_session_internal());
+	session->authorization = auth;
+	session->versionId = versionId;
+	if (nullptr != shareCode)
+	{
+		session->shareCode = shareCode;
+	}
 
 	// Register method handlers
 	register_method_handlers(*session);
 
-	// Initialize Http
+	// Initialize Http and Websocket clients
 	session->http = http_factory::make_http_client();
-	RETURN_IF_FAILED(get_hosts(*session));
-
-	// Connect long running websocket.
 	session->ws = websocket_factory::make_websocket();
-	session->ws->add_header("X-Protocol-Version", "2.0");
-	session->ws->add_header("Authorization", auth);
-	session->ws->add_header("X-Interactive-Version", versionId);
-	if (nullptr != shareCode)
-	{
-		session->ws->add_header("X-Interactive-Sharecode", shareCode);
-	}
-
-	// Create a thread to wait on messages from the websocket.
-	session->wsThread = std::thread(std::bind(&interactive_session_internal::run_ws, session.get()));
-
-	std::unique_lock<std::mutex> wsOpenLock(session->wsOpenMutex);
-	if (!session->wsOpen)
-	{
-		session->wsOpenCV.wait(wsOpenLock);
-	}
-
-	if (!session->wsOpen)
-	{
-		return MIXER_ERROR_WS_CONNECT_FAILED;
-	}
-
-	// Get the server time offset.
-	int err = update_server_time_offset(*session);
-	if (err)
-	{
-		// Warn about this but don't fail interactive connecting as this may only affect control cooldowns.
-		DEBUG_WARNING("Failed to update server time offset: " + std::to_string(err));
-	}
-
-	// Cache scene and group data.
-	RETURN_IF_FAILED(cache_scenes(*session));
-	DEBUG_TRACE("Cached scene data: " + jsonStringify(session->scenesRoot));
-	RETURN_IF_FAILED(cache_groups(*session));
+	do_connect(*session, setReady);
 
 	*sessionPtr = session.release();
-
 	return MIXER_OK;
 }
 
@@ -535,6 +631,18 @@ int interactive_set_session_context(interactive_session session, void* context)
 	interactive_session_internal* sessionInternal = reinterpret_cast<interactive_session_internal*>(session);
 	sessionInternal->callerContext = context;
 
+	return MIXER_OK;
+}
+
+int interactive_get_session_context(interactive_session session, void** context)
+{
+	if (nullptr == session || nullptr == context)
+	{
+		return MIXER_ERROR_INVALID_POINTER;
+	}
+
+	interactive_session_internal* sessionInternal = reinterpret_cast<interactive_session_internal*>(session);
+	*context = sessionInternal->callerContext;
 	return MIXER_OK;
 }
 
@@ -554,18 +662,18 @@ int interactive_run(interactive_session session, unsigned int maxEventsToProcess
 
 	if (sessionInternal->shutdownRequested)
 	{
-		return MIXER_OK;
+		return MIXER_ERROR_CANCELLED;
 	}
 
 	unsigned int processed = 0;
 
-	// Check for any errors first
-	if (!sessionInternal->errors.empty())
+	// Check for any errors first.
+	if (!sessionInternal->errors.empty() && processed < maxEventsToProcess)
 	{
-		std::queue<std::pair<unsigned short, std::string>> errors;
+		std::queue<protocol_error> errors;
 		{
 			std::lock_guard<std::mutex> l(sessionInternal->errorsMutex);
-			while (processed++ < maxEventsToProcess)
+			while (!sessionInternal->errors.empty() && processed++ < maxEventsToProcess)
 			{
 				errors.emplace(sessionInternal->errors.front());
 				sessionInternal->errors.pop();
@@ -576,9 +684,10 @@ int interactive_run(interactive_session session, unsigned int maxEventsToProcess
 		{
 			while (!errors.empty())
 			{
-				std::pair<unsigned short, std::string> error = errors.front();
+				protocol_error error = errors.front();
 				errors.pop();
 				sessionInternal->onError(sessionInternal->callerContext, &sessionInternal, error.first, error.second.c_str(), error.second.length());
+
 				if (sessionInternal->shutdownRequested)
 				{
 					return MIXER_OK;
@@ -587,16 +696,68 @@ int interactive_run(interactive_session session, unsigned int maxEventsToProcess
 		}
 	}
 
-	// Process methods
+	// Process any websocket replies.
+	if (!sessionInternal->replies.empty() && processed < maxEventsToProcess)
+	{
+		std::unique_lock<std::mutex> repliesLock(sessionInternal->repliesMutex);
+
+		for (auto replyByIdItr = sessionInternal->replies.begin(); replyByIdItr != sessionInternal->replies.end() && processed++ < maxEventsToProcess; /* No increment */)
+		{
+			auto replyHandlerItr = sessionInternal->replyHandlersById.find(replyByIdItr->first);
+			if (replyHandlerItr != sessionInternal->replyHandlersById.end())
+			{
+				// Call the registered handler for this reply
+				std::shared_ptr<rapidjson::Document> replyDoc = replyByIdItr->second;
+				replyHandlerItr->second(*sessionInternal, *replyDoc);
+			}
+
+			// This reply was processed, clear it.
+			sessionInternal->replies.erase(replyByIdItr++);
+
+			if (sessionInternal->shutdownRequested)
+			{
+				break;
+			}
+		}
+	}
+
+	// Process any http responses.
+	if (!sessionInternal->httpResponsesById.empty() && processed < maxEventsToProcess)
+	{
+		std::unique_lock<std::mutex> responsesLock(sessionInternal->httpResponsesMutex);
+		
+		for (auto responsesItr = sessionInternal->httpResponsesById.begin(); responsesItr != sessionInternal->httpResponsesById.end(); /* No increment */)
+		{
+			// Check if there is a handler for this response
+			auto responseHandlerItr = sessionInternal->httpResponseHandlers.find(responsesItr->first);
+			if (responseHandlerItr != sessionInternal->httpResponseHandlers.end())
+			{
+				responseHandlerItr->second(responsesItr->second.statusCode, responsesItr->second.body);
+				
+				// Clean up this handler now that is has been called.
+				sessionInternal->httpResponseHandlers.erase(responseHandlerItr);
+			}
+
+			// Clean up this response.
+			sessionInternal->httpResponsesById.erase(responsesItr++);
+
+			if (sessionInternal->shutdownRequested)
+			{
+				break;
+			}
+		}
+	}
+
+	// Process any incoming methods last.
 	if (processed < maxEventsToProcess)
 	{
 		std::queue<std::shared_ptr<rapidjson::Document>> methods;
 		{
 			std::lock_guard<std::mutex> l(sessionInternal->methodsMutex);
-			while (!sessionInternal->methods.empty() && processed++ < maxEventsToProcess)
+			while (!sessionInternal->incomingMethods.empty() && processed++ < maxEventsToProcess)
 			{
-				methods.emplace(sessionInternal->methods.front());
-				sessionInternal->methods.pop();
+				methods.emplace(sessionInternal->incomingMethods.front());
+				sessionInternal->incomingMethods.pop();
 			}
 		}
 
@@ -616,10 +777,6 @@ int interactive_run(interactive_session session, unsigned int maxEventsToProcess
 				return MIXER_OK;
 			}
 		}
-	}
-	else
-	{
-
 	}
 
 	return MIXER_OK;
@@ -651,69 +808,40 @@ int interactive_set_ready(interactive_session session, bool isReady)
 
 int interactive_capture_transaction(interactive_session session, const char* transactionId)
 {
-	if (nullptr == session)
+	if (nullptr == session || nullptr == transactionId)
 	{
 		return MIXER_ERROR_INVALID_POINTER;
 	}
 
 	interactive_session_internal* sessionInternal = reinterpret_cast<interactive_session_internal*>(session);
 
-	unsigned int id;
-	RETURN_IF_FAILED(send_method(*sessionInternal, RPC_METHOD_CAPTURE, [&](rapidjson::Document::AllocatorType& allocator, rapidjson::Value& params)
+	std::string transactionIdStr(transactionId);
+	RETURN_IF_FAILED(queue_method(*sessionInternal, RPC_METHOD_CAPTURE, [&](rapidjson::Document::AllocatorType& allocator, rapidjson::Value& params)
 	{
-		params.AddMember(RPC_PARAM_TRANSACTION_ID, rapidjson::StringRef(transactionId), allocator);
-	}, false, &id));
-
-	std::shared_ptr<rapidjson::Document> doc;
-	return receive_reply(*sessionInternal, id, doc);
-}
-
-int interactive_control_trigger_cooldown(interactive_session session, const char* controlId, const unsigned long long cooldownMs)
-{
-	if (nullptr == session)
+		params.AddMember(RPC_PARAM_TRANSACTION_ID, transactionIdStr, allocator);
+	}, [transactionIdStr](interactive_session_internal& session, rapidjson::Document& replyDoc)
 	{
-		return MIXER_ERROR_INVALID_POINTER;
-	}
-
-	interactive_session_internal* sessionInternal = reinterpret_cast<interactive_session_internal*>(session);
-
-	// Locate the cached control data.
-	auto itr = sessionInternal->controls.find(controlId);
-	if (itr == sessionInternal->controls.end())
-	{
-		int errCode = MIXER_ERROR_OBJECT_NOT_FOUND;
-		if (sessionInternal->onError)
+		if (session.onTransactionComplete)
 		{
-			std::string errMessage = "Input received for unknown control.";
-			sessionInternal->onError(sessionInternal->callerContext, &session, errCode, errMessage.c_str(), errMessage.length());
+			unsigned int err = 0;
+			std::string errMessage;
+			if (replyDoc.HasMember(RPC_ERROR))
+			{
+				if (replyDoc[RPC_ERROR].IsObject() && replyDoc[RPC_ERROR].HasMember(RPC_ERROR_CODE))
+				{
+					err = replyDoc[RPC_ERROR][RPC_ERROR_CODE].GetUint();
+				}
+				if (replyDoc[RPC_ERROR].IsObject() && replyDoc[RPC_ERROR].HasMember(RPC_ERROR_MESSAGE))
+				{
+					errMessage = replyDoc[RPC_ERROR][RPC_ERROR_MESSAGE].GetString();
+				}
+			}
+
+			session.onTransactionComplete(session.callerContext, &session, transactionIdStr.c_str(), transactionIdStr.length(), err, errMessage.c_str(), errMessage.length());
 		}
 
-		return errCode;
-	}
-
-	std::string controlPtr = itr->second;
-
-	// The controlPtr is prefixed with a scene pointer, parse it to find the scene this control belongs to.
-	size_t controlOffset = controlPtr.find("controls", 0);
-	std::string scenePtr = controlPtr.substr(0, controlOffset - 1);
-
-	// Get the scene id.
-	rapidjson::Value* scene = rapidjson::Pointer(rapidjson::StringRef(scenePtr.c_str(), scenePtr.length())).Get(sessionInternal->scenesRoot);
-	std::string sceneId = (*scene)[RPC_SCENE_ID].GetString();
-	long long cooldownTimestamp = std::chrono::time_point_cast<std::chrono::milliseconds>(std::chrono::system_clock::now()).time_since_epoch().count() - sessionInternal->serverTimeOffsetMs + cooldownMs;
-
-	RETURN_IF_FAILED(send_method(*sessionInternal, RPC_METHOD_UPDATE_CONTROLS, [&](rapidjson::Document::AllocatorType& allocator, rapidjson::Value& params)
-	{
-		params.AddMember(RPC_SCENE_ID, rapidjson::StringRef(sceneId.c_str(), sceneId.length()), allocator);
-		params.AddMember("priority", 1, allocator);
-
-		rapidjson::Value controls(rapidjson::kArrayType);
-		rapidjson::Value control(rapidjson::kObjectType);
-		control.AddMember(RPC_CONTROL_ID, rapidjson::StringRef(controlId), allocator);
-		control.AddMember(RPC_CONTROL_BUTTON_COOLDOWN, cooldownTimestamp, allocator);
-		controls.PushBack(control, allocator);
-		params.AddMember(RPC_PARAM_CONTROLS, controls, allocator);
-	}, true, nullptr));
+		return MIXER_OK;
+	}));
 
 	return MIXER_OK;
 }
@@ -773,24 +901,36 @@ int interactive_receive_reply(interactive_session session, unsigned int id, unsi
 	return MIXER_OK;
 }
 
-void interactive_disconnect(interactive_session session)
+void interactive_close_session(interactive_session session)
 {
 	if (nullptr != session)
 	{
 		interactive_session_internal* sessionInternal = reinterpret_cast<interactive_session_internal*>(session);
+
+		// Mark the session as inactive and close the websocket. This will notify any functions in flight to exit at their earliest convenience.
 		sessionInternal->shutdownRequested = true;
 		if (nullptr != sessionInternal->ws.get())
 		{
 			sessionInternal->ws->close();
 		}
 
-		sessionInternal->wsThread.join();
+		// Notify the outgoing websocket thread to shutdown.
+		{
+			std::unique_lock<std::mutex> outgoingLock(sessionInternal->outgoingMutex);
+			sessionInternal->outgoingCV.notify_all();
+		}
+
+		// Wait for both threads to terminate.
+		sessionInternal->incomingThread.join();
+		sessionInternal->outgoingThread.join();
+
+		// Clean up the session memory.
 		delete sessionInternal;
 	}
 }
 
 // Handler registration
-int interactive_reg_error_handler(interactive_session session, on_error onError)
+int interactive_register_error_handler(interactive_session session, on_error onError)
 {
 	if (nullptr == session)
 	{
@@ -803,7 +943,7 @@ int interactive_reg_error_handler(interactive_session session, on_error onError)
 	return MIXER_OK;
 }
 
-int interactive_reg_state_changed_handler(interactive_session session, on_state_changed onStateChanged)
+int interactive_register_state_changed_handler(interactive_session session, on_state_changed onStateChanged)
 {
 	if (nullptr == session)
 	{
@@ -816,7 +956,7 @@ int interactive_reg_state_changed_handler(interactive_session session, on_state_
 	return MIXER_OK;
 }
 
-int interactive_reg_input_handler(interactive_session session, on_input onInput)
+int interactive_register_input_handler(interactive_session session, on_input onInput)
 {
 	if (nullptr == session)
 	{
@@ -829,7 +969,7 @@ int interactive_reg_input_handler(interactive_session session, on_input onInput)
 	return MIXER_OK;
 }
 
-int interactive_reg_participants_changed_handler(interactive_session session, on_participants_changed onParticipantsChanged)
+int interactive_register_participants_changed_handler(interactive_session session, on_participants_changed onParticipantsChanged)
 {
 	if (nullptr == session)
 	{
@@ -842,7 +982,20 @@ int interactive_reg_participants_changed_handler(interactive_session session, on
 	return MIXER_OK;
 }
 
-int interactive_reg_unhandled_method_handler(interactive_session session, on_unhandled_method onUnhandledMethod)
+int interactive_register_transaction_complete_handler(interactive_session session, on_transaction_complete onTransactionComplete)
+{
+	if (nullptr == session)
+	{
+		return MIXER_ERROR_INVALID_POINTER;
+	}
+
+	interactive_session_internal* sessionInternal = reinterpret_cast<interactive_session_internal*>(session);
+	sessionInternal->onTransactionComplete = onTransactionComplete;
+
+	return MIXER_OK;
+}
+
+int interactive_register_unhandled_method_handler(interactive_session session, on_unhandled_method onUnhandledMethod)
 {
 	if (nullptr == session)
 	{

@@ -70,25 +70,22 @@ int interactive_create_group(interactive_session session, const char* groupId, c
 
 	interactive_session_internal* sessionInternal = reinterpret_cast<interactive_session_internal*>(session);
 
-	unsigned int packetId;
-	std::string sceneIdStr = RPC_SCENE_DEFAULT;
+	std::string groupIdStr(groupId);
+	std::string sceneIdStr(RPC_SCENE_DEFAULT);
 	if (nullptr != sceneId)
 	{
 		sceneIdStr = sceneId;
 	}
-	RETURN_IF_FAILED(send_method(*sessionInternal, RPC_METHOD_CREATE_GROUPS, [&](rapidjson::Document::AllocatorType& allocator, rapidjson::Value& params)
+
+	RETURN_IF_FAILED(queue_method(*sessionInternal, RPC_METHOD_CREATE_GROUPS, [&](rapidjson::Document::AllocatorType& allocator, rapidjson::Value& params)
 	{
 		rapidjson::Value groups(rapidjson::kArrayType);
 		rapidjson::Value group(rapidjson::kObjectType);
-		group.AddMember(RPC_GROUP_ID, rapidjson::StringRef(groupId), allocator);
-		group.AddMember(RPC_SCENE_ID, rapidjson::StringRef(sceneIdStr.c_str(), sceneIdStr.length()), allocator);
+		group.AddMember(RPC_GROUP_ID, groupIdStr, allocator);
+		group.AddMember(RPC_SCENE_ID, sceneIdStr, allocator);
 		groups.PushBack(group, allocator);
 		params.AddMember(RPC_PARAM_GROUPS, groups, allocator);
-	}, false, &packetId));
-
-	// Receive a reply to ensure that creation was successful.
-	std::shared_ptr<rapidjson::Document> replyDoc;
-	RETURN_IF_FAILED(receive_reply(*sessionInternal, packetId, replyDoc));
+	}, nullptr));
 
 	return MIXER_OK;
 }
@@ -101,21 +98,17 @@ int interactive_group_set_scene(interactive_session session, const char* groupId
 	}
 
 	interactive_session_internal* sessionInternal = reinterpret_cast<interactive_session_internal*>(session);
-
-	unsigned int packetId;
-	RETURN_IF_FAILED(send_method(*sessionInternal, RPC_METHOD_UPDATE_GROUPS, [&](rapidjson::Document::AllocatorType& allocator, rapidjson::Value& params)
+	std::string groupIdStr(groupId);
+	std::string sceneIdStr(sceneId);
+	RETURN_IF_FAILED(queue_method(*sessionInternal, RPC_METHOD_UPDATE_GROUPS, [&](rapidjson::Document::AllocatorType& allocator, rapidjson::Value& params)
 	{
 		rapidjson::Value groups(rapidjson::kArrayType);
 		rapidjson::Value group(rapidjson::kObjectType);
-		group.AddMember(RPC_GROUP_ID, rapidjson::StringRef(groupId), allocator);
-		group.AddMember(RPC_SCENE_ID, rapidjson::StringRef(sceneId), allocator);
+		group.AddMember(RPC_GROUP_ID, std::string(groupId), allocator);
+		group.AddMember(RPC_SCENE_ID, std::string(sceneId), allocator);
 		groups.PushBack(group, allocator);
 		params.AddMember(RPC_PARAM_GROUPS, groups, allocator);
-	}, false, &packetId));
-
-	// Receive a reply to ensure that creation was successful.
-	std::shared_ptr<rapidjson::Document> replyDoc;
-	RETURN_IF_FAILED(receive_reply(*sessionInternal, packetId, replyDoc));
+	}, nullptr));
 
 	return MIXER_OK;
 }
