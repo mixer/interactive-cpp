@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Package xmlns="http://schemas.microsoft.com/appx/2010/manifest"
+         xmlns:mx="http://schemas.microsoft.com/appx/2013/xbox/manifest"
+         IgnorableNamespaces="mx">
+  
+  <Identity Name="e9755159-f6bb-4bb0-bdf2-0895d2fe575f"
+            Publisher="CN=Publisher"
+            Version="1.0.0.0" />
+  
+  <Properties>
+    <DisplayName>InteractiveXboxSample</DisplayName>
+    <PublisherDisplayName>PublisherDisplayName</PublisherDisplayName>
+    <Logo>StoreLogo.png</Logo>
+    <Description>InteractiveXboxSample</Description>
+  </Properties>
+  
+  <Prerequisites>
+    <OSMinVersion>6.2</OSMinVersion>
+    <OSMaxVersionTested>6.2</OSMaxVersionTested>
+  </Prerequisites>
+  
+  <Resources>
+    <Resource Language="en-us"/>
+  </Resources>
+  
+  <Applications>
+    <Application Id="App" 
+        Executable="$targetnametoken$.exe" 
+        EntryPoint="InteractiveXboxSample.App">
+        <VisualElements 
+            DisplayName="InteractiveXboxSample"
+            Logo="Logo.png"
+            SmallLogo="SmallLogo.png"
+            Description="InteractiveXboxSample"
+            ForegroundText="light"
+            BackgroundColor="#464646">
+            <SplashScreen Image="SplashScreen.png" />
+            <DefaultTile WideLogo="WideLogo.png" />
+        </VisualElements>
+        <Extensions>
+          <mx:Extension Category="xbox.system.resources">
+            <mx:XboxSystemResources resourceConfiguration="extended">
+              <mx:GpuAvailability>variable</mx:GpuAvailability>
+            </mx:XboxSystemResources>
+          </mx:Extension>
+        </Extensions>
+    </Application>
+  </Applications>
+  <Capabilities>
+    <Capability Name="internetClientServer" />
+  </Capabilities>
+  <Extensions>
+    <mx:PackageExtension Category="windows.kinect">
+      <mx:Kinect IsVersionLocked="false">
+        <mx:AudioPipeline Version="1.14.8" />
+        <mx:SpeechPipeline Version="1.14.8" />
+        <mx:VisionPipeline Version="1.14.8" />
+      </mx:Kinect>
+    </mx:PackageExtension>
+  </Extensions>
+</Package>

@@ -1,0 +1,66 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="C++ Source">
+      <UniqueIdentifier>{4aede272-2b83-4079-a328-4440e1bc132e}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Includes">
+      <UniqueIdentifier>{5b6a7a42-d94a-492e-92c7-b6f5adbae85b}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="..\..\Source\interactivity.cpp">
+      <Filter>C++ Source</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\source\internal\common.cpp">
+      <Filter>C++ Source</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\source\internal\http_client.cpp">
+      <Filter>C++ Source</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\source\internal\interactive_auth.cpp">
+      <Filter>C++ Source</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\source\internal\interactive_control.cpp">
+      <Filter>C++ Source</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\source\internal\interactive_group.cpp">
+      <Filter>C++ Source</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\source\internal\interactive_participant.cpp">
+      <Filter>C++ Source</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\source\internal\interactive_scene.cpp">
+      <Filter>C++ Source</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\source\internal\interactive_session.cpp">
+      <Filter>C++ Source</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\source\internal\interactive_session_internal.cpp">
+      <Filter>C++ Source</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\source\internal\win_http_client.cpp">
+      <Filter>C++ Source</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\source\internal\simplewebsocketcpp\simplewebsocketwin.cpp">
+      <Filter>C++ Source</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\..\source\interactivity.h">
+      <Filter>Includes</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\source\internal\common.h">
+      <Filter>Includes</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\source\internal\http_client.h">
+      <Filter>Includes</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\source\internal\interactive_session.h">
+      <Filter>Includes</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\source\internal\win_http_client.h">
+      <Filter>Includes</Filter>
+    </ClInclude>
+  </ItemGroup>
+</Project>

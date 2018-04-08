@@ -1,0 +1,35 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 15
+VisualStudioVersion = 15.0.27130.2026
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Interactivity.Win32.Cpp", "Interactivity.Win32.Cpp.vcxproj", "{441F8169-F31E-4653-941E-25AC223CBAFB}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|ARM = Debug|ARM
+		Debug|x64 = Debug|x64
+		Debug|x86 = Debug|x86
+		Release|ARM = Release|ARM
+		Release|x64 = Release|x64
+		Release|x86 = Release|x86
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{441F8169-F31E-4653-941E-25AC223CBAFB}.Debug|ARM.ActiveCfg = Debug|Win32
+		{441F8169-F31E-4653-941E-25AC223CBAFB}.Debug|x64.ActiveCfg = Debug|x64
+		{441F8169-F31E-4653-941E-25AC223CBAFB}.Debug|x64.Build.0 = Debug|x64
+		{441F8169-F31E-4653-941E-25AC223CBAFB}.Debug|x86.ActiveCfg = Debug|Win32
+		{441F8169-F31E-4653-941E-25AC223CBAFB}.Debug|x86.Build.0 = Debug|Win32
+		{441F8169-F31E-4653-941E-25AC223CBAFB}.Release|ARM.ActiveCfg = Release|Win32
+		{441F8169-F31E-4653-941E-25AC223CBAFB}.Release|x64.ActiveCfg = Release|x64
+		{441F8169-F31E-4653-941E-25AC223CBAFB}.Release|x64.Build.0 = Release|x64
+		{441F8169-F31E-4653-941E-25AC223CBAFB}.Release|x86.ActiveCfg = Release|Win32
+		{441F8169-F31E-4653-941E-25AC223CBAFB}.Release|x86.Build.0 = Release|Win32
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {B9B80CFD-EE01-4E7D-BF3A-97EB4AE34A0B}
+	EndGlobalSection
+EndGlobal

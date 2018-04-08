@@ -1,0 +1,61 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="12.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="C++ Source">
+      <UniqueIdentifier>{023c344a-2474-4519-92eb-e96f85f33c56}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Includes">
+      <UniqueIdentifier>{89ced404-e730-4d9d-8523-dc7167e784d8}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="..\..\Source\interactivity.cpp" />
+    <ClCompile Include="..\..\source\internal\common.cpp">
+      <Filter>C++ Source</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\source\internal\http_client.cpp">
+      <Filter>C++ Source</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\source\internal\interactive_auth.cpp">
+      <Filter>C++ Source</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\source\internal\interactive_control.cpp">
+      <Filter>C++ Source</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\source\internal\interactive_group.cpp">
+      <Filter>C++ Source</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\source\internal\interactive_participant.cpp">
+      <Filter>C++ Source</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\source\internal\interactive_scene.cpp">
+      <Filter>C++ Source</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\source\internal\interactive_session.cpp">
+      <Filter>C++ Source</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\source\internal\interactive_session_internal.cpp">
+      <Filter>C++ Source</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\source\internal\winapp_http_client.cpp">
+      <Filter>C++ Source</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\..\source\interactivity.h">
+      <Filter>Includes</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\source\internal\http_client.h">
+      <Filter>Includes</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\source\internal\common.h">
+      <Filter>Includes</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\source\internal\interactive_session.h">
+      <Filter>Includes</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\source\internal\winapp_http_client.h">
+      <Filter>Includes</Filter>
+    </ClInclude>
+  </ItemGroup>
+</Project>

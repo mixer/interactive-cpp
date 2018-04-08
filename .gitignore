@@ -18,6 +18,7 @@ Casablanca*/Build_iOS/ios-cmake/
 #nuget packages
 External/Packages/*
 Tools/Packages/*
+**/*.nupkg
 
 # Xcode
 
@@ -48,6 +49,7 @@ xcuserdata
 **/*.metaproj.tmp
 **/*.opendb
 **/*.coveragexml
+**/*.targets
 
 **/Durango/
 **/XboxOne.x64/

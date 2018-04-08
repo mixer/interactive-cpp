@@ -6,38 +6,35 @@ Android and iOS support will be coming soon.
 # Mixer Interactivity C++ SDK
 
 The C++ Interactivity SDK supports client-side development with Mixer Interactivity.
-If you'd like to checkout the [API documentation](https://dev.mixer.com/reference/interactive/cplusplus/index.html), feel free to
-take a look around. You can also take a peek at the [Xbox console sample](https://github.com/mixer/interactive-cpp/tree/master/Samples) for a
-simple example of an end-to-end integration.
+If you have not read through our [Interactive Reference Documentation](https://dev.mixer.com/reference/interactive/) now is a great time to do that. 
+
+## Quick Start
+
+Clone the `interactive-cpp` repository.
+
+```
+$ git clone https://github.com/mixer/interactive-cpp.git interactive-cpp
+```
+
+Copy the `source` directory into your C++ game project (you will likely want to rename it). Add `interactivity.cpp` to your compilation list and include `interactivity.h` to get started.
+
+See the [InteractiveSample](https://github.com/mixer/interactive-cpp/tree/v2/samples/InteractiveSample) for an example of how you might handle authorization and connect to an interactive session.
+
+### Authorization
+If you don't plan on handling authorization yourself you can use the provided authorization helper functions. To do so you will need an OAuth client ID which you can obtain here: https://mixer.com/lab/oauth
+
+## Design choices
+This source code was designed to be easily consumed by any game project. Some of major design decisions include:
+* A single header and [unity build](https://en.wikipedia.org/wiki/Single_Compilation_Unit) style cpp file.
+* An extern "C" interface.
+* No dependencies exposed in the header, all usage of STL and other libraries are quarantined from your game.
+* Callbacks for easy memory management and managed language interop.
+* All interactive functions assume UTF-8 strings for input and output parameters.
 
 ## Release Notes
 
 The `interactive-cpp` repository is currently in a pre-release state. Please refer
 to the [release notes](https://github.com/mixer/interactive-cpp/releases) for more information.
-
-## Setup
-
-This repository contains a [git submodule](https://git-scm.com/docs/git-submodule)
-called `cpprestsdk`. This library is utilized for http, websocket and JSON support.
-
-To clone the `interactive-cpp` repository and initialize the `cpprestsdk`
-submodule, run the following command:
-
-```
-$ git clone --recursive https://github.com/mixer/interactive-cpp.git interactive-cpp
-```
-
-Alternatively, the submodule may be initialized independently from the clone
-by running the following command:
-
-```
-$ git submodule update --init --recursive
-```
-
-The submodule points to the tip of the branch of the `cpprestsdk` repository
-specified in `interactive-cpp`'s `.gitmodules` file. Note that this submodule
-is a fork of the mainline cpprestsdk repo, maintained by the Xbox Live team to
-support the Xbox platform.
 
 ## Contribute Back!
 
@@ -60,9 +57,7 @@ to do that is to open an issue in our [issue tracker](https://github.com/mixer/i
 
 *   [Mixer](https://mixer.com/)
 *   [Developer Site](https://dev.mixer.com/)
-*   [C++ API Documentation](https://dev.mixer.com/reference/interactive/cplusplus/index.html)
 *   [Issue Tracker](https://github.com/mixer/interactive-cpp/issues)
-*   [Backlog](https://github.com/mixer/interactive-cpp/blob/master/backlog.md)
 
 This project has adopted the [Microsoft Open Source Code of Conduct](https://opensource.microsoft.com/codeofconduct/). For more information see the [Code of Conduct FAQ](https://opensource.microsoft.com/codeofconduct/faq/) or contact [opencode@microsoft.com](mailto:opencode@microsoft.com) with any additional questions or comments.
 
