@@ -249,6 +249,22 @@ extern "C" {
 	/// </summary>
 	int interactive_get_session_context(interactive_session session, void** context);
 
+	enum interactive_throttle_type
+	{
+		throttle_global,
+		throttle_input,
+		throttle_participant_join,
+		throttle_participant_leave
+	};
+
+	/// <summary>
+	/// Set a throttle for server to client messages on this interactive session. 
+	/// <remarks>
+	/// There is a global throttle on all interactive sessions of 30 megabits and 10 megabits per second by default.
+	/// </remarks>
+	/// </summary>
+	int interactive_set_bandwidth_throttle(interactive_session session, interactive_throttle_type throttleType, unsigned int maxBytes, unsigned int bytesPerSecond);
+
 	/// <summary>
 	/// This function processes the specified number of events from the interactive service and calls back on registered event handlers.
 	/// </summary>

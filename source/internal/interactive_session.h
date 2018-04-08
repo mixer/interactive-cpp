@@ -162,6 +162,9 @@ int check_reply_errors(interactive_session_internal& session, rapidjson::Documen
 #define RPC_METHOD_GET_TIME            "getTime"
 #define RPC_TIME                       "time"
 #define RPC_PARAM_IS_READY             "isReady"
+#define RPC_METHOD_SET_THROTTLE		   "setBandwidthThrottle"
+#define RPC_PARAM_CAPACITY			   "capacity"
+#define RPC_PARAM_DRAIN_RATE		   "drainRate"
 #define RPC_METHOD_GIVE_INPUT          "giveInput"
 
 #define RPC_GET_PARTICIPANTS           "getAllParticipants"

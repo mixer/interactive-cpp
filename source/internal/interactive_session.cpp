@@ -646,6 +646,47 @@ int interactive_get_session_context(interactive_session session, void** context)
 	return MIXER_OK;
 }
 
+int interactive_set_bandwidth_throttle(interactive_session session, interactive_throttle_type throttleType, unsigned int maxBytes, unsigned int bytesPerSecond)
+{
+	if (nullptr == session)
+	{
+		return MIXER_ERROR_INVALID_POINTER;
+	}
+
+	interactive_session_internal* sessionInternal = reinterpret_cast<interactive_session_internal*>(session);
+
+	std::string throttleMethod;
+	switch (throttleType)
+	{
+	case throttle_input:
+		throttleMethod = RPC_METHOD_ON_INPUT;
+		break;
+	case throttle_participant_join:
+		throttleMethod = RPC_METHOD_ON_PARTICIPANT_JOIN;
+		break;
+	case throttle_participant_leave:
+		throttleMethod = RPC_METHOD_ON_PARTICIPANT_LEAVE;
+		break;
+	case throttle_global:
+	default:
+		throttleMethod = "*";
+		break;
+	}
+
+	RETURN_IF_FAILED(queue_method(*sessionInternal, RPC_METHOD_SET_THROTTLE, [&](rapidjson::Document::AllocatorType& allocator, rapidjson::Value& params)
+	{
+		rapidjson::Value method(rapidjson::kObjectType);
+		method.SetObject();
+		method.AddMember(RPC_PARAM_CAPACITY, maxBytes, allocator);
+		method.AddMember(RPC_PARAM_DRAIN_RATE, bytesPerSecond, allocator);
+		rapidjson::Value throttleVal(rapidjson::kStringType);
+		throttleVal.SetString(throttleMethod, allocator);
+		params.AddMember(throttleVal, method, allocator);
+	}, check_reply_errors));
+
+	return MIXER_OK;
+}
+
 int interactive_run(interactive_session session, unsigned int maxEventsToProcess)
 {
 	if (nullptr == session)

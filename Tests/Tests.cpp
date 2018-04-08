@@ -561,12 +561,16 @@ public:
 
 		interactive_session session;
 		ASSERT_NOERR(interactive_open_session(auth.c_str(), versionId.c_str(), shareCode.c_str(), true, &session));
+
 		ASSERT_NOERR(interactive_register_input_handler(session, handle_input));
 		ASSERT_NOERR(interactive_register_state_changed_handler(session, handle_state_changed));
 		ASSERT_NOERR(interactive_register_error_handler(session, handle_error));
 		ASSERT_NOERR(interactive_register_participants_changed_handler(session, handle_participants_changed));
 		ASSERT_NOERR(interactive_register_unhandled_method_handler(session, handle_unhandled_method));
 		ASSERT_NOERR(interactive_register_transaction_complete_handler(session, handle_transaction_complete));
+
+		ASSERT_NOERR(interactive_set_bandwidth_throttle(session, throttle_participant_leave, 0, 0));
+		ASSERT_NOERR(interactive_set_bandwidth_throttle(session, throttle_input, 2 * 1024 * 1024 /* 2mb */, 512 * 1024 /* 512kbps */));
 
 		// Simulate 60 frames/sec
 		const int fps = 60;
