@@ -150,7 +150,7 @@ int interactive_auth_wait_short_code(const char* clientId, const char* shortCode
 	}
 	case 404: // Not Found - Handle expired
 	{
-		return MIXER_ERROR_AUTH_TIMEOUT;
+		return MIXER_ERROR_TIMED_OUT;
 	}
 	default: // Unknown error
 	{

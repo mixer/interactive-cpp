@@ -167,29 +167,45 @@ void App::OnLaunched(Windows::ApplicationModel::Activation::LaunchActivatedEvent
 
 		// Connect to the user's interactive channel, using the interactive project specified by the version ID.
 		interactive_session session;
-		err = interactive_connect(authorization.c_str(), INTERACTIVE_ID, SHARE_CODE, false, &session);
+		err = interactive_open_session(authorization.c_str(), INTERACTIVE_ID, SHARE_CODE, true, &session);
+		if (err) throw err;
+
+		err = interactive_set_session_context(session, &m_controlsByTransaction);
 		if (err) throw err;
 
 		// Register a callback for button presses.
-		err = interactive_reg_input_handler(session, [](void* context, interactive_session session, const interactive_input* input)
+		err = interactive_register_input_handler(session, [](void* context, interactive_session session, const interactive_input* input)
 		{
+			std::map<std::string, std::string>& controlsByTransaction = *(std::map <std::string, std::string>*)context;
 			if (input_type_button == input->type && button_action::down == input->buttonData.action)
 			{
 				// Capture the transaction on button down to deduct sparks
-				int err = interactive_capture_transaction(session, input->transactionId);
-				if (err)
-				{
-					std::cerr << "Failed to capture transaction. Participant may not have enough sparks." << std::endl;
-					return;
-				}
-
+				controlsByTransaction[input->transactionId] = input->control.id;
+				interactive_capture_transaction(session, input->transactionId);				
+			}
+		});
+		if (err) throw err;
+	
+		err = interactive_register_transaction_complete_handler(session, [](void* context, interactive_session session, const char* transactionId, size_t transactionIdLength, unsigned int errorCode, const char* errorMessage, size_t errorMessageLength)
+		{
+			std::map<std::string, std::string>& controlsByTransaction = *(std::map <std::string, std::string>*)context;
+			if (errorCode)
+			{
+				std::cerr << errorMessage << " (" << std::to_string(errorCode) << ")";
+			}
+			else
+			{
 				// Transaction was captured, now execute the most super awesome interactive functionality!
-				if (0 == strcmp("GiveHealth", input->control.id))
+				if (0 == strcmp("GiveHealth", controlsByTransaction[transactionId].c_str()))
 				{
 					std::cout << "Giving health to the player!" << std::endl;
 				}
 			}
+
+			controlsByTransaction.erase(transactionId);
+			
 		});
+		if (err) throw err;
 
 		while (m_appIsRunning)
 		{

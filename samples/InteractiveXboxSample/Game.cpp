@@ -99,29 +99,51 @@ void Game::Initialize(IUnknown* window)
 	}
 
 	// Connect to the user's interactive channel, using the interactive project specified by the version ID.
-	err = interactive_connect(authorization.c_str(), INTERACTIVE_ID, SHARE_CODE, false, &m_interactiveSession);
+	err = interactive_open_session(authorization.c_str(), INTERACTIVE_ID, SHARE_CODE, true, &m_interactiveSession);
+	if (err) throw err;
+
+	err = interactive_set_session_context(m_interactiveSession, this);
 	if (err) throw err;
 
 	// Register a callback for button presses.
-	err = interactive_reg_input_handler(m_interactiveSession, [](void* context, interactive_session session, const interactive_input* input)
+	err = interactive_register_input_handler(m_interactiveSession, [](void* context, interactive_session session, const interactive_input* input)
 	{
-		(context);
+		Game* game = (Game*)context;
 		if (input_type_button == input->type && button_action::down == input->buttonData.action)
 		{
 			// Capture the transaction on button down to deduct sparks
 			int err = interactive_capture_transaction(session, input->transactionId);
-			if (err)
+			if (!err)
 			{
-				std::cerr << "Failed to capture transaction. Participant may not have enough sparks." << std::endl;
-				return;
+				game->m_controlsById[input->transactionId] = input->control.id;
 			}
 
+			
+		}
+	});
+	if (err) throw err;
+
+	err = interactive_register_transaction_complete_handler(m_interactiveSession, [](void* context, interactive_session session, const char* transactionId, size_t transactionIdLength, unsigned int errorCode, const char* errorMessage, size_t errorMessageLength)
+	{
+		UNREFERENCED_PARAMETER(session);
+		UNREFERENCED_PARAMETER(transactionIdLength);
+		UNREFERENCED_PARAMETER(errorMessageLength);
+		Game* game = (Game*)context;
+		if (errorCode)
+		{
+			std::cerr << errorMessage << "(" << std::to_string(errorCode) << ")" << std::endl;
+		}
+		else
+		{
 			// Transaction was captured, now execute the most super awesome interactive functionality!
-			if (0 == strcmp("GiveHealth", input->control.id))
+			std::string controlId = game->m_controlsById[transactionId];
+			if (0 == strcmp("GiveHealth", controlId.c_str()))
 			{
 				std::cout << "Giving health to the player!" << std::endl;
 			}
 		}
+
+		game->m_controlsById.erase(transactionId);
 	});
 }
 

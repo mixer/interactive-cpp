@@ -4,6 +4,58 @@
 namespace mixer
 {
 
+int get_control_scene_id(interactive_session_internal& session, const char* controlId, std::string& sceneId)
+{
+	// Locate the cached control data.
+	auto itr = session.controls.find(controlId);
+	if (itr == session.controls.end())
+	{
+		return MIXER_ERROR_OBJECT_NOT_FOUND;
+	}
+
+	std::string controlPtr = itr->second;
+
+	// The controlPtr is prefixed with a scene pointer, parse it to find the scene this control belongs to.
+	size_t controlOffset = controlPtr.find("controls", 0);
+	std::string scenePtr = controlPtr.substr(0, controlOffset - 1);
+
+	// Get the scene id.
+	rapidjson::Value* scene = rapidjson::Pointer(rapidjson::StringRef(scenePtr.c_str(), scenePtr.length())).Get(session.scenesRoot);
+	sceneId = (*scene)[RPC_SCENE_ID].GetString();
+
+	return MIXER_OK;
+}
+
+int interactive_control_trigger_cooldown(interactive_session session, const char* controlId, const unsigned long long cooldownMs)
+{
+	if (nullptr == session)
+	{
+		return MIXER_ERROR_INVALID_POINTER;
+	}
+
+	interactive_session_internal* sessionInternal = reinterpret_cast<interactive_session_internal*>(session);
+
+	std::string controlSceneId;
+	RETURN_IF_FAILED(get_control_scene_id(*sessionInternal, controlId, controlSceneId));
+
+	long long cooldownTimestamp = std::chrono::time_point_cast<std::chrono::milliseconds>(std::chrono::system_clock::now()).time_since_epoch().count() - sessionInternal->serverTimeOffsetMs + cooldownMs;
+	std::string controlIdStr(controlId);
+	RETURN_IF_FAILED(queue_method(*sessionInternal, RPC_METHOD_UPDATE_CONTROLS, [controlSceneId, controlIdStr, cooldownTimestamp](rapidjson::Document::AllocatorType& allocator, rapidjson::Value& params)
+	{
+		params.AddMember(RPC_SCENE_ID, controlSceneId, allocator);
+		params.AddMember("priority", 1, allocator);
+
+		rapidjson::Value controls(rapidjson::kArrayType);
+		rapidjson::Value control(rapidjson::kObjectType);
+		control.AddMember(RPC_CONTROL_ID, controlIdStr, allocator);
+		control.AddMember(RPC_CONTROL_BUTTON_COOLDOWN, cooldownTimestamp, allocator);
+		controls.PushBack(control, allocator);
+		params.AddMember(RPC_PARAM_CONTROLS, controls, allocator);
+	}, nullptr));
+
+	return MIXER_OK;
+}
+
 int get_scene_object_prop_count(interactive_session_internal& session, const char* pointer, size_t* count)
 {
 	if (nullptr == pointer || nullptr == count)

@@ -27,5 +27,6 @@ namespace InteractiveSampleUWP
 		void OnNavigationFailed(Platform::Object ^sender, Windows::UI::Xaml::Navigation::NavigationFailedEventArgs ^e);
 		bool m_appIsRunning;
 		std::unique_ptr<std::thread> m_interactiveThread;
+		std::map<std::string, std::string> m_controlsByTransaction;
 	};
 }
