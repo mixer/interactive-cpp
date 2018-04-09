@@ -11,7 +11,6 @@
 #include "common.h"
 
 #include <functional>
-#include <iostream>
 
 namespace mixer
 {
@@ -20,45 +19,29 @@ typedef std::function<void(rapidjson::Document::AllocatorType& allocator, rapidj
 
 int create_method_json(interactive_session_internal& session, const std::string& method, on_get_params getParams, bool discard, unsigned int* id, std::shared_ptr<rapidjson::Document>& methodDoc)
 {
-	try
+	std::shared_ptr<rapidjson::Document> doc(std::make_shared<rapidjson::Document>());
+	doc->SetObject();
+	rapidjson::Document::AllocatorType& allocator = doc->GetAllocator();
+
+	unsigned int packetID = session.packetId++;
+	doc->AddMember(RPC_ID, packetID, allocator);
+	doc->AddMember(RPC_METHOD, method, allocator);
+	doc->AddMember(RPC_DISCARD, discard, allocator);
+	doc->AddMember(RPC_SEQUENCE, session.sequenceId, allocator);
+
+	// Get the parameters from the caller.
+	rapidjson::Value params(rapidjson::kObjectType);
+	if (getParams)
 	{
-		std::shared_ptr<rapidjson::Document> doc(std::make_shared<rapidjson::Document>());
-		doc->SetObject();
-		rapidjson::Document::AllocatorType& allocator = doc->GetAllocator();
-
-		unsigned int packetID = session.packetId++;
-		doc->AddMember(RPC_ID, packetID, allocator);
-		doc->AddMember(RPC_METHOD, method, allocator);
-		doc->AddMember(RPC_DISCARD, discard, allocator);
-		doc->AddMember(RPC_SEQUENCE, session.sequenceId, allocator);
-
-		// Get the parameters from the caller.
-		rapidjson::Value params(rapidjson::kObjectType);
-		if (getParams)
-		{
-			getParams(allocator, params);
-		}
-		doc->AddMember(RPC_PARAMS, params, allocator);
-
-		if (nullptr != id)
-		{
-			*id = packetID;
-		}
-		methodDoc = doc;
+		getParams(allocator, params);
 	}
-	catch (std::exception e)
+	doc->AddMember(RPC_PARAMS, params, allocator);
+
+	if (nullptr != id)
 	{
-		int err = MIXER_ERROR_METHOD_CREATE;
-		if (session.onError)
-		{
-			std::string errorMessage = "Failed to create method JSON for method: " + method;
-			DEBUG_ERROR(errorMessage);
-			session.onError(session.callerContext, &session, err, errorMessage.c_str(), errorMessage.length());
-		}
-
-		return err;
+		*id = packetID;
 	}
-
+	methodDoc = doc;
 	return MIXER_OK;
 }
 
@@ -126,28 +109,21 @@ int queue_request(interactive_session_internal& session, const std::string uri, 
 
 int check_reply_errors(interactive_session_internal& session, rapidjson::Document& reply)
 {
-	try
+	if (reply.HasMember(RPC_SEQUENCE) && !reply[RPC_SEQUENCE].IsNull())
 	{
-		if (reply.HasMember(RPC_SEQUENCE) && !reply[RPC_SEQUENCE].IsNull())
-		{
-			session.sequenceId = reply[RPC_SEQUENCE].GetInt();
-		}
-
-		if (reply.HasMember(RPC_ERROR) && !reply[RPC_ERROR].IsNull())
-		{
-			int errCode = reply[RPC_ERROR][RPC_ERROR_CODE].GetInt();
-			if (session.onError)
-			{
-				std::string errMessage = reply[RPC_ERROR][RPC_ERROR_MESSAGE].GetString();
-				session.onError(session.callerContext, &session, errCode, errMessage.c_str(), errMessage.length());
-			}
-
-			return errCode;
-		}
+		session.sequenceId = reply[RPC_SEQUENCE].GetInt();
 	}
-	catch (std::exception e)
+
+	if (reply.HasMember(RPC_ERROR) && !reply[RPC_ERROR].IsNull())
 	{
-		return MIXER_ERROR_UNRECOGNIZED_DATA_FORMAT;
+		int errCode = reply[RPC_ERROR][RPC_ERROR_CODE].GetInt();
+		if (session.onError)
+		{
+			std::string errMessage = reply[RPC_ERROR][RPC_ERROR_MESSAGE].GetString();
+			session.onError(session.callerContext, &session, errCode, errMessage.c_str(), errMessage.length());
+		}
+
+		return errCode;
 	}
 
 	return MIXER_OK;
@@ -231,95 +207,82 @@ int handle_input(interactive_session_internal& session, rapidjson::Document& doc
 		return MIXER_OK;
 	}
 
-	try
+	interactive_input inputData;
+	memset(&inputData, 0, sizeof(inputData));
+	std::string inputJson = jsonStringify(doc[RPC_PARAMS]);
+	inputData.jsonData = inputJson.c_str();
+	inputData.jsonDataLength = inputJson.length();
+	rapidjson::Value& input = doc[RPC_PARAMS][RPC_PARAM_INPUT];
+	inputData.control.id = input[RPC_CONTROL_ID].GetString();
+	inputData.control.idLength = input[RPC_CONTROL_ID].GetStringLength();
+
+	if (doc[RPC_PARAMS].HasMember(RPC_PARTICIPANT_ID))
 	{
-		interactive_input inputData;
-		memset(&inputData, 0, sizeof(inputData));
-		std::string inputJson = jsonStringify(doc[RPC_PARAMS]);
-		inputData.jsonData = inputJson.c_str();
-		inputData.jsonDataLength = inputJson.length();
-		rapidjson::Value& input = doc[RPC_PARAMS][RPC_PARAM_INPUT];
-		inputData.control.id = input[RPC_CONTROL_ID].GetString();
-		inputData.control.idLength = input[RPC_CONTROL_ID].GetStringLength();
-
-		if (doc[RPC_PARAMS].HasMember(RPC_PARTICIPANT_ID))
-		{
-			inputData.participantId = doc[RPC_PARAMS][RPC_PARTICIPANT_ID].GetString();
-			inputData.participantIdLength = doc[RPC_PARAMS][RPC_PARTICIPANT_ID].GetStringLength();
-		}
-
-		// Locate the cached control data.
-		auto itr = session.controls.find(inputData.control.id);
-		if (itr == session.controls.end())
-		{
-			int errCode = MIXER_ERROR_OBJECT_NOT_FOUND;
-			if (session.onError)
-			{
-				std::string errMessage = "Input received for unknown control.";
-				session.onError(session.callerContext, &session, errCode, errMessage.c_str(), errMessage.length());
-			}
-
-			return errCode;
-		}
-
-		rapidjson::Value* control = rapidjson::Pointer(itr->second.c_str()).Get(session.scenesRoot);
-		if (nullptr == control)
-		{
-			int errCode = MIXER_ERROR_OBJECT_NOT_FOUND;
-			if (session.onError)
-			{
-				std::string errMessage = "Internal failure: Failed to find control in cached json data.";
-				session.onError(session.callerContext, &session, errCode, errMessage.c_str(), errMessage.length());
-			}
-
-			return errCode;
-		}
-
-		inputData.control.kind = control->GetObject()[RPC_CONTROL_KIND].GetString();
-		inputData.control.kindLength = control->GetObject()[RPC_CONTROL_KIND].GetStringLength();
-		if (doc[RPC_PARAMS].HasMember(RPC_PARAM_TRANSACTION_ID))
-		{
-			inputData.transactionId = doc[RPC_PARAMS][RPC_PARAM_TRANSACTION_ID].GetString();
-			inputData.transactionIdLength = doc[RPC_PARAMS][RPC_PARAM_TRANSACTION_ID].GetStringLength();
-		}
-
-		std::string inputEvent = input[RPC_PARAM_INPUT_EVENT].GetString();
-		if (0 == inputEvent.compare(RPC_INPUT_EVENT_MOVE))
-		{
-			inputData.type = input_type_coordinate;
-			inputData.coordinateData.x = input[RPC_INPUT_EVENT_MOVE_X].GetFloat();
-			inputData.coordinateData.y = input[RPC_INPUT_EVENT_MOVE_Y].GetFloat();
-		}
-		else if (0 == inputEvent.compare(RPC_INPUT_EVENT_KEY_DOWN) ||
-			0 == inputEvent.compare(RPC_INPUT_EVENT_KEY_UP) ||
-			0 == inputEvent.compare(RPC_INPUT_EVENT_MOUSE_DOWN) ||
-			0 == inputEvent.compare(RPC_INPUT_EVENT_MOUSE_UP))
-		{
-			inputData.type = input_type_button;
-			bool keyDown = false;
-			if (0 == inputEvent.compare(RPC_INPUT_EVENT_KEY_DOWN) || 0 == inputEvent.compare(RPC_INPUT_EVENT_MOUSE_DOWN))
-			{
-				keyDown = true;
-			}
-			inputData.buttonData.action = keyDown ? button_action::down : button_action::up;
-		}
-		else
-		{
-			inputData.type = input_type_custom;
-		}
-
-		session.onInput(session.callerContext, &session, &inputData);
+		inputData.participantId = doc[RPC_PARAMS][RPC_PARTICIPANT_ID].GetString();
+		inputData.participantIdLength = doc[RPC_PARAMS][RPC_PARTICIPANT_ID].GetStringLength();
 	}
-	catch (std::exception e)
+
+	// Locate the cached control data.
+	auto itr = session.controls.find(inputData.control.id);
+	if (itr == session.controls.end())
 	{
-		int errCode = MIXER_ERROR_JSON_PARSE;
+		int errCode = MIXER_ERROR_OBJECT_NOT_FOUND;
 		if (session.onError)
 		{
-			std::string errMessage = "Exception while parsing interactive input data: " + std::string(e.what());
+			std::string errMessage = "Input received for unknown control.";
 			session.onError(session.callerContext, &session, errCode, errMessage.c_str(), errMessage.length());
 		}
+
 		return errCode;
 	}
+
+	rapidjson::Value* control = rapidjson::Pointer(itr->second.c_str()).Get(session.scenesRoot);
+	if (nullptr == control)
+	{
+		int errCode = MIXER_ERROR_OBJECT_NOT_FOUND;
+		if (session.onError)
+		{
+			std::string errMessage = "Internal failure: Failed to find control in cached json data.";
+			session.onError(session.callerContext, &session, errCode, errMessage.c_str(), errMessage.length());
+		}
+
+		return errCode;
+	}
+
+	inputData.control.kind = control->GetObject()[RPC_CONTROL_KIND].GetString();
+	inputData.control.kindLength = control->GetObject()[RPC_CONTROL_KIND].GetStringLength();
+	if (doc[RPC_PARAMS].HasMember(RPC_PARAM_TRANSACTION_ID))
+	{
+		inputData.transactionId = doc[RPC_PARAMS][RPC_PARAM_TRANSACTION_ID].GetString();
+		inputData.transactionIdLength = doc[RPC_PARAMS][RPC_PARAM_TRANSACTION_ID].GetStringLength();
+	}
+
+	std::string inputEvent = input[RPC_PARAM_INPUT_EVENT].GetString();
+	if (0 == inputEvent.compare(RPC_INPUT_EVENT_MOVE))
+	{
+		inputData.type = input_type_coordinate;
+		inputData.coordinateData.x = input[RPC_INPUT_EVENT_MOVE_X].GetFloat();
+		inputData.coordinateData.y = input[RPC_INPUT_EVENT_MOVE_Y].GetFloat();
+	}
+	else if (0 == inputEvent.compare(RPC_INPUT_EVENT_KEY_DOWN) ||
+		0 == inputEvent.compare(RPC_INPUT_EVENT_KEY_UP) ||
+		0 == inputEvent.compare(RPC_INPUT_EVENT_MOUSE_DOWN) ||
+		0 == inputEvent.compare(RPC_INPUT_EVENT_MOUSE_UP))
+	{
+		inputData.type = input_type_button;
+		bool keyDown = false;
+		if (0 == inputEvent.compare(RPC_INPUT_EVENT_KEY_DOWN) || 0 == inputEvent.compare(RPC_INPUT_EVENT_MOUSE_DOWN))
+		{
+			keyDown = true;
+		}
+		inputData.buttonData.action = keyDown ? button_action::down : button_action::up;
+	}
+	else
+	{
+		inputData.type = input_type_custom;
+	}
+
+	session.onInput(session.callerContext, &session, &inputData);
 
 	return MIXER_OK;
 }
@@ -462,28 +425,20 @@ int get_hosts(interactive_session_internal& session)
 		return MIXER_ERROR_NO_HOST;
 	}
 
-	try
+	rapidjson::Document doc;
+	if (doc.Parse(response.body.c_str()).HasParseError() || !doc.IsArray())
 	{
-		rapidjson::Document doc;
-		doc.Parse(response.body.c_str());
-		if (!doc.IsArray())
-		{
-			return MIXER_ERROR_NO_HOST;
-		}
-
-		for (auto itr = doc.Begin(); itr != doc.End(); ++itr)
-		{
-			auto addressItr = itr->FindMember("address");
-			if (addressItr != itr->MemberEnd())
-			{
-				session.hosts.push_back(addressItr->value.GetString());
-				DEBUG_TRACE("Host found: " + std::string(addressItr->value.GetString(), addressItr->value.GetStringLength()));
-			}
-		}
+		return MIXER_ERROR_JSON_PARSE;
 	}
-	catch (std::exception e)
+
+	for (auto itr = doc.Begin(); itr != doc.End(); ++itr)
 	{
-		return MIXER_ERROR_NO_HOST;
+		auto addressItr = itr->FindMember("address");
+		if (addressItr != itr->MemberEnd())
+		{
+			session.hosts.push_back(addressItr->value.GetString());
+			DEBUG_TRACE("Host found: " + std::string(addressItr->value.GetString(), addressItr->value.GetStringLength()));
+		}
 	}
 
 	return MIXER_OK;
@@ -510,21 +465,17 @@ int update_server_time_offset(interactive_session_internal& session)
 		return err;
 	}
 
-	auto receivedTime = std::chrono::time_point_cast<std::chrono::milliseconds>(std::chrono::system_clock::now());
-	auto latency = (receivedTime - sentTime) / 2;
-	try
+	if (!replyDoc->HasMember(RPC_RESULT) || !(*replyDoc)[RPC_RESULT].HasMember(RPC_TIME))
 	{
-		unsigned long long serverTime = (*replyDoc)[RPC_RESULT][RPC_TIME].GetUint64();
-		auto offset = receivedTime - latency - std::chrono::milliseconds(serverTime);
-		session.serverTimeOffsetMs = offset.time_since_epoch().count();
-		DEBUG_INFO("Server time offset: " + std::to_string(session.serverTimeOffsetMs));
-	}
-	catch (std::exception e)
-	{
-		DEBUG_ERROR(std::string("Failed to parse server time: ") + e.what());
-		return err;
+		DEBUG_ERROR("Unexpected reply format for server time reply");
 	}
 
+	auto receivedTime = std::chrono::time_point_cast<std::chrono::milliseconds>(std::chrono::system_clock::now());
+	auto latency = (receivedTime - sentTime) / 2;
+	unsigned long long serverTime = (*replyDoc)[RPC_RESULT][RPC_TIME].GetUint64();
+	auto offset = receivedTime - latency - std::chrono::milliseconds(serverTime);
+	session.serverTimeOffsetMs = offset.time_since_epoch().count();
+	DEBUG_INFO("Server time offset: " + std::to_string(session.serverTimeOffsetMs));
 	return MIXER_OK;
 }
 
@@ -897,11 +848,7 @@ int interactive_send_method(interactive_session session, const char* method, con
 	interactive_session_internal* sessionInternal = reinterpret_cast<interactive_session_internal*>(session);
 
 	rapidjson::Document paramsDoc;
-	try
-	{
-		paramsDoc.Parse(paramsJson);
-	}
-	catch (...)
+	if (paramsDoc.Parse(paramsJson).HasParseError())
 	{
 		return MIXER_ERROR_JSON_PARSE;
 	}

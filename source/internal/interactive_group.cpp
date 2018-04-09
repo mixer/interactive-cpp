@@ -12,26 +12,19 @@ int cache_groups(interactive_session_internal& session)
 	std::shared_ptr<rapidjson::Document> reply;
 	RETURN_IF_FAILED(receive_reply(session, id, reply));
 
-	try
+	std::unique_lock<std::shared_mutex> l(session.scenesMutex);
+	session.scenesByGroup.clear();
+	rapidjson::Value& groups = (*reply)[RPC_RESULT][RPC_PARAM_GROUPS];
+	for (auto& group : groups.GetArray())
 	{
-		std::unique_lock<std::shared_mutex> l(session.scenesMutex);
-		session.scenesByGroup.clear();
-		rapidjson::Value& groups = (*reply)[RPC_RESULT][RPC_PARAM_GROUPS];
-		for (auto& group : groups.GetArray())
+		std::string groupId = group[RPC_GROUP_ID].GetString();
+		std::string sceneId;
+		if (group.HasMember(RPC_SCENE_ID))
 		{
-			std::string groupId = group[RPC_GROUP_ID].GetString();
-			std::string sceneId;
-			if (group.HasMember(RPC_SCENE_ID))
-			{
-				sceneId = group[RPC_SCENE_ID].GetString();
-			}
-
-			session.scenesByGroup.emplace(groupId, sceneId);
+			sceneId = group[RPC_SCENE_ID].GetString();
 		}
-	}
-	catch (std::exception e)
-	{
-		return MIXER_ERROR_JSON_PARSE;
+
+		session.scenesByGroup.emplace(groupId, sceneId);
 	}
 
 	return MIXER_OK;

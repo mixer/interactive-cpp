@@ -62,5 +62,11 @@
     <ClInclude Include="..\..\source\internal\win_http_client.h">
       <Filter>Includes</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\source\internal\debugging.h">
+      <Filter>Includes</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\source\internal\json.h">
+      <Filter>Includes</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

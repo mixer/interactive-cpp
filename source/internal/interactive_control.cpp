@@ -64,22 +64,14 @@ int get_scene_object_prop_count(interactive_session_internal& session, const cha
 	}
 
 	*count = 0;
-	try
-	{
-		// Find the control in the cached scene document.
-		rapidjson::Value* value = rapidjson::Pointer(rapidjson::StringRef(pointer)).Get(session.scenesRoot);
-		if (nullptr == value)
-		{
-			return MIXER_ERROR_OBJECT_NOT_FOUND;
-		}
-
-		*count = value->MemberCount();
-	}
-	catch (std::exception e)
+	// Find the control in the cached scene document.
+	rapidjson::Value* value = rapidjson::Pointer(rapidjson::StringRef(pointer)).Get(session.scenesRoot);
+	if (nullptr == value)
 	{
 		return MIXER_ERROR_OBJECT_NOT_FOUND;
 	}
 
+	*count = value->MemberCount();
 	return MIXER_OK;
 }
 
@@ -267,17 +259,10 @@ int verify_get_property_args_and_get_control_value(interactive_session session, 
 	}
 
 	std::string controlPointer = controlItr->second + "/" + std::string(key);
-	try
-	{	
-		*controlValue = rapidjson::Pointer(controlPointer.c_str()).Get(sessionInternal->scenesRoot);
-		if (nullptr == *controlValue)
-		{
-			return MIXER_ERROR_PROPERTY_NOT_FOUND;
-		}
-	}
-	catch (std::exception e)
+	*controlValue = rapidjson::Pointer(controlPointer.c_str()).Get(sessionInternal->scenesRoot);
+	if (nullptr == *controlValue)
 	{
-		return MIXER_ERROR_OBJECT_NOT_FOUND;
+		return MIXER_ERROR_PROPERTY_NOT_FOUND;
 	}
 
 	return MIXER_OK;

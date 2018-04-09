@@ -3,10 +3,8 @@
 #include <windows.h>
 #include <winhttp.h>
 #include <urlmon.h>
-#include <locale>
 #include <string>
 #include <memory>
-#include <iostream>
 #include <sstream>
 #include <regex>
 

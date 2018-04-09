@@ -2,6 +2,7 @@
 #include "common.h"
 #include "http_client.h"
 
+#include <ctime>
 #include <string>
 #include "rapidjson\document.h"
 
@@ -23,32 +24,27 @@ int interactive_auth_parse_refresh_token(const char* refreshToken, char* authori
 		return MIXER_ERROR_INVALID_POINTER;
 	}
 
-	try
+	rapidjson::Document doc;
+	if (doc.Parse(rapidjson::StringRef(refreshToken)).HasParseError())
 	{
-		rapidjson::Document doc;
-		doc.Parse(rapidjson::StringRef(refreshToken));
-		if (!doc.HasMember(JSON_ACCESS_TOKEN))
-		{
-			return MIXER_ERROR_AUTH_INVALID_TOKEN;
-		}
-
-		std::string authorizationStr = std::string("Bearer ") + doc["access_token"].GetString();
-		if (nullptr == authorization || *authorizationLength < authorizationStr.length() + 1)
-		{
-			*authorizationLength = authorizationStr.length() + 1;
-			return MIXER_ERROR_BUFFER_SIZE;
-		}
-
-		memcpy(authorization, authorizationStr.c_str(), authorizationStr.length());
-		authorization[authorizationStr.length()] = 0;
-		*authorizationLength = authorizationStr.length() + 1;
-		
+		return MIXER_ERROR_JSON_PARSE;
 	}
-	catch (std::exception e)
+
+	if (!doc.HasMember(JSON_ACCESS_TOKEN))
 	{
 		return MIXER_ERROR_AUTH_INVALID_TOKEN;
 	}
 
+	std::string authorizationStr = std::string("Bearer ") + doc["access_token"].GetString();
+	if (nullptr == authorization || *authorizationLength < authorizationStr.length() + 1)
+	{
+		*authorizationLength = authorizationStr.length() + 1;
+		return MIXER_ERROR_BUFFER_SIZE;
+	}
+
+	memcpy(authorization, authorizationStr.c_str(), authorizationStr.length());
+	authorization[authorizationStr.length()] = 0;
+	*authorizationLength = authorizationStr.length() + 1;
 	return MIXER_OK;
 }
 
@@ -71,52 +67,44 @@ int interactive_auth_get_short_code(const char* clientId, char* shortCode, size_
 		return response.statusCode;
 	}
 
-	try
+	rapidjson::Document doc;
+	if (doc.Parse(response.body.c_str()).HasParseError())
 	{
-		rapidjson::Document doc;
-		doc.Parse(response.body.c_str());
-		std::string code = doc[JSON_CODE].GetString();
-		std::string handle = doc[JSON_HANDLE].GetString();
+		return MIXER_ERROR_JSON_PARSE;
+	}
 
-		if (*shortCodeLength < code.length() + 1 ||
-			*shortCodeHandleLength < handle.length() + 1)
-		{
-			*shortCodeLength = code.length() + 1;
-			*shortCodeHandleLength = handle.length() + 1;
-			return MIXER_ERROR_BUFFER_SIZE;
-		}
+	std::string code = doc[JSON_CODE].GetString();
+	std::string handle = doc[JSON_HANDLE].GetString();
 
-		memcpy(shortCode, code.c_str(), code.length());
-		shortCode[code.length()] = 0;
+	if (*shortCodeLength < code.length() + 1 ||
+		*shortCodeHandleLength < handle.length() + 1)
+	{
 		*shortCodeLength = code.length() + 1;
-
-		memcpy(shortCodeHandle, handle.c_str(), handle.length());
-		shortCodeHandle[handle.length()] = 0;
 		*shortCodeHandleLength = handle.length() + 1;
-	}
-	catch (std::exception e)
-	{
-		return MIXER_ERROR_AUTH;
+		return MIXER_ERROR_BUFFER_SIZE;
 	}
 
+	memcpy(shortCode, code.c_str(), code.length());
+	shortCode[code.length()] = 0;
+	*shortCodeLength = code.length() + 1;
+
+	memcpy(shortCodeHandle, handle.c_str(), handle.length());
+	shortCodeHandle[handle.length()] = 0;
+	*shortCodeHandleLength = handle.length() + 1;
 	return MIXER_OK;
 }
 
 int stamp_token_response(const http_response& response, _Out_ std::string& tokenData)
 {
 	// The access token data has an "expires_in" field, mark the token with a local grant time for future use.
-	try
+	rapidjson::Document doc;
+	if (doc.Parse(response.body.c_str(), response.body.length()).HasParseError())
 	{
-		rapidjson::Document doc;
-		doc.Parse(response.body.c_str(), response.body.length());
-		doc.AddMember(JSON_GRANTED_AT, std::time(0), doc.GetAllocator());
-		tokenData = jsonStringify(doc);
-	}
-	catch (std::exception e)
-	{
-		return MIXER_ERROR_AUTH;
+		return MIXER_ERROR_JSON_PARSE;
 	}
 
+	doc.AddMember(JSON_GRANTED_AT, std::time(0), doc.GetAllocator());
+	tokenData = jsonStringify(doc);
 	return MIXER_OK;
 }
 
@@ -140,7 +128,11 @@ int interactive_auth_wait_short_code(const char* clientId, const char* shortCode
 	case 200: // OK
 	{
 		rapidjson::Document doc;
-		doc.Parse(response.body.c_str());
+		if (doc.Parse(response.body.c_str()).HasParseError())
+		{
+			return MIXER_ERROR_JSON_PARSE;
+		}
+
 		oauthCode = doc[JSON_CODE].GetString();
 		break;
 	}
@@ -195,7 +187,11 @@ int interactive_auth_refresh_token(const char* clientId, const char* staleToken,
 	try
 	{
 		rapidjson::Document doc;
-		doc.Parse(staleToken);
+		if (doc.Parse(staleToken).HasParseError())
+		{
+			return MIXER_ERROR_JSON_PARSE;
+		}
+
 		if (!doc.IsObject() || !doc.HasMember(JSON_REFRESH_TOKEN))
 		{
 			return MIXER_ERROR_AUTH_INVALID_TOKEN;
@@ -217,7 +213,7 @@ int interactive_auth_refresh_token(const char* clientId, const char* staleToken,
 	{
 		return MIXER_ERROR_AUTH;
 	}
-	
+
 	RETURN_IF_FAILED(stamp_token_response(response, refreshTokenData));
 
 	if (*refreshTokenLength < refreshTokenData.length() + 1)
@@ -243,7 +239,11 @@ int interactive_auth_is_token_stale(const char* token, bool* isStale)
 	try
 	{
 		rapidjson::Document doc;
-		doc.Parse(token);
+		if (doc.Parse(token).HasParseError())
+		{
+			return MIXER_ERROR_JSON_PARSE;
+		}
+
 		if (!doc.HasMember(JSON_GRANTED_AT) || !doc.HasMember(JSON_EXPIRES_IN))
 		{
 			return MIXER_ERROR_AUTH_INVALID_TOKEN;

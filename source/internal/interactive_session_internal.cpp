@@ -34,13 +34,13 @@ void interactive_session_internal::handle_ws_message(const websocket& socket, co
 	}
 
 	// Parse the message to determine packet type.
-	try
+	std::shared_ptr<rapidjson::Document> doc = std::make_shared<rapidjson::Document>();
+	if (!doc->Parse(message.c_str(), message.length()).HasParseError())
 	{
-		std::shared_ptr<rapidjson::Document> doc = std::make_shared<rapidjson::Document>();
-		doc->Parse(message.c_str(), message.length());
 		if (!doc->HasMember(RPC_TYPE))
 		{
 			// Message does not conform to protocol, ignore it.
+			DEBUG_WARNING("Incoming RPC packet missing type parameter.");
 			return;
 		}
 
@@ -58,9 +58,9 @@ void interactive_session_internal::handle_ws_message(const websocket& socket, co
 			this->repliesCV.notify_all();
 		}
 	}
-	catch (...)
+	else
 	{
-		// Assume any failed parsed messages do not conform to protocol.
+		DEBUG_ERROR("Failed to parse websocket message: " + message);
 	}
 }
 
