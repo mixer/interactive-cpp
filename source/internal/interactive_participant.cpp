@@ -1,9 +1,8 @@
 #include "interactive_session.h"
 #include "common.h"
 
-namespace mixer
+namespace mixer_internal
 {
-
 
 void parse_participant(rapidjson::Value& participantJson, interactive_participant& participant)
 {
@@ -19,6 +18,10 @@ void parse_participant(rapidjson::Value& participantJson, interactive_participan
 	participant.groupId = participantJson[RPC_GROUP_ID].GetString();
 	participant.groupIdLength = participantJson[RPC_GROUP_ID].GetStringLength();
 }
+
+}
+
+using namespace mixer_internal;
 
 int interactive_get_participants(interactive_session session, on_participant_enumerate onParticipant)
 {
@@ -211,7 +214,4 @@ int interactive_get_participant_group(interactive_session session, const char* p
 	group[actualLength] = 0;
 	*groupLength = actualLength + 1;
 	return MIXER_OK;
-}
-
-
 }

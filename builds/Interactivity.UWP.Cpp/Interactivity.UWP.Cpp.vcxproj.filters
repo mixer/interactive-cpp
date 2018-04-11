@@ -9,7 +9,6 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\..\Source\interactivity.cpp" />
     <ClCompile Include="..\..\source\internal\common.cpp">
       <Filter>C++ Source</Filter>
     </ClCompile>
@@ -40,6 +39,12 @@
     <ClCompile Include="..\..\source\internal\winapp_http_client.cpp">
       <Filter>C++ Source</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\source\internal\winapp_websocket.cpp">
+      <Filter>C++ Source</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Source\interactivity.cpp">
+      <Filter>C++ Source</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\source\interactivity.h">
@@ -55,6 +60,12 @@
       <Filter>Includes</Filter>
     </ClInclude>
     <ClInclude Include="..\..\source\internal\winapp_http_client.h">
+      <Filter>Includes</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\source\internal\websocket.h">
+      <Filter>Includes</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\source\internal\debugging.h">
       <Filter>Includes</Filter>
     </ClInclude>
   </ItemGroup>

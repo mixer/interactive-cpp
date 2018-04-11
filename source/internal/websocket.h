@@ -2,7 +2,7 @@
 #include <functional>
 #include <memory>
 
-namespace mixer
+namespace mixer_internal
 {
 
 class websocket;

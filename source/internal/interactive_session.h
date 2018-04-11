@@ -1,7 +1,7 @@
 #pragma once
 #include "interactivity.h"
 #include "http_client.h"
-#include "simplewebsocketcpp\simplewebsocket.h"
+#include "websocket.h"
 #include "rapidjson\document.h"
 #include "rapidjson\pointer.h"
 
@@ -13,7 +13,7 @@
 #include <shared_mutex>
 #include <atomic>
 
-namespace mixer
+namespace mixer_internal
 {
 
 struct interactive_session_internal;
@@ -92,7 +92,7 @@ struct interactive_session_internal
 	std::mutex httpResponsesMutex;
 	std::map<unsigned int, http_response_handler> httpResponseHandlers;
 	std::map<unsigned int, http_response> httpResponsesById;
-	
+
 	// Incoming data
 	std::thread incomingThread;
 	std::mutex methodsMutex;
@@ -104,7 +104,7 @@ struct interactive_session_internal
 
 	// Network errors
 	std::mutex errorsMutex;
-    std::queue<protocol_error> errors;
+	std::queue<protocol_error> errors;
 
 	// Websocket handlers
 	std::mutex wsOpenMutex;
@@ -134,6 +134,8 @@ void parse_participant(rapidjson::Value& participantJson, interactive_participan
 
 // Common reply handler that checks a reply for errors and calls the session's error handler if it exists.
 int check_reply_errors(interactive_session_internal& session, rapidjson::Document& reply);
+
+}
 
 // Interactive RPC protocol strings.
 #define RPC_ETAG                       "etag"
@@ -249,5 +251,3 @@ int check_reply_errors(interactive_session_internal& session, rapidjson::Documen
 #define RPC_PART_CONNECTED             "connectedAt"
 #define RPC_GROUP_ID                   "groupID"
 #define RPC_GROUP_DEFAULT              "default"
-
-}

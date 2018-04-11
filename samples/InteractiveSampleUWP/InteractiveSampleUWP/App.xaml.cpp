@@ -17,8 +17,6 @@
 
 std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
 
-using namespace mixer;
-
 #define CLIENT_ID		"f0d20e2d263b75894f5cdaabc8a344b99b1ea6f9ecb7fa4f"
 #define INTERACTIVE_ID	"135704"
 #define SHARE_CODE		"xe7dpqd5"
@@ -177,7 +175,7 @@ void App::OnLaunched(Windows::ApplicationModel::Activation::LaunchActivatedEvent
 		err = interactive_register_input_handler(session, [](void* context, interactive_session session, const interactive_input* input)
 		{
 			std::map<std::string, std::string>& controlsByTransaction = *(std::map <std::string, std::string>*)context;
-			if (input_type_button == input->type && button_action::down == input->buttonData.action)
+			if (input_type_button == input->type && interactive_button_action::down == input->buttonData.action)
 			{
 				// Capture the transaction on button down to deduct sparks
 				controlsByTransaction[input->transactionId] = input->control.id;

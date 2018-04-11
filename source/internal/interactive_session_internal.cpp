@@ -1,7 +1,7 @@
 #include "interactive_session.h"
 #include "common.h"
 
-namespace mixer
+namespace mixer_internal
 {
 
 interactive_session_internal::interactive_session_internal()

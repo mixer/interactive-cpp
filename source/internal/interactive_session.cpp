@@ -1,18 +1,9 @@
-//*********************************************************
-//
-// Copyright (c) Microsoft. All rights reserved.
-// THIS CODE IS PROVIDED *AS IS* WITHOUT WARRANTY OF
-// ANY KIND, EITHER EXPRESS OR IMPLIED, INCLUDING ANY
-// IMPLIED WARRANTIES OF FITNESS FOR A PARTICULAR
-// PURPOSE, MERCHANTABILITY, OR NON-INFRINGEMENT.
-//
-//*********************************************************
 #include "interactive_session.h"
 #include "common.h"
 
 #include <functional>
 
-namespace mixer
+namespace mixer_internal
 {
 
 typedef std::function<void(rapidjson::Document::AllocatorType& allocator, rapidjson::Value& value)> on_get_params;
@@ -77,7 +68,7 @@ int queue_method(interactive_session_internal& session, const std::string& metho
 	return MIXER_OK;
 }
 
-int queue_request(interactive_session_internal& session, const std::string uri,  std::string& verb, const std::map<std::string, std::string>* headers, const std::string* body, http_response_handler onResponse)
+int queue_request(interactive_session_internal& session, const std::string uri, std::string& verb, const std::map<std::string, std::string>* headers, const std::string* body, http_response_handler onResponse)
 {
 	http_request_data httpRequest;
 	httpRequest.packetId = session.packetId++;
@@ -275,7 +266,7 @@ int handle_input(interactive_session_internal& session, rapidjson::Document& doc
 		{
 			keyDown = true;
 		}
-		inputData.buttonData.action = keyDown ? button_action::down : button_action::up;
+		inputData.buttonData.action = keyDown ? interactive_button_action::down : interactive_button_action::up;
 	}
 	else
 	{
@@ -287,7 +278,7 @@ int handle_input(interactive_session_internal& session, rapidjson::Document& doc
 	return MIXER_OK;
 }
 
-int handle_participants_change(interactive_session_internal& session, rapidjson::Document& doc, participant_action action)
+int handle_participants_change(interactive_session_internal& session, rapidjson::Document& doc, interactive_participant_action action)
 {
 	if (!session.onParticipantsChanged)
 	{
@@ -538,6 +529,10 @@ int do_connect(interactive_session_internal& session, bool isReady)
 
 	return MIXER_OK;
 }
+
+}
+
+using namespace mixer_internal;
 
 int interactive_open_session(const char* auth, const char* versionId, const char* shareCode, bool setReady, interactive_session* sessionPtr)
 {
@@ -996,4 +991,15 @@ int interactive_register_unhandled_method_handler(interactive_session session, o
 	return MIXER_OK;
 }
 
+// Debugging
+
+void interactive_config_debug_level(const interactive_debug_level dbgLevel)
+{
+	g_dbgInteractiveLevel = dbgLevel;
+}
+
+void interactive_config_debug(const interactive_debug_level dbgLevel, const on_debug_msg dbgCallback)
+{
+	g_dbgInteractiveLevel = dbgLevel;
+	g_dbgInteractiveCallback = dbgCallback;
 }

@@ -5,7 +5,6 @@
 #include "pch.h"
 #include "Game.h"
 
-using namespace mixer;
 using namespace DirectX;
 using namespace Windows::Xbox::Input;
 using namespace Windows::Foundation::Collections;
@@ -29,8 +28,6 @@ Game::Game() :
 #include <string>
 
 std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
-
-using namespace mixer;
 
 #define CLIENT_ID		"f0d20e2d263b75894f5cdaabc8a344b99b1ea6f9ecb7fa4f"
 #define INTERACTIVE_ID	"135704"
@@ -109,7 +106,7 @@ void Game::Initialize(IUnknown* window)
 	err = interactive_register_input_handler(m_interactiveSession, [](void* context, interactive_session session, const interactive_input* input)
 	{
 		Game* game = (Game*)context;
-		if (input_type_button == input->type && button_action::down == input->buttonData.action)
+		if (input_type_button == input->type && interactive_button_action::down == input->buttonData.action)
 		{
 			// Capture the transaction on button down to deduct sparks
 			int err = interactive_capture_transaction(session, input->transactionId);

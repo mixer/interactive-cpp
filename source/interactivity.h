@@ -10,9 +10,6 @@
 
 #pragma once
 
-namespace mixer
-{
-
 // Known control properties
 #define CONTROL_PROP_DISABLED "disabled"
 #define CONTROL_PROP_POSITION "position"
@@ -90,7 +87,7 @@ extern "C" {
 		size_t groupIdLength;
 	};
 
-	enum participant_action
+	enum interactive_participant_action
 	{
 		participant_join,
 		participant_leave,
@@ -110,7 +107,7 @@ extern "C" {
 		input_type_custom
 	};
 
-	enum button_action
+	enum interactive_button_action
 	{
 		up,
 		down
@@ -130,7 +127,7 @@ extern "C" {
 		{
 			struct buttonData
 			{
-				button_action action;
+				interactive_button_action action;
 			} buttonData;
 			struct coordinateData
 			{
@@ -205,7 +202,7 @@ extern "C" {
 	typedef void(*on_error)(void* context, interactive_session session, int errorCode, const char* errorMessage, size_t errorMessageLength);
 	typedef void(*on_state_changed)(void* context, interactive_session session, interactive_state previousState, interactive_state newState);
 	typedef void(*on_input)(void* context, interactive_session session, const interactive_input* input);
-	typedef void(*on_participants_changed)(void* context, interactive_session session, participant_action action, const interactive_participant* participant);
+	typedef void(*on_participants_changed)(void* context, interactive_session session, interactive_participant_action action, const interactive_participant* participant);
 	typedef void(*on_transaction_complete)(void* context, interactive_session session, const char* transactionId, size_t transactionIdLength, unsigned int error, const char* errorMessage, size_t errorMessageLength);
 	typedef void(*on_unhandled_method)(void* context, interactive_session session, const char* methodJson, size_t methodJsonLength);
 
@@ -338,13 +335,13 @@ extern "C" {
 	// Interactive control
 	typedef enum interactive_property_type
 	{
-		unknown_t,
-		int_t,
-		bool_t,
-		float_t,
-		string_t,
-		array_t,
-		object_t
+		interactive_unknown_t,
+		interactive_int_t,
+		interactive_bool_t,
+		interactive_float_t,
+		interactive_string_t,
+		interactive_array_t,
+		interactive_object_t
 	} interactive_property_type;
 
 	/// <summary>
@@ -393,11 +390,11 @@ extern "C" {
 	// Debugging
 	enum interactive_debug_level
 	{
-		debug_none = 0,
-		debug_error,
-		debug_warning,
-		debug_info,
-		debug_trace
+		interactive_debug_none = 0,
+		interactive_debug_error,
+		interactive_debug_warning,
+		interactive_debug_info,
+		interactive_debug_trace
 	};
 
 	typedef void(*on_debug_msg)(const interactive_debug_level dbgMsgType, const char* dbgMsg, size_t dbgMsgSize);
@@ -411,8 +408,6 @@ extern "C" {
 	/// Configure the debug verbosity and set the debug callback function for all interactive sessions in the current process.
 	/// </summary>
 	void interactive_config_debug(const interactive_debug_level dbgLevel, on_debug_msg dbgCallback);
-}
-
 }
 
 

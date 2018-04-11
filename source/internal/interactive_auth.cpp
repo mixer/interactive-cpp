@@ -6,15 +6,31 @@
 #include <string>
 #include "rapidjson\document.h"
 
-namespace mixer
-{
-
 #define JSON_GRANTED_AT "granted_at"
 #define JSON_REFRESH_TOKEN "refresh_token"
 #define JSON_EXPIRES_IN "expires_in"
 #define JSON_ACCESS_TOKEN "access_token"
 #define JSON_CODE "code"
 #define JSON_HANDLE "handle"
+
+namespace mixer_internal
+{
+	int stamp_token_response(const http_response& response, _Out_ std::string& tokenData)
+	{
+		// The access token data has an "expires_in" field, mark the token with a local grant time for future use.
+		rapidjson::Document doc;
+		if (doc.Parse(response.body.c_str(), response.body.length()).HasParseError())
+		{
+			return MIXER_ERROR_JSON_PARSE;
+		}
+
+		doc.AddMember(JSON_GRANTED_AT, std::time(0), doc.GetAllocator());
+		tokenData = jsonStringify(doc);
+		return MIXER_OK;
+	}
+}
+
+using namespace mixer_internal;
 
 // Parse the access token out of the refresh token data.
 int interactive_auth_parse_refresh_token(const char* refreshToken, char* authorization, size_t* authorizationLength)
@@ -91,20 +107,6 @@ int interactive_auth_get_short_code(const char* clientId, char* shortCode, size_
 	memcpy(shortCodeHandle, handle.c_str(), handle.length());
 	shortCodeHandle[handle.length()] = 0;
 	*shortCodeHandleLength = handle.length() + 1;
-	return MIXER_OK;
-}
-
-int stamp_token_response(const http_response& response, _Out_ std::string& tokenData)
-{
-	// The access token data has an "expires_in" field, mark the token with a local grant time for future use.
-	rapidjson::Document doc;
-	if (doc.Parse(response.body.c_str(), response.body.length()).HasParseError())
-	{
-		return MIXER_ERROR_JSON_PARSE;
-	}
-
-	doc.AddMember(JSON_GRANTED_AT, std::time(0), doc.GetAllocator());
-	tokenData = jsonStringify(doc);
 	return MIXER_OK;
 }
 
@@ -259,6 +261,4 @@ int interactive_auth_is_token_stale(const char* token, bool* isStale)
 	}
 
 	return MIXER_OK;
-}
-
 }

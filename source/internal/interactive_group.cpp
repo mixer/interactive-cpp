@@ -1,7 +1,7 @@
 #include "interactive_session.h"
 #include "common.h"
 
-namespace mixer
+namespace mixer_internal
 {
 
 int cache_groups(interactive_session_internal& session)
@@ -29,6 +29,10 @@ int cache_groups(interactive_session_internal& session)
 
 	return MIXER_OK;
 }
+
+}
+
+using namespace mixer_internal;
 
 int interactive_get_groups(interactive_session session, on_group_enumerate onGroup)
 {
@@ -104,5 +108,4 @@ int interactive_group_set_scene(interactive_session session, const char* groupId
 	}, nullptr));
 
 	return MIXER_OK;
-}
 }

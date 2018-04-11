@@ -58,7 +58,7 @@ private:
     DX::StepTimer                                   m_timer;
 
 	// Mixer interactive session
-	mixer::interactive_session						m_interactiveSession;
+	interactive_session								m_interactiveSession;
 	std::map<std::string, std::string>				m_controlsById;
 };
 

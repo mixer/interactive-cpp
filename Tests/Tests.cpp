@@ -12,7 +12,6 @@
 #endif
 
 using namespace Microsoft::VisualStudio::CppUnitTestFramework;
-using namespace mixer;
 
 #define ASSERT_NOERR(x) do {err = x; Assert::IsTrue(0 == err); if (err) return;} while (0)
 #define ASSERT_RETERR(x) do {err = x; Assert::IsTrue(0 == err); if (err) return err;} while (0)
@@ -40,7 +39,7 @@ void print_control_properties(interactive_session session, const std::string& co
 {
 	char propName[1024];
 	size_t propLength = sizeof(propName);
-	interactive_property_type propType = interactive_property_type::unknown_t;
+	interactive_property_type propType = interactive_unknown_t;
 	size_t propCount = 0;
 	int err = interactive_control_get_property_count(session, controlId.c_str(), &propCount);
 	std::stringstream s;
@@ -52,7 +51,7 @@ void print_control_properties(interactive_session session, const std::string& co
 		{
 			switch (propType)
 			{
-			case interactive_property_type::int_t:
+			case interactive_int_t:
 			{
 				int propVal;
 				err = interactive_control_get_property_int(session, controlId.c_str(), propName, &propVal);
@@ -62,7 +61,7 @@ void print_control_properties(interactive_session session, const std::string& co
 				}
 				break;
 			}
-			case interactive_property_type::bool_t:
+			case interactive_bool_t:
 			{
 				bool propVal;
 				err = interactive_control_get_property_bool(session, controlId.c_str(), propName, &propVal);
@@ -72,7 +71,7 @@ void print_control_properties(interactive_session session, const std::string& co
 				}
 				break;
 			}
-			case interactive_property_type::float_t:
+			case interactive_float_t:
 			{
 				float propVal;
 				err = interactive_control_get_property_float(session, controlId.c_str(), propName, &propVal);
@@ -82,7 +81,7 @@ void print_control_properties(interactive_session session, const std::string& co
 				}
 				break;
 			}
-			case interactive_property_type::string_t:
+			case interactive_string_t:
 			{
 				char* propVal = nullptr;
 				size_t propValLength = 0;
@@ -99,12 +98,12 @@ void print_control_properties(interactive_session session, const std::string& co
 				}
 				break;
 			}
-			case interactive_property_type::array_t:
+			case interactive_array_t:
 			{
 				s << propName << ": <Array> ";
 				break;
 			}
-			case interactive_property_type::object_t:
+			case interactive_object_t:
 			{
 				s << propName << ": <Object> ";
 				if (0 != strcmp("meta", propName))
@@ -119,7 +118,7 @@ void print_control_properties(interactive_session session, const std::string& co
 				{
 					char* metapropName = nullptr;
 					size_t metapropNameLength = 0;
-					interactive_property_type metapropType = interactive_property_type::unknown_t;
+					interactive_property_type metapropType = interactive_unknown_t;
 					err = interactive_control_get_meta_property_data(session, controlId.c_str(), i, metapropName, &metapropNameLength, &metapropType);
 					if (err == MIXER_ERROR_BUFFER_SIZE && metapropNameLength > 0)
 					{
@@ -128,7 +127,7 @@ void print_control_properties(interactive_session session, const std::string& co
 						if (err) break;
 						switch (metapropType)
 						{
-						case interactive_property_type::int_t:
+						case interactive_int_t:
 						{
 							int metaVal;
 							err = interactive_control_get_meta_property_int(session, controlId.c_str(), metapropName, &metaVal);
@@ -136,7 +135,7 @@ void print_control_properties(interactive_session session, const std::string& co
 							s << "meta\\" << metapropName << ": '" << metaVal << "' ";
 							break;
 						}
-						case interactive_property_type::bool_t:
+						case interactive_bool_t:
 						{
 							bool metaVal;
 							err = interactive_control_get_meta_property_bool(session, controlId.c_str(), metapropName, &metaVal);
@@ -144,7 +143,7 @@ void print_control_properties(interactive_session session, const std::string& co
 							s << "meta\\" << metapropName << ": '" << metaVal << "' ";
 							break;
 						}
-						case interactive_property_type::float_t:
+						case interactive_float_t:
 						{
 							float metaVal;
 							err = interactive_control_get_meta_property_float(session, controlId.c_str(), metapropName, &metaVal);
@@ -152,7 +151,7 @@ void print_control_properties(interactive_session session, const std::string& co
 							s << "meta\\" << metapropName << ": '" << metaVal << "' ";
 							break;
 						}
-						case interactive_property_type::string_t:
+						case interactive_string_t:
 						{
 							char metaVal[4096];
 							size_t metaValLength = sizeof(metaVal);
@@ -161,13 +160,13 @@ void print_control_properties(interactive_session session, const std::string& co
 							s << "meta\\" << metapropName << ": '" << metaVal << "' ";
 							break;
 						}
-						case interactive_property_type::array_t:
+						case interactive_array_t:
 						{
 							s << "meta\\" << metapropName << ": <Array> ";
 							Logger::WriteMessage((std::string("meta\\") + std::string(metapropName) + ": <Array>").c_str());
 							break;
 						}
-						case interactive_property_type::unknown_t:
+						case interactive_unknown_t:
 						default:
 							s << "meta\\" << metapropName << ": <Unknown> ";
 							break;
@@ -177,7 +176,7 @@ void print_control_properties(interactive_session session, const std::string& co
 				}
 				break;
 			}
-			case interactive_property_type::unknown_t:
+			case interactive_unknown_t:
 			default:
 				s << propName << ": <Unknown> ";
 				break;
@@ -289,7 +288,7 @@ void handle_input(void* context, interactive_session session, const interactive_
 	{
 	case input_type_button:
 	{
-		if (input->buttonData.action == button_action::down)
+		if (input->buttonData.action == interactive_button_action::down)
 		{
 			// This requries a transaction. Store relevant data.
 			transaction_data data;
@@ -369,7 +368,7 @@ void handle_state_changed(void* context, interactive_session session, interactiv
 	}
 }
 
-void handle_participants_changed(void* context, interactive_session session, participant_action action, const interactive_participant* participant)
+void handle_participants_changed(void* context, interactive_session session, interactive_participant_action action, const interactive_participant* participant)
 {
 	std::stringstream s;
 	std::string actionStr;
@@ -491,16 +490,16 @@ void handle_debug_message(interactive_debug_level level, const char* dbgMsg, siz
 	std::string type;
 	switch (level)
 	{
-	case debug_error:
+	case interactive_debug_error:
 		type = "ERROR";
 		break;
-	case debug_trace:
+	case interactive_debug_trace:
 		type = "TRACE ";
 		break;
-	case debug_warning:
+	case interactive_debug_warning:
 		type = "WARN  ";
 		break;
-	case debug_info:
+	case interactive_debug_info:
 		type = "INFO  ";
 		break;
 	default:
@@ -517,7 +516,7 @@ public:
 	TEST_METHOD(ConnectTest)
 	{
 		g_start = std::chrono::high_resolution_clock::now();
-		interactive_config_debug(debug_trace, handle_debug_message);
+		interactive_config_debug(interactive_debug_trace, handle_debug_message);
 
 		int err = 0;
 		std::string clientId = CLIENT_ID;
@@ -549,7 +548,7 @@ public:
 	TEST_METHOD(InputTest)
 	{
 		g_start = std::chrono::high_resolution_clock::now();
-		interactive_config_debug(debug_trace, handle_debug_message);
+		interactive_config_debug(interactive_debug_trace, handle_debug_message);
 
 		int err = 0;
 		std::string clientId = CLIENT_ID;
@@ -590,7 +589,7 @@ public:
 	TEST_METHOD(ManualReadyTest)
 	{
 		g_start = std::chrono::high_resolution_clock::now();
-		interactive_config_debug(debug_trace, handle_debug_message);
+		interactive_config_debug(interactive_debug_trace, handle_debug_message);
 
 		int err = 0;
 		std::string clientId = CLIENT_ID;
@@ -641,7 +640,7 @@ public:
 	TEST_METHOD(GroupTest)
 	{
 		g_start = std::chrono::high_resolution_clock::now();
-		interactive_config_debug(debug_trace, handle_debug_message);
+		interactive_config_debug(interactive_debug_trace, handle_debug_message);
 
 		int err = 0;
 		std::string clientId = CLIENT_ID;
@@ -726,7 +725,7 @@ public:
 	TEST_METHOD(ScenesTest)
 	{
 		g_start = std::chrono::high_resolution_clock::now();
-		interactive_config_debug(debug_trace, handle_debug_message);
+		interactive_config_debug(interactive_debug_trace, handle_debug_message);
 
 		int err = 0;
 		std::string clientId = CLIENT_ID;

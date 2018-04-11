@@ -42,7 +42,7 @@
     <ClCompile Include="..\..\source\internal\win_http_client.cpp">
       <Filter>C++ Source</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\source\internal\simplewebsocketcpp\simplewebsocketwin.cpp">
+    <ClCompile Include="..\..\source\internal\win_websocket.cpp">
       <Filter>C++ Source</Filter>
     </ClCompile>
   </ItemGroup>
@@ -66,6 +66,9 @@
       <Filter>Includes</Filter>
     </ClInclude>
     <ClInclude Include="..\..\source\internal\json.h">
+      <Filter>Includes</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\source\internal\websocket.h">
       <Filter>Includes</Filter>
     </ClInclude>
   </ItemGroup>

@@ -2,12 +2,11 @@
 #define WIN32_LEAN_AND_MEAN
 #endif
 
-#include "simplewebsocket.h"
-
+#include "websocket.h"
+#include "common.h"
 
 #include <ppltasks.h>
 #include <sstream>
-#include <codecvt>
 #include <queue>
 #include <condition_variable>
 
@@ -16,19 +15,6 @@ using namespace Platform;
 using namespace Windows::Foundation;
 using namespace Windows::Storage::Streams;
 using namespace Windows::Networking::Sockets;
-
-// String conversion functions
-std::wstring utf8_to_wstring(const std::string& str)
-{
-	std::wstring_convert<std::codecvt_utf8<wchar_t>> conv;
-	return conv.from_bytes(str);
-}
-
-std::string wstring_to_utf8(const std::wstring& wstr)
-{
-	std::wstring_convert<std::codecvt_utf8<wchar_t>> conv;
-	return conv.to_bytes(wstr);
-}
 
 class semaphore
 {
@@ -67,7 +53,7 @@ public:
 	}
 };
 
-class ws_client : public mixer::websocket
+class ws_client : public websocket
 {
 public:
 	ws_client() : m_closed(false)
@@ -84,7 +70,7 @@ public:
 		return 0;
 	}
 
-	int open(const std::string& uri, const mixer::on_ws_connect onConnect, const mixer::on_ws_message onMessage, const mixer::on_ws_error onError, const mixer::on_ws_close onClose)
+	int open(const std::string& uri, const on_ws_connect onConnect, const on_ws_message onMessage, const on_ws_error onError, const on_ws_close onClose)
 	{
 		int result = 0;
 		std::wstring uriWS = utf8_to_wstring(uri);
@@ -262,10 +248,10 @@ private:
 };
 
 
-std::unique_ptr<mixer::websocket>
-mixer::websocket_factory::make_websocket()
+std::unique_ptr<websocket>
+websocket_factory::make_websocket()
 {
-	return std::unique_ptr<mixer::websocket>(new ws_client());
+	return std::unique_ptr<websocket>(new ws_client());
 }
 
 extern "C" {
@@ -277,23 +263,23 @@ extern "C" {
 			return 1;
 		}
 
-		std::unique_ptr<mixer::websocket> handle = mixer::websocket_factory::make_websocket();
+		std::unique_ptr<websocket> handle = websocket_factory::make_websocket();
 		*handlePtr = handle.release();
 		return 0;
 	}
 
 	int add_header(websocket_handle handle, const char* key, const char* value)
 	{
-		mixer::websocket* client = reinterpret_cast<mixer::websocket*>(handle);
+		websocket* client = reinterpret_cast<websocket*>(handle);
 		return client->add_header(key, value);
 	}
 
 	int open_websocket(websocket_handle handle, const char* uri, const c_on_ws_connect onConnect, const c_on_ws_message onMessage, const c_on_ws_error onError, const c_on_ws_close onClose)
 	{
-		mixer::websocket* client = reinterpret_cast<mixer::websocket*>(handle);
+		websocket* client = reinterpret_cast<websocket*>(handle);
 
 
-		auto connectHandler = [&](const mixer::websocket& socket, const std::string& connectMessage)
+		auto connectHandler = [&](const websocket& socket, const std::string& connectMessage)
 		{
 			if (onConnect)
 			{
@@ -301,7 +287,7 @@ extern "C" {
 			}
 		};
 
-		auto messageHandler = [&](const mixer::websocket& socket, const std::string& message)
+		auto messageHandler = [&](const websocket& socket, const std::string& message)
 		{
 			if (onMessage)
 			{
@@ -309,7 +295,7 @@ extern "C" {
 			}
 		};
 
-		auto errorHandler = [&](const mixer::websocket& socket, unsigned short code, const std::string& error)
+		auto errorHandler = [&](const websocket& socket, unsigned short code, const std::string& error)
 		{
 			if (onError)
 			{
@@ -317,7 +303,7 @@ extern "C" {
 			}
 		};
 
-		auto closeHandler = [&](const mixer::websocket& socket, unsigned short code, const std::string& reason)
+		auto closeHandler = [&](const websocket& socket, unsigned short code, const std::string& reason)
 		{
 			if (onClose)
 			{
@@ -330,7 +316,7 @@ extern "C" {
 
 	int write_websocket(websocket_handle handle, const char* message)
 	{
-		mixer::websocket* client = reinterpret_cast<mixer::websocket*>(handle);
+		websocket* client = reinterpret_cast<websocket*>(handle);
 		return client->send(message);
 	}
 
@@ -341,7 +327,7 @@ extern "C" {
 			return 1;
 		}
 
-		mixer::websocket* client = reinterpret_cast<mixer::websocket*>(handle);
+		websocket* client = reinterpret_cast<websocket*>(handle);
 		std::string message;
 		int error = client->read(message);
 		if (error)
@@ -354,7 +340,7 @@ extern "C" {
 
 	int close_websocket(websocket_handle handle)
 	{
-		mixer::websocket* client = reinterpret_cast<mixer::websocket*>(handle);
+		websocket* client = reinterpret_cast<websocket*>(handle);
 		client->close();
 		delete client;
 		return 0;

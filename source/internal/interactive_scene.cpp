@@ -1,8 +1,9 @@
 #include "interactive_session.h"
 #include "common.h"
 
-namespace mixer
+namespace mixer_internal
 {
+
 int cache_scenes(interactive_session_internal& session)
 {
 	DEBUG_INFO("Caching scenes.");
@@ -42,6 +43,8 @@ int cache_scenes(interactive_session_internal& session)
 	}
 
 	return MIXER_OK;
+}
+
 }
 
 int interactive_get_scenes(interactive_session session, on_scene_enumerate onScene)
@@ -136,5 +139,4 @@ int interactive_scene_get_controls(interactive_session session, const char* scen
 	}
 
 	return MIXER_OK;
-}
 }
