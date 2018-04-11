@@ -101,16 +101,17 @@ extern "C" {
 	};
 
 	enum interactive_input_type
-	{
-		input_type_button,
-		input_type_coordinate,
+	{	
+		input_type_key,
+		input_type_click,
+		input_type_move,
 		input_type_custom
 	};
 
 	enum interactive_button_action
 	{
-		up,
-		down
+		interactive_button_action_up,
+		interactive_button_action_down
 	};
 
 	struct interactive_input
@@ -123,18 +124,15 @@ extern "C" {
 		size_t jsonDataLength;
 		const char* transactionId;
 		size_t transactionIdLength;
-		union
+		struct buttonData
 		{
-			struct buttonData
-			{
-				interactive_button_action action;
-			} buttonData;
-			struct coordinateData
-			{
-				float x;
-				float y;
-			} coordinateData;
-		};
+			interactive_button_action action;
+		} buttonData;
+		struct coordinateData
+		{
+			float x;
+			float y;
+		} coordinateData;
 	};
 
 	struct interactive_group : public interactive_object

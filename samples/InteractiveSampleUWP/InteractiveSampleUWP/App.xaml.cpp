@@ -175,7 +175,7 @@ void App::OnLaunched(Windows::ApplicationModel::Activation::LaunchActivatedEvent
 		err = interactive_register_input_handler(session, [](void* context, interactive_session session, const interactive_input* input)
 		{
 			std::map<std::string, std::string>& controlsByTransaction = *(std::map <std::string, std::string>*)context;
-			if (input_type_button == input->type && interactive_button_action::down == input->buttonData.action)
+			if ((input_type_key == input->type || input_type_click == input->type) && interactive_button_action_down == input->buttonData.action)
 			{
 				// Capture the transaction on button down to deduct sparks
 				controlsByTransaction[input->transactionId] = input->control.id;

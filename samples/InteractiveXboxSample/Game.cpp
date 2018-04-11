@@ -106,7 +106,7 @@ void Game::Initialize(IUnknown* window)
 	err = interactive_register_input_handler(m_interactiveSession, [](void* context, interactive_session session, const interactive_input* input)
 	{
 		Game* game = (Game*)context;
-		if (input_type_button == input->type && interactive_button_action::down == input->buttonData.action)
+		if ((input_type_key == input->type || input_type_click == input->type) && interactive_button_action_down == input->buttonData.action)
 		{
 			// Capture the transaction on button down to deduct sparks
 			int err = interactive_capture_transaction(session, input->transactionId);

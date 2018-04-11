@@ -251,22 +251,42 @@ int handle_input(interactive_session_internal& session, rapidjson::Document& doc
 	std::string inputEvent = input[RPC_PARAM_INPUT_EVENT].GetString();
 	if (0 == inputEvent.compare(RPC_INPUT_EVENT_MOVE))
 	{
-		inputData.type = input_type_coordinate;
+		inputData.type = input_type_move;
 		inputData.coordinateData.x = input[RPC_INPUT_EVENT_MOVE_X].GetFloat();
 		inputData.coordinateData.y = input[RPC_INPUT_EVENT_MOVE_Y].GetFloat();
 	}
 	else if (0 == inputEvent.compare(RPC_INPUT_EVENT_KEY_DOWN) ||
-		0 == inputEvent.compare(RPC_INPUT_EVENT_KEY_UP) ||
-		0 == inputEvent.compare(RPC_INPUT_EVENT_MOUSE_DOWN) ||
+		0 == inputEvent.compare(RPC_INPUT_EVENT_KEY_UP))
+	{
+		inputData.type = input_type_key;
+		interactive_button_action action = interactive_button_action_up;
+		if (0 == inputEvent.compare(RPC_INPUT_EVENT_KEY_DOWN))
+		{
+			action = interactive_button_action_down;
+		}
+
+		inputData.buttonData.action = action;
+	}
+	else if (0 == inputEvent.compare(RPC_INPUT_EVENT_MOUSE_DOWN) ||
 		0 == inputEvent.compare(RPC_INPUT_EVENT_MOUSE_UP))
 	{
-		inputData.type = input_type_button;
-		bool keyDown = false;
-		if (0 == inputEvent.compare(RPC_INPUT_EVENT_KEY_DOWN) || 0 == inputEvent.compare(RPC_INPUT_EVENT_MOUSE_DOWN))
+		inputData.type = input_type_click;
+		interactive_button_action action = interactive_button_action_up;
+		if (0 == inputEvent.compare(RPC_INPUT_EVENT_MOUSE_DOWN))
 		{
-			keyDown = true;
+			action = interactive_button_action_down;
 		}
-		inputData.buttonData.action = keyDown ? interactive_button_action::down : interactive_button_action::up;
+
+		inputData.buttonData.action = action;
+
+		if (input.HasMember(RPC_INPUT_EVENT_MOVE_X))
+		{
+			inputData.coordinateData.x = input[RPC_INPUT_EVENT_MOVE_X].GetFloat();
+		}
+		if (input.HasMember(RPC_INPUT_EVENT_MOVE_Y))
+		{
+			inputData.coordinateData.y = input[RPC_INPUT_EVENT_MOVE_Y].GetFloat();
+		}
 	}
 	else
 	{

@@ -255,7 +255,8 @@ void handle_transaction_complete(void* context, interactive_session session, con
 		transaction_data data = transactionItr->second;
 		switch (data.type)
 		{
-		case input_type_button:
+		case input_type_click:
+		case input_type_key:
 			Logger::WriteMessage((std::string("Executing button press for participant: ") + data.participantName).c_str());
 
 			// Look for a cooldown metadata property and tigger it if it exists.
@@ -286,9 +287,10 @@ void handle_input(void* context, interactive_session session, const interactive_
 
 	switch (input->type)
 	{
-	case input_type_button:
+	case input_type_click:
+	case input_type_key:
 	{
-		if (input->buttonData.action == interactive_button_action::down)
+		if (input->buttonData.action == interactive_button_action_down)
 		{
 			// This requries a transaction. Store relevant data.
 			transaction_data data;
@@ -308,7 +310,7 @@ void handle_input(void* context, interactive_session session, const interactive_
 		}
 		break;
 	}
-	case input_type_coordinate:
+	case input_type_move:
 	{
 		Logger::WriteMessage((std::string("MOVEMENT on ") + input->control.id).c_str());
 		Logger::WriteMessage(("X:\t" + std::to_string(input->coordinateData.x)).c_str());
