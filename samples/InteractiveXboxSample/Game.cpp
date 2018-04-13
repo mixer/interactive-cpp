@@ -50,7 +50,15 @@ int authorize(std::string& authorization)
 	char refreshTokenBuffer[1024];
 	size_t refreshTokenLength = sizeof(refreshTokenBuffer);
 	err = interactive_auth_wait_short_code(CLIENT_ID, shortCodeHandle, refreshTokenBuffer, &refreshTokenLength);
-	if (err) return err;
+	if (err)
+	{
+		if (MIXER_ERROR_TIMED_OUT == err)
+		{
+			std::cout << "Authorization timed out, user never approved OAuth prompt.";
+		}
+
+		return err;
+	}
 
 	/*
 	*	TODO:	This is where you would serialize the refresh token for future use in a way that is associated with the current user.
