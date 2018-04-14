@@ -54,7 +54,11 @@ int authorize(std::string& authorization)
 	{
 		if (MIXER_ERROR_TIMED_OUT == err)
 		{
-			std::cout << "Authorization timed out, user never approved OAuth prompt.";
+			std::cout << "Authorization timed out, user did not approve access within the time limit.";
+		}
+		else if (MIXER_ERROR_AUTH_DENIED == err)
+		{
+			std::cout << "User denied access.";
 		}
 
 		return err;
