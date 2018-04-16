@@ -23,6 +23,9 @@ namespace MixerTests
 #define VERSION_ID "135704"
 #define SHARE_CODE "xe7dpqd5"
 
+#define DO_NOT_APPROVE_CLIENT_ID "b33e730969b2f1234afd94dff745dd1d2c4e7557e168ebce"
+#define DO_NOT_APPROVE_CLIENT_SECRET "98d47b58be9917e68769a9b687c8b68fb24daeed3d6a11aa5cfb65df44c54e59"
+
 interactive_session g_activeSession = nullptr;
 
 template <typename T>
@@ -401,7 +404,7 @@ void handle_unhandled_method(void* context, interactive_session session, const c
 	Logger::WriteMessage(("Unhandled method: " + std::string(methodJson, methodJsonLength)).c_str());
 }
 
-int do_short_code_auth(const std::string& clientId, std::string& refreshToken)
+int do_short_code_auth(const std::string& clientId, const std::string& clientSecret, std::string& refreshToken)
 {
 	int err = 0;
 	char shortCode[7];
@@ -410,19 +413,21 @@ int do_short_code_auth(const std::string& clientId, std::string& refreshToken)
 	size_t shortCodeHandleLength = sizeof(shortCodeHandle);
 
 	// Get an OAuth short code to display to the user.
-	ASSERT_RETERR(interactive_auth_get_short_code(clientId.c_str(), shortCode, &shortCodeLength, shortCodeHandle, &shortCodeHandleLength));
-	Logger::WriteMessage(("Approve access here: https://www.mixer.com/go?code=" + std::string(shortCode, shortCodeLength)).c_str());
+	ASSERT_RETERR(interactive_auth_get_short_code(clientId.c_str(), clientSecret.c_str(), shortCode, &shortCodeLength, shortCodeHandle, &shortCodeHandleLength));
+	
+	std::string authUrl = std::string("https://www.mixer.com/go?code=") + shortCode;
+	ShellExecuteA(0, 0, authUrl.c_str(), nullptr, nullptr, SW_SHOW);
 
 	// Wait for OAuth token response.
 	char refreshTokenBuffer[1024];
 	size_t refreshTokenLength = sizeof(refreshTokenBuffer);
-	ASSERT_RETERR(interactive_auth_wait_short_code(clientId.c_str(), shortCodeHandle, refreshTokenBuffer, &refreshTokenLength));
+	ASSERT_RETERR(interactive_auth_wait_short_code(clientId.c_str(), clientSecret.c_str(), shortCodeHandle, refreshTokenBuffer, &refreshTokenLength));
 
 	refreshToken = std::string(refreshTokenBuffer, refreshTokenLength);
 	return 0;
 }
 
-int do_auth(const std::string& clientId, std::string& auth)
+int do_auth(const std::string& clientId, const std::string& clientSecret, std::string& auth)
 {
 	int err = 0;
 	// Attempt to read refresh info if it exists.
@@ -434,7 +439,7 @@ int do_auth(const std::string& clientId, std::string& auth)
 	std::string refreshToken = ssRefreshToken.str();
 	if (refreshToken.empty())
 	{
-		ASSERT_RETERR(do_short_code_auth(clientId, refreshToken));
+		ASSERT_RETERR(do_short_code_auth(clientId, clientSecret, refreshToken));
 
 		std::ofstream refreshTokenFile;
 		refreshTokenFile.open("refreshtoken", std::ios::trunc);
@@ -454,7 +459,7 @@ int do_auth(const std::string& clientId, std::string& auth)
 			{
 				char tokenBuffer[1024];
 				size_t tokenBufferLength = sizeof(tokenBuffer);
-				err = interactive_auth_refresh_token(clientId.c_str(), refreshToken.c_str(), tokenBuffer, &tokenBufferLength);
+				err = interactive_auth_refresh_token(clientId.c_str(), clientSecret.c_str(), refreshToken.c_str(), tokenBuffer, &tokenBufferLength);
 				if (!err)
 				{
 					refreshToken = std::string(tokenBuffer, tokenBufferLength);
@@ -463,7 +468,7 @@ int do_auth(const std::string& clientId, std::string& auth)
 
 			if (err)
 			{
-				ASSERT_RETERR(do_short_code_auth(clientId, refreshToken));
+				ASSERT_RETERR(do_short_code_auth(clientId, clientSecret, refreshToken));
 			}
 
 			// Cache the refresh token
@@ -526,7 +531,40 @@ public:
 		std::string shareCode = SHARE_CODE;
 		std::string auth;
 
-		ASSERT_NOERR(do_auth(clientId, auth));
+		ASSERT_NOERR(do_auth(clientId, "", auth));
+
+		interactive_session session;
+		Logger::WriteMessage("Connecting...");
+		ASSERT_NOERR(interactive_open_session(auth.c_str(), versionId.c_str(), shareCode.c_str(), true, &session));
+
+		// Simulate 60 frames/sec for 1 seconds.
+		const int fps = 60;
+		const int seconds = 1;
+		for (int i = 0; i < fps * seconds; ++i)
+		{
+			ASSERT_NOERR(interactive_run(session, 1));
+			std::this_thread::sleep_for(std::chrono::milliseconds(1000 / fps));
+		}
+
+		Logger::WriteMessage("Disconnecting...");
+		interactive_close_session(session);
+
+		Assert::IsTrue(0 == err);
+	}
+
+	TEST_METHOD(ConnectWithSecretTest)
+	{
+		g_start = std::chrono::high_resolution_clock::now();
+		interactive_config_debug(interactive_debug_trace, handle_debug_message);
+
+		int err = 0;
+		std::string clientId = DO_NOT_APPROVE_CLIENT_ID;
+		std::string clientSecret = DO_NOT_APPROVE_CLIENT_SECRET;
+		std::string versionId = VERSION_ID;
+		std::string shareCode = SHARE_CODE;
+		std::string auth;
+
+		ASSERT_NOERR(do_auth(clientId, clientSecret, auth));
 
 		interactive_session session;
 		Logger::WriteMessage("Connecting...");
@@ -558,7 +596,7 @@ public:
 		std::string shareCode = SHARE_CODE;
 		std::string auth;
 
-		ASSERT_NOERR(do_auth(clientId, auth));
+		ASSERT_NOERR(do_auth(clientId, "", auth));
 
 		interactive_session session;
 		ASSERT_NOERR(interactive_open_session(auth.c_str(), versionId.c_str(), shareCode.c_str(), true, &session));
@@ -599,7 +637,7 @@ public:
 		std::string shareCode = SHARE_CODE;
 		std::string auth;
 
-		ASSERT_NOERR(do_auth(clientId, auth));
+		ASSERT_NOERR(do_auth(clientId, "", auth));
 
 		interactive_session session;
 		ASSERT_NOERR(interactive_open_session(auth.c_str(), versionId.c_str(), shareCode.c_str(), false, &session));
@@ -650,7 +688,7 @@ public:
 		std::string shareCode = SHARE_CODE;
 		std::string auth;
 
-		ASSERT_NOERR(do_auth(clientId, auth));
+		ASSERT_NOERR(do_auth(clientId, "", auth));
 
 		interactive_session session;
 		Logger::WriteMessage("Connecting...");
@@ -735,7 +773,7 @@ public:
 		std::string shareCode = SHARE_CODE;
 		std::string auth;
 
-		ASSERT_NOERR(do_auth(clientId, auth));
+		ASSERT_NOERR(do_auth(clientId, "", auth));
 
 		interactive_session session;
 		Logger::WriteMessage("Connecting...");

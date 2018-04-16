@@ -154,7 +154,7 @@ extern "C" {
 	/// <remarks>
 	/// This is a blocking function that waits on network IO.
 	/// </remarks>
-	int interactive_auth_get_short_code(const char* clientId, char* shortCode, size_t* shortCodeLength, char* shortCodeHandle, size_t* shortCodeHandleLength);
+	int interactive_auth_get_short_code(const char* clientId, const char* clientSecret, char* shortCode, size_t* shortCodeLength, char* shortCodeHandle, size_t* shortCodeHandleLength);
 
 	/// <summary>
 	/// Wait for a <c>shortCode</c> to be authorized or rejected after presenting the OAuth short code web page. The resulting <c>refreshToken</c>
@@ -163,7 +163,7 @@ extern "C" {
 	/// <remarks>
 	/// This is a blocking function that waits on network IO.
 	/// </remarks>
-	int interactive_auth_wait_short_code(const char* clientId, const char* shortCodeHandle, char* refreshToken, size_t* refreshTokenLength);
+	int interactive_auth_wait_short_code(const char* clientId, const char* clientSecret, const char* shortCodeHandle, char* refreshToken, size_t* refreshTokenLength);
 
 	/// <summary>
 	/// Determine if a <c>refreshToken</c> returned by <c>interactive_auth_wait_short_code</c> is stale. A token is stale if it has exceeded its half-life.
@@ -176,7 +176,7 @@ extern "C" {
 	/// <remarks>
 	/// This is a blocking function that waits on network IO.
 	/// </remarks>
-	int interactive_auth_refresh_token(const char* clientId, const char* staleToken, char* refreshToken, size_t* refreshTokenLength);
+	int interactive_auth_refresh_token(const char* clientId, const char* clientSecret, const char* staleToken, char* refreshToken, size_t* refreshTokenLength);
 
 	/// <summary>
 	/// Parse a <c>refreshToken</c> to get the authorization header that should be passed to <c>interactive_open_session()</c>.

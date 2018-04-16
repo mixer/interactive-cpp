@@ -41,7 +41,7 @@ int authorize(std::string& authorization)
 	size_t shortCodeLength = sizeof(shortCode);
 	char shortCodeHandle[1024];
 	size_t shortCodeHandleLength = sizeof(shortCodeHandle);
-	err = interactive_auth_get_short_code(CLIENT_ID, shortCode, &shortCodeLength, shortCodeHandle, &shortCodeHandleLength);
+	err = interactive_auth_get_short_code(CLIENT_ID, nullptr, shortCode, &shortCodeLength, shortCodeHandle, &shortCodeHandleLength);
 	if (err) return err;
 	
 	std::cout << "Visit " << "https://www.mixer.com/go?code=" << shortCode;
@@ -49,7 +49,7 @@ int authorize(std::string& authorization)
 	// Wait for OAuth token response.
 	char refreshTokenBuffer[1024];
 	size_t refreshTokenLength = sizeof(refreshTokenBuffer);
-	err = interactive_auth_wait_short_code(CLIENT_ID, shortCodeHandle, refreshTokenBuffer, &refreshTokenLength);
+	err = interactive_auth_wait_short_code(CLIENT_ID, nullptr, shortCodeHandle, refreshTokenBuffer, &refreshTokenLength);
 	if (err)
 	{
 		if (MIXER_ERROR_TIMED_OUT == err)
