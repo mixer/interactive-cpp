@@ -5,9 +5,13 @@
 #include "pch.h"
 #include "Game.h"
 
+#include <ppltasks.h>
+
 using namespace DirectX;
 using namespace Windows::Xbox::Input;
 using namespace Windows::Foundation::Collections;
+using namespace concurrency;
+using namespace Windows::Xbox::System;
 
 using Microsoft::WRL::ComPtr;
 
@@ -33,50 +37,80 @@ std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
 #define INTERACTIVE_ID	"135704"
 #define SHARE_CODE		"xe7dpqd5"
 
-// Display a short code to the user in order to obtain a reusable token for future connections.
-int authorize(std::string& authorization)
+int GetXToken(std::string& token)
 {
-	int err = 0;
-	char shortCode[7];
-	size_t shortCodeLength = sizeof(shortCode);
-	char shortCodeHandle[1024];
-	size_t shortCodeHandleLength = sizeof(shortCodeHandle);
-	err = interactive_auth_get_short_code(CLIENT_ID, nullptr, shortCode, &shortCodeLength, shortCodeHandle, &shortCodeHandleLength);
-	if (err) return err;
-	
-	std::cout << "Visit " << "https://www.mixer.com/go?code=" << shortCode;
+	std::wstring mixerRelyingParty = L"https://mixer.com";
+	std::wstring authRequestHeaders = L"";
+	auto platformHttp = ref new Platform::String(L"POST");
+	auto platformUrl = ref new Platform::String(mixerRelyingParty.c_str());
+	auto platformHeaders = ref new Platform::String(authRequestHeaders.c_str());
 
-	// Wait for OAuth token response.
-	char refreshTokenBuffer[1024];
-	size_t refreshTokenLength = sizeof(refreshTokenBuffer);
-	err = interactive_auth_wait_short_code(CLIENT_ID, nullptr, shortCodeHandle, refreshTokenBuffer, &refreshTokenLength);
-	if (err)
+	std::wstring wstrReturnedToken = L"";
+
+	HRESULT hr = S_OK;
+
+	// Note: This would fail certification. You must pop TCUI and allow a user to be chosen.
+	Windows::Xbox::System::User^ currentUser = Windows::Xbox::System::User::Users->GetAt(0);
+	if (nullptr == currentUser)
 	{
-		if (MIXER_ERROR_TIMED_OUT == err)
-		{
-			std::cout << "Authorization timed out, user did not approve access within the time limit.";
-		}
-		else if (MIXER_ERROR_AUTH_DENIED == err)
-		{
-			std::cout << "User denied access.";
-		}
-
-		return err;
+		OutputDebugStringA("No user signed in. Please sign in a user and try this sample again.");
+		return E_ABORT;
 	}
 
-	/*
-	*	TODO:	This is where you would serialize the refresh token for future use in a way that is associated with the current user.
-	*			Future calls would then only need to check if the token is stale, refresh it if so, and then parse the new authorization header.
-	*/
+	try
+	{
+		// Make platform call to get token.
+		auto asyncOp = currentUser->GetTokenAndSignatureAsync(platformHttp, platformUrl, platformHeaders);
 
-	// Extract the authorization header from the refresh token.
-	char authBuffer[1024];
-	size_t authBufferLength = sizeof(authBuffer);
-	err = interactive_auth_parse_refresh_token(refreshTokenBuffer, authBuffer, &authBufferLength);
-	if (err) return err;
+		// Construct an object that waits for the AsyncOperation to finish
+		task<GetTokenAndSignatureResult^> asyncTask = create_task(asyncOp);
 
-	authorization = std::string(authBuffer, authBufferLength);
-	return 0;
+		// Capture the async then so we can ensure the lambda finishes before continuing
+		auto asyncFinalise = asyncTask.then(
+			[&wstrReturnedToken, &hr](
+				task<GetTokenAndSignatureResult^> operation)
+		{
+			try
+			{
+				GetTokenAndSignatureResult^ result = operation.get();
+
+				if (result->Token->IsEmpty())
+				{
+					hr = E_UNEXPECTED;
+					return;
+				}
+
+				wstrReturnedToken = result->Token->Data();
+				hr = S_OK;
+			}
+			catch (Platform::Exception ^ e)
+			{
+				hr = e->HResult;
+			}
+		});
+
+		// Clean up the async task
+		asyncTask.wait();
+		asyncOp->Close();
+
+		// Wait for the lambda to finish.
+		asyncFinalise.wait();
+
+		// Check for any failures
+		if (FAILED(hr))
+		{
+			return hr;
+		}
+
+		// Convert data to utf8
+		token = converter.to_bytes(wstrReturnedToken);
+	}
+	catch (Platform::Exception^ e)
+	{
+		return e->HResult;
+	}
+
+	return S_OK;
 }
 
 
@@ -100,7 +134,7 @@ void Game::Initialize(IUnknown* window)
 
 	// Get an authorization token for the user to pass to the connect function.
 	std::string authorization;
-	err = authorize(authorization);
+	err = GetXToken(authorization);
 	if (err)
 	{
 		throw err;
@@ -140,7 +174,7 @@ void Game::Initialize(IUnknown* window)
 		Game* game = (Game*)context;
 		if (errorCode)
 		{
-			std::cerr << errorMessage << "(" << std::to_string(errorCode) << ")" << std::endl;
+			OutputDebugStringA((std::string("ERROR: ") + errorMessage + "(" + std::to_string(errorCode) + ")").c_str());
 		}
 		else
 		{
@@ -148,7 +182,7 @@ void Game::Initialize(IUnknown* window)
 			std::string controlId = game->m_controlsById[transactionId];
 			if (0 == strcmp("GiveHealth", controlId.c_str()))
 			{
-				std::cout << "Giving health to the player!" << std::endl;
+				OutputDebugStringA("Giving health to the player!\n");
 			}
 		}
 
@@ -199,7 +233,7 @@ void Game::Update(DX::StepTimer const& timer)
 	int err = interactive_run(m_interactiveSession, 1);
 	if (err)
 	{
-		std::cerr << "Failed to process interactive event, error: " << std::to_string(err);
+		OutputDebugStringA((std::string("ERROR: Failed to process interactive event: ") + std::to_string(err)).c_str());
 	}
 
     PIXEndEvent();
