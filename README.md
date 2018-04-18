@@ -3,6 +3,10 @@
 The C++ Interactivity SDK supports client-side development with Mixer Interactivity.
 If you have not read through our [Interactive Reference Documentation](https://dev.mixer.com/reference/interactive/) now is a great time to do that.
 
+## Documentation
+
+Checkout the Project's [Wiki](https://github.com/mixer/interactive-cpp/wiki) for documentation, including a [Getting Started](https://github.com/mixer/interactive-cpp/wiki/Getting-started) guide.
+
 ## Quick Start
 
 Clone the `interactive-cpp` repository.
