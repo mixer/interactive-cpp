@@ -299,13 +299,7 @@ int handle_input(interactive_session_internal& session, rapidjson::Document& doc
 }
 
 int handle_participants_change(interactive_session_internal& session, rapidjson::Document& doc, interactive_participant_action action)
-{
-	if (!session.onParticipantsChanged)
-	{
-		// No registered handler, ignore.
-		return MIXER_OK;
-	}
-
+{	
 	if (!doc.HasMember(RPC_PARAMS) || !doc[RPC_PARAMS].HasMember(RPC_PARAM_PARTICIPANTS))
 	{
 		return MIXER_ERROR_UNRECOGNIZED_DATA_FORMAT;
@@ -335,7 +329,10 @@ int handle_participants_change(interactive_session_internal& session, rapidjson:
 		}
 		}
 
-		session.onParticipantsChanged(session.callerContext, &session, action, &participant);
+		if (session.onParticipantsChanged)
+		{
+			session.onParticipantsChanged(session.callerContext, &session, action, &participant);
+		}
 	}
 
 	return MIXER_OK;
