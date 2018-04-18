@@ -43,6 +43,9 @@
               <mx:GpuAvailability>variable</mx:GpuAvailability>
             </mx:XboxSystemResources>
           </mx:Extension>
+          <mx:Extension Category="xbox.live">
+            <mx:XboxLive TitleId="0A6D2730" PrimaryServiceConfigId="5deb0100-042c-41d9-9ec5-55580a6d2730"/>
+          </mx:Extension>
         </Extensions>
     </Application>
   </Applications>
