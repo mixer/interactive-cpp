@@ -152,6 +152,7 @@ void handle_interactive_input(void* context, interactive_session session, const 
 	if (err)
 	{
 		std::cerr << "Failed to get participant user name (" << std::to_string(err) << ")" << std::endl;
+		return;
 	}
 
 	// Now handle the input based on input type.
