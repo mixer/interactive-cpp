@@ -47,7 +47,7 @@ int main()
 
 	// Connect to the user's interactive channel, using the interactive project specified by the version ID.
 	interactive_session session;
-	err = interactive_open_session(authorization.c_str(), INTERACTIVE_ID, SHARE_CODE, true, &session);
+	err = interactive_open_session(authorization.c_str(), INTERACTIVE_ID, SHARE_CODE, false, &session);
 	if (err) return err;
 
 	// Register a callback for button presses.
@@ -56,7 +56,14 @@ int main()
 
 	// Register a callback for completed transactions.
 	err = interactive_register_transaction_complete_handler(session, handle_transaction_complete);
+	if (err) return err;
 
+	// Create a group for participants to view the joystick scene.
+	err = interactive_create_group(session, "JoystickGroup", "Joystick");
+	if (err) return err;
+
+	// Now notify participants that interactive is ready.
+	err = interactive_set_ready(session, true);
 	if (err) return err;
 
 	// Simulate game update loop. All previously registered session callbacks will be called from this thread.
@@ -157,15 +164,38 @@ void handle_interactive_input(void* context, interactive_session session, const 
 
 	// Now handle the input based on input type.
 	if ((input_type_key == input->type || input_type_click == input->type) && interactive_button_action_down == input->buttonData.action)
-	{
-		// Capture the transaction on button down to deduct the viewer's sparks before executing any game functionality.
-		controlsByTransaction[input->transactionId] = input->control.id;
-		std::cout << participantName << " clicked '" << input->control.id << "'. Deducting sparks..." << std::endl;
-		err = interactive_capture_transaction(session, input->transactionId);
-		if (err)
+	{	
+		if (0 != input->transactionIdLength)
 		{
-			std::cerr << "Failed to capture interactive transaction." << std::endl;
-			return;
+			// Capture the transaction on button down to deduct the viewer's sparks before executing any game functionality.
+			controlsByTransaction[input->transactionId] = input->control.id;
+			std::cout << participantName << " clicked '" << input->control.id << "'. Deducting sparks..." << std::endl;
+			err = interactive_capture_transaction(session, input->transactionId);
+			if (err)
+			{
+				std::cerr << "Failed to capture interactive transaction." << std::endl;
+				return;
+			}
+		}
+		else if (0 == strcmp("ToJoystickScene", input->control.id))
+		{
+			std::cout << "Moving " << participantName << " to the Joystick group." << std::endl;
+			err = interactive_set_participant_group(session, input->participantId, "JoystickGroup");
+			if (err)
+			{
+				std::cerr << "Failed to move " << participantName << " to the Joystick group." << std::endl;
+				return;
+			}
+		}
+		else if (0 == strcmp("ToDefaultScene", input->control.id))
+		{
+			std::cout << "Moving " << participantName << " to the default group." << std::endl;
+			err = interactive_set_participant_group(session, input->participantId, "default");
+			if (err)
+			{
+				std::cerr << "Failed to move " << participantName << " to the default group." << std::endl;
+				return;
+			}
 		}
 	}
 	else if (input_type_move == input->type)

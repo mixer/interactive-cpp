@@ -756,6 +756,23 @@ public:
 			Assert::IsTrue(0 == strcmp(participant->groupId, "Test group"));
 		});
 
+		ASSERT_NOERR(interactive_group_set_scene(session, "Test group", "Scene1"));
+
+		// Simulate 60 frames/sec for 1 second.
+		for (int i = 0; i < fps * seconds; ++i)
+		{
+			ASSERT_NOERR(interactive_run(session, 1));
+			std::this_thread::sleep_for(std::chrono::milliseconds(1000 / fps));
+		}
+
+		ASSERT_NOERR(interactive_get_groups(session, [](void* context, interactive_session session, interactive_group* group)
+		{
+			if (0 == strcmp("Test group", group->id))
+			{
+				Assert::IsTrue(0 == strcmp("Scene1", group->sceneId));
+			}
+		}));
+
 		Logger::WriteMessage("Disconnecting...");
 		interactive_close_session(session);
 
