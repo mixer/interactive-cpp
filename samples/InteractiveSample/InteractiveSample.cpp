@@ -84,9 +84,9 @@ int authorize(std::string& authorization)
 {
 	int err = 0;
 	char shortCode[7];
-	size_t shortCodeLength = sizeof(shortCode);
+	size_t shortCodeLength = _countof(shortCode);
 	char shortCodeHandle[1024];
-	size_t shortCodeHandleLength = sizeof(shortCodeHandle);
+	size_t shortCodeHandleLength = _countof(shortCodeHandle);
 
 	// Get an OAuth short code from the user. For more information about OAuth see: https://oauth.net/2/
 	err = interactive_auth_get_short_code(CLIENT_ID, nullptr, shortCode, &shortCodeLength, shortCodeHandle, &shortCodeHandleLength);
@@ -98,7 +98,7 @@ int authorize(std::string& authorization)
 
 	// Wait for OAuth token response.
 	char refreshTokenBuffer[1024];
-	size_t refreshTokenLength = sizeof(refreshTokenBuffer);
+	size_t refreshTokenLength = _countof(refreshTokenBuffer);
 	err = interactive_auth_wait_short_code(CLIENT_ID, nullptr, shortCodeHandle, refreshTokenBuffer, &refreshTokenLength);
 	if (err)
 	{
@@ -121,7 +121,7 @@ int authorize(std::string& authorization)
 
 	// Extract the authorization header from the refresh token.
 	char authBuffer[1024];
-	size_t authBufferLength = sizeof(authBuffer);
+	size_t authBufferLength = _countof(authBuffer);
 	err = interactive_auth_parse_refresh_token(refreshTokenBuffer, authBuffer, &authBufferLength);
 	if (err) return err;
 
