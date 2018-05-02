@@ -149,7 +149,7 @@ void Game::Initialize(IUnknown* window)
 	if (err) throw err;
 
 	// Register a callback for button presses.
-	err = interactive_register_input_handler(m_interactiveSession, [](void* context, interactive_session session, const interactive_input* input)
+	err = interactive_set_input_handler(m_interactiveSession, [](void* context, interactive_session session, const interactive_input* input)
 	{
 		Game* game = (Game*)context;
 		if ((input_type_key == input->type || input_type_click == input->type) && interactive_button_action_down == input->buttonData.action)
@@ -166,7 +166,7 @@ void Game::Initialize(IUnknown* window)
 	});
 	if (err) throw err;
 
-	err = interactive_register_transaction_complete_handler(m_interactiveSession, [](void* context, interactive_session session, const char* transactionId, size_t transactionIdLength, unsigned int errorCode, const char* errorMessage, size_t errorMessageLength)
+	err = interactive_set_transaction_complete_handler(m_interactiveSession, [](void* context, interactive_session session, const char* transactionId, size_t transactionIdLength, unsigned int errorCode, const char* errorMessage, size_t errorMessageLength)
 	{
 		UNREFERENCED_PARAMETER(session);
 		UNREFERENCED_PARAMETER(transactionIdLength);

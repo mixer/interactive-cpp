@@ -5,7 +5,7 @@ namespace mixer_internal
 {
 
 interactive_session_internal::interactive_session_internal()
-	: callerContext(nullptr), isReady(false), state(interactive_state::disconnected), shutdownRequested(false), packetId(0), sequenceId(0), wsOpen(false),
+	: callerContext(nullptr), isReady(false), state(interactive_disconnected), shutdownRequested(false), packetId(0), sequenceId(0), wsOpen(false),
 	onInput(nullptr), onError(nullptr), onStateChanged(nullptr), onParticipantsChanged(nullptr), onUnhandledMethod(nullptr)
 {
 	scenesRoot.SetObject();

@@ -184,7 +184,7 @@ void App::OnLaunched(Windows::ApplicationModel::Activation::LaunchActivatedEvent
 		if (err) throw err;
 
 		// Register a callback for button presses.
-		err = interactive_register_input_handler(session, [](void* context, interactive_session session, const interactive_input* input)
+		err = interactive_set_input_handler(session, [](void* context, interactive_session session, const interactive_input* input)
 		{
 			std::map<std::string, std::string>& controlsByTransaction = *(std::map <std::string, std::string>*)context;
 			if ((input_type_key == input->type || input_type_click == input->type) && interactive_button_action_down == input->buttonData.action)
@@ -196,7 +196,7 @@ void App::OnLaunched(Windows::ApplicationModel::Activation::LaunchActivatedEvent
 		});
 		if (err) throw err;
 	
-		err = interactive_register_transaction_complete_handler(session, [](void* context, interactive_session session, const char* transactionId, size_t transactionIdLength, unsigned int errorCode, const char* errorMessage, size_t errorMessageLength)
+		err = interactive_set_transaction_complete_handler(session, [](void* context, interactive_session session, const char* transactionId, size_t transactionIdLength, unsigned int errorCode, const char* errorMessage, size_t errorMessageLength)
 		{
 			std::map<std::string, std::string>& controlsByTransaction = *(std::map <std::string, std::string>*)context;
 			if (errorCode)

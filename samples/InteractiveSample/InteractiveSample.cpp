@@ -51,11 +51,11 @@ int main()
 	if (err) return err;
 
 	// Register a callback for button presses.
-	err = interactive_register_input_handler(session, handle_interactive_input);
+	err = interactive_set_input_handler(session, handle_interactive_input);
 	if (err) return err;
 
 	// Register a callback for completed transactions.
-	err = interactive_register_transaction_complete_handler(session, handle_transaction_complete);
+	err = interactive_set_transaction_complete_handler(session, handle_transaction_complete);
 	if (err) return err;
 
 	// Create a group for participants to view the joystick scene.
@@ -136,7 +136,7 @@ int get_participant_name(interactive_session session, const char* participantId,
 	size_t participantNameLength = 0;
 
 	// First call with a nullptr to get the required size for the user's name, MIXER_ERROR_BUFFER_SIZE is the expected return value.
-	int err = interactive_get_participant_user_name(session, participantId, nullptr, &participantNameLength);
+	int err = interactive_participant_get_user_name(session, participantId, nullptr, &participantNameLength);
 	if (MIXER_ERROR_BUFFER_SIZE != err)
 	{
 		return err;
@@ -144,7 +144,7 @@ int get_participant_name(interactive_session session, const char* participantId,
 
 	// Resize the string to the correct size and call it again.
 	participantName.resize(participantNameLength);
-	err = interactive_get_participant_user_name(session, participantId, (char*)participantName.data(), &participantNameLength);
+	err = interactive_participant_get_user_name(session, participantId, (char*)participantName.data(), &participantNameLength);
 	// STL strings don't need a trailing null character.
 	participantName = participantName.erase(participantNameLength - 1);
 
@@ -180,7 +180,7 @@ void handle_interactive_input(void* context, interactive_session session, const 
 		else if (0 == strcmp("ToJoystickScene", input->control.id))
 		{
 			std::cout << "Moving " << participantName << " to the Joystick group." << std::endl;
-			err = interactive_set_participant_group(session, input->participantId, "JoystickGroup");
+			err = interactive_participant_set_group(session, input->participantId, "JoystickGroup");
 			if (err)
 			{
 				std::cerr << "Failed to move " << participantName << " to the Joystick group." << std::endl;
@@ -190,7 +190,7 @@ void handle_interactive_input(void* context, interactive_session session, const 
 		else if (0 == strcmp("ToDefaultScene", input->control.id))
 		{
 			std::cout << "Moving " << participantName << " to the default group." << std::endl;
-			err = interactive_set_participant_group(session, input->participantId, "default");
+			err = interactive_participant_set_group(session, input->participantId, "default");
 			if (err)
 			{
 				std::cerr << "Failed to move " << participantName << " to the default group." << std::endl;

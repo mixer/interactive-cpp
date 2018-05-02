@@ -41,7 +41,7 @@ int interactive_get_participants(interactive_session session, on_participant_enu
 	return MIXER_OK;
 }
 
-int interactive_set_participant_group(interactive_session session, const char* participantId, const char* groupId)
+int interactive_participant_set_group(interactive_session session, const char* participantId, const char* groupId)
 {
 	if (nullptr == session || nullptr == participantId || nullptr == groupId)
 	{
@@ -64,7 +64,7 @@ int interactive_set_participant_group(interactive_session session, const char* p
 	return MIXER_OK;
 }
 
-int interactive_get_participant_user_id(interactive_session session, const char* participantId, unsigned int* userId)
+int interactive_participant_get_user_id(interactive_session session, const char* participantId, unsigned int* userId)
 {
 	if (nullptr == session || nullptr == participantId || nullptr == userId)
 	{
@@ -83,7 +83,7 @@ int interactive_get_participant_user_id(interactive_session session, const char*
 	return MIXER_OK;
 }
 
-int interactive_get_participant_user_name(interactive_session session, const char* participantId, char* userName, size_t* userNameLength)
+int interactive_participant_get_user_name(interactive_session session, const char* participantId, char* userName, size_t* userNameLength)
 {
 	if (nullptr == session || nullptr == participantId || nullptr == userNameLength)
 	{
@@ -112,7 +112,7 @@ int interactive_get_participant_user_name(interactive_session session, const cha
 	return MIXER_OK;
 }
 
-int interactive_get_participant_level(interactive_session session, const char* participantId, unsigned int* level)
+int interactive_participant_get_level(interactive_session session, const char* participantId, unsigned int* level)
 {
 	if (nullptr == session || nullptr == participantId || nullptr == level)
 	{
@@ -131,7 +131,7 @@ int interactive_get_participant_level(interactive_session session, const char* p
 	return MIXER_OK;
 }
 
-int interactive_get_participant_last_input_at(interactive_session session, const char* participantId, unsigned long long* lastInputAt)
+int interactive_participant_get_last_input_at(interactive_session session, const char* participantId, unsigned long long* lastInputAt)
 {
 	if (nullptr == session || nullptr == participantId || nullptr == lastInputAt)
 	{
@@ -150,7 +150,7 @@ int interactive_get_participant_last_input_at(interactive_session session, const
 	return MIXER_OK;
 }
 
-int interactive_get_participant_connected_at(interactive_session session, const char* participantId, unsigned long long* connectedAt)
+int interactive_participant_get_connected_at(interactive_session session, const char* participantId, unsigned long long* connectedAt)
 {
 	if (nullptr == session || nullptr == participantId || nullptr == connectedAt)
 	{
@@ -169,7 +169,7 @@ int interactive_get_participant_connected_at(interactive_session session, const 
 	return MIXER_OK;
 }
 
-int interactive_get_participant_is_disabled(interactive_session session, const char* participantId, bool* isDisabled)
+int interactive_participant_is_disabled(interactive_session session, const char* participantId, bool* isDisabled)
 {
 	if (nullptr == session || nullptr == participantId || nullptr == isDisabled)
 	{
@@ -188,7 +188,7 @@ int interactive_get_participant_is_disabled(interactive_session session, const c
 	return MIXER_OK;
 }
 
-int interactive_get_participant_group(interactive_session session, const char* participantId, char* group, size_t* groupLength)
+int interactive_participant_get_group(interactive_session session, const char* participantId, char* group, size_t* groupLength)
 {
 	if (nullptr == session || nullptr == participantId || nullptr == groupLength)
 	{

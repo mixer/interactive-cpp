@@ -176,13 +176,13 @@ int handle_hello(interactive_session_internal& session, rapidjson::Document& doc
 {
 	(doc);
 	interactive_state previousState = session.state;
-	session.state = interactive_state::not_ready;
+	session.state = interactive_not_ready;
 	if (session.onStateChanged)
 	{
 		session.onStateChanged(session.callerContext, &session, previousState, session.state);
 	}
 
-	if (session.isReady && interactive_state::ready != session.state)
+	if (session.isReady && interactive_ready != session.state)
 	{
 		return send_ready_message(session);
 	}
@@ -362,10 +362,10 @@ int handle_ready(interactive_session_internal& session, rapidjson::Document& doc
 
 	bool isReady = doc[RPC_PARAMS][RPC_PARAM_IS_READY].GetBool();
 	// Only change state and notify if the ready state is different.
-	if (isReady && ready != session.state || !isReady && not_ready != session.state)
+	if (isReady && interactive_ready != session.state || !isReady && interactive_not_ready != session.state)
 	{
 		interactive_state previousState = session.state;
-		session.state = isReady ? ready : not_ready;
+		session.state = isReady ? interactive_ready : interactive_not_ready;
 		if (session.onStateChanged)
 		{
 			session.onStateChanged(session.callerContext, &session, previousState, session.state);
@@ -930,7 +930,7 @@ void interactive_close_session(interactive_session session)
 }
 
 // Handler registration
-int interactive_register_error_handler(interactive_session session, on_error onError)
+int interactive_set_error_handler(interactive_session session, on_error onError)
 {
 	if (nullptr == session)
 	{
@@ -943,7 +943,7 @@ int interactive_register_error_handler(interactive_session session, on_error onE
 	return MIXER_OK;
 }
 
-int interactive_register_state_changed_handler(interactive_session session, on_state_changed onStateChanged)
+int interactive_set_state_changed_handler(interactive_session session, on_state_changed onStateChanged)
 {
 	if (nullptr == session)
 	{
@@ -956,7 +956,7 @@ int interactive_register_state_changed_handler(interactive_session session, on_s
 	return MIXER_OK;
 }
 
-int interactive_register_input_handler(interactive_session session, on_input onInput)
+int interactive_set_input_handler(interactive_session session, on_input onInput)
 {
 	if (nullptr == session)
 	{
@@ -969,7 +969,7 @@ int interactive_register_input_handler(interactive_session session, on_input onI
 	return MIXER_OK;
 }
 
-int interactive_register_participants_changed_handler(interactive_session session, on_participants_changed onParticipantsChanged)
+int interactive_set_participants_changed_handler(interactive_session session, on_participants_changed onParticipantsChanged)
 {
 	if (nullptr == session)
 	{
@@ -982,7 +982,7 @@ int interactive_register_participants_changed_handler(interactive_session sessio
 	return MIXER_OK;
 }
 
-int interactive_register_transaction_complete_handler(interactive_session session, on_transaction_complete onTransactionComplete)
+int interactive_set_transaction_complete_handler(interactive_session session, on_transaction_complete onTransactionComplete)
 {
 	if (nullptr == session)
 	{
@@ -995,7 +995,7 @@ int interactive_register_transaction_complete_handler(interactive_session sessio
 	return MIXER_OK;
 }
 
-int interactive_register_unhandled_method_handler(interactive_session session, on_unhandled_method onUnhandledMethod)
+int interactive_set_unhandled_method_handler(interactive_session session, on_unhandled_method onUnhandledMethod)
 {
 	if (nullptr == session)
 	{

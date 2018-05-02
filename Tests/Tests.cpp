@@ -203,23 +203,23 @@ void print_participant_properties(interactive_session session, const std::string
 	bool isDisabled = false;
 	unsigned int level = 0;
 
-	ASSERT_NOERR(interactive_get_participant_connected_at(session, participantId.c_str(), &connectedAt));
-	err = interactive_get_participant_group(session, participantId.c_str(), group, &groupLength);
+	ASSERT_NOERR(interactive_participant_get_connected_at(session, participantId.c_str(), &connectedAt));
+	err = interactive_participant_get_group(session, participantId.c_str(), group, &groupLength);
 	if (MIXER_ERROR_BUFFER_SIZE == err)
 	{
 		group = new char[groupLength];
-		ASSERT_NOERR(interactive_get_participant_group(session, participantId.c_str(), group, &groupLength));
+		ASSERT_NOERR(interactive_participant_get_group(session, participantId.c_str(), group, &groupLength));
 	}
 	Assert::IsTrue(MIXER_OK == err);
-	ASSERT_NOERR(interactive_get_participant_is_disabled(session, participantId.c_str(), &isDisabled));
-	ASSERT_NOERR(interactive_get_participant_last_input_at(session, participantId.c_str(), &lastInputAt));
-	ASSERT_NOERR(interactive_get_participant_level(session, participantId.c_str(), &level));
-	ASSERT_NOERR(interactive_get_participant_user_id(session, participantId.c_str(), &userId));
-	err = interactive_get_participant_user_name(session, participantId.c_str(), userName, &userNameLength);
+	ASSERT_NOERR(interactive_participant_is_disabled(session, participantId.c_str(), &isDisabled));
+	ASSERT_NOERR(interactive_participant_get_last_input_at(session, participantId.c_str(), &lastInputAt));
+	ASSERT_NOERR(interactive_participant_get_level(session, participantId.c_str(), &level));
+	ASSERT_NOERR(interactive_participant_get_user_id(session, participantId.c_str(), &userId));
+	err = interactive_participant_get_user_name(session, participantId.c_str(), userName, &userNameLength);
 	if (MIXER_ERROR_BUFFER_SIZE == err)
 	{
 		userName = new char[userNameLength];
-		ASSERT_NOERR(interactive_get_participant_user_name(session, participantId.c_str(), userName, &userNameLength));
+		ASSERT_NOERR(interactive_participant_get_user_name(session, participantId.c_str(), userName, &userNameLength));
 	}
 	Assert::IsTrue(MIXER_OK == err);
 
@@ -300,10 +300,10 @@ void handle_input(void* context, interactive_session session, const interactive_
 			memset(&data, 0, sizeof(transaction_data));
 			data.type = input->type;
 			size_t nameLength = 0;
-			int err = interactive_get_participant_user_name(session, input->participantId, nullptr, &nameLength);
+			int err = interactive_participant_get_user_name(session, input->participantId, nullptr, &nameLength);
 			Assert::IsTrue(MIXER_ERROR_BUFFER_SIZE == err);
 			data.participantName.resize(nameLength);
-			ASSERT_NOERR(interactive_get_participant_user_name(session, input->participantId, (char*)data.participantName.data(), &nameLength));
+			ASSERT_NOERR(interactive_participant_get_user_name(session, input->participantId, (char*)data.participantName.data(), &nameLength));
 			data.controlId = std::string(input->control.id, input->control.idLength);
 			g_dataByTransaction[std::string(input->transactionId, input->transactionIdLength)] = data;
 		}
@@ -349,18 +349,18 @@ void handle_state_changed(void* context, interactive_session session, interactiv
 {
 	switch (newState)
 	{
-	case interactive_state::disconnected:
+	case interactive_disconnected:
 	{
 		Logger::WriteMessage("Interactive disconnected");
 		break;
 	}
-	case interactive_state::not_ready:
+	case interactive_not_ready:
 	{
 		g_activeSession = session;
 		Logger::WriteMessage("Interactive connected - waiting.");
 		break;
 	}
-	case interactive_state::ready:
+	case interactive_ready:
 	{
 		Logger::WriteMessage("Interactive connected - ready.");
 		break;
@@ -601,12 +601,12 @@ public:
 		interactive_session session;
 		ASSERT_NOERR(interactive_open_session(auth.c_str(), versionId.c_str(), shareCode.c_str(), true, &session));
 
-		ASSERT_NOERR(interactive_register_input_handler(session, handle_input));
-		ASSERT_NOERR(interactive_register_state_changed_handler(session, handle_state_changed));
-		ASSERT_NOERR(interactive_register_error_handler(session, handle_error));
-		ASSERT_NOERR(interactive_register_participants_changed_handler(session, handle_participants_changed));
-		ASSERT_NOERR(interactive_register_unhandled_method_handler(session, handle_unhandled_method));
-		ASSERT_NOERR(interactive_register_transaction_complete_handler(session, handle_transaction_complete));
+		ASSERT_NOERR(interactive_set_input_handler(session, handle_input));
+		ASSERT_NOERR(interactive_set_state_changed_handler(session, handle_state_changed));
+		ASSERT_NOERR(interactive_set_error_handler(session, handle_error));
+		ASSERT_NOERR(interactive_set_participants_changed_handler(session, handle_participants_changed));
+		ASSERT_NOERR(interactive_set_unhandled_method_handler(session, handle_unhandled_method));
+		ASSERT_NOERR(interactive_set_transaction_complete_handler(session, handle_transaction_complete));
 
 		ASSERT_NOERR(interactive_set_bandwidth_throttle(session, throttle_participant_leave, 0, 0));
 		ASSERT_NOERR(interactive_set_bandwidth_throttle(session, throttle_input, 2 * 1024 * 1024 /* 2mb */, 512 * 1024 /* 512kbps */));
@@ -641,21 +641,21 @@ public:
 
 		interactive_session session;
 		ASSERT_NOERR(interactive_open_session(auth.c_str(), versionId.c_str(), shareCode.c_str(), false, &session));
-		interactive_register_state_changed_handler(session, [](void* context, interactive_session session, interactive_state prevState, interactive_state newState)
+		interactive_set_state_changed_handler(session, [](void* context, interactive_session session, interactive_state prevState, interactive_state newState)
 		{
 			Logger::WriteMessage(("Interactive state changed: " + std::to_string(prevState) + " -> " + std::to_string(newState)).c_str());
 			static int order = 0;
-			if (disconnected == prevState)
+			if (interactive_disconnected == prevState)
 			{
-				Assert::IsTrue(0 == order++ && not_ready == newState);
+				Assert::IsTrue(0 == order++ && interactive_not_ready == newState);
 			}
-			else if (not_ready == prevState)
+			else if (interactive_not_ready == prevState)
 			{
-				Assert::IsTrue(1 == order++ && ready == newState);
+				Assert::IsTrue(1 == order++ && interactive_ready == newState);
 			}
-			else if (ready == prevState)
+			else if (interactive_ready == prevState)
 			{
-				Assert::IsTrue(2 == order++ && not_ready == newState);
+				Assert::IsTrue(2 == order++ && interactive_not_ready == newState);
 			}
 		});
 
@@ -693,7 +693,7 @@ public:
 		interactive_session session;
 		Logger::WriteMessage("Connecting...");
 		ASSERT_NOERR(interactive_open_session(auth.c_str(), versionId.c_str(), shareCode.c_str(), true, &session));
-		ASSERT_NOERR(interactive_register_participants_changed_handler(session, handle_participants_changed));
+		ASSERT_NOERR(interactive_set_participants_changed_handler(session, handle_participants_changed));
 
 		// Simulate 60fps
 		const int fps = 60;
@@ -741,7 +741,7 @@ public:
 		Logger::WriteMessage("Moving all participants to new group");
 		interactive_get_participants(session, [](void* context, interactive_session session, interactive_participant* participant)
 		{
-			interactive_set_participant_group(session, participant->id, "Test group");
+			interactive_participant_set_group(session, participant->id, "Test group");
 		});
 
 		// Simulate 60 frames/sec for 1 second.
@@ -795,7 +795,7 @@ public:
 		interactive_session session;
 		Logger::WriteMessage("Connecting...");
 		ASSERT_NOERR(interactive_open_session(auth.c_str(), versionId.c_str(), shareCode.c_str(), true, &session));
-		ASSERT_NOERR(interactive_register_participants_changed_handler(session, handle_participants_changed));
+		ASSERT_NOERR(interactive_set_participants_changed_handler(session, handle_participants_changed));
 		// Simulate 60 frames/sec for 1 second.
 		const int fps = 60;
 		const int seconds = 1;
