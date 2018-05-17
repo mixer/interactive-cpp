@@ -55,31 +55,37 @@ public:
 
 class ws_client : public websocket
 {
+private: std::map<std::string, std::string> m_headers;
 public:
 	ws_client() : m_closed(false)
-	{
-		m_ws = ref new MessageWebSocket();
-		m_ws->Control->MessageType = SocketMessageType::Utf8;
+	{	
 	}
 
 	int add_header(const std::string& key, const std::string& value)
 	{
-		std::wstring keyWS = utf8_to_wstring(key);
-		std::wstring valueWS = utf8_to_wstring(value);
-		m_ws->SetRequestHeader(StringReference(keyWS.c_str()), StringReference(valueWS.c_str()));
+		m_headers[key] = value;
 		return 0;
 	}
 
 	int open(const std::string& uri, const on_ws_connect onConnect, const on_ws_message onMessage, const on_ws_error onError, const on_ws_close onClose)
 	{
 		int result = 0;
-		std::wstring uriWS = utf8_to_wstring(uri);
-		Uri^ uriRef = ref new Uri(StringReference(uriWS.c_str()));
-
 		bool connected = false;
 		unsigned short closeCode = 0;
 		std::string closeReason;
 
+		m_ws = ref new MessageWebSocket();
+		m_ws->Control->MessageType = SocketMessageType::Utf8;
+
+		// Add any headers.
+		for (auto header : m_headers)
+		{
+			std::wstring keyWS = utf8_to_wstring(header.first);
+			std::wstring valueWS = utf8_to_wstring(header.second);
+			m_ws->SetRequestHeader(StringReference(keyWS.c_str()), StringReference(valueWS.c_str()));
+		}
+
+		// Add closed and received handlers.
 		m_ws->Closed += ref new TypedEventHandler<IWebSocket^, WebSocketClosedEventArgs^>([&](IWebSocket^ sender, WebSocketClosedEventArgs^ args)
 		{
 			closeCode = args->Code;
@@ -102,6 +108,11 @@ public:
 				m_messagesSemaphore.notify();
 			}
 		});
+
+
+		// Connect asynchronously and then notify
+		std::wstring uriWS = utf8_to_wstring(uri);
+		Uri^ uriRef = ref new Uri(StringReference(uriWS.c_str()));
 		
 		create_task(m_ws->ConnectAsync(uriRef)).then([&](task<void> prevTask)
 		{
@@ -119,6 +130,8 @@ public:
 			m_openSemaphore.notify();
 		});
 		
+
+		// Wait for connection notificiiton.
 		m_openSemaphore.wait();
 		if (0 != result)
 		{
