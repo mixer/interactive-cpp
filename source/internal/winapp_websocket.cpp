@@ -53,12 +53,12 @@ public:
 	}
 };
 
-class ws_client : public websocket
+class winapp_websocket : public websocket
 {
 private: std::map<std::string, std::string> m_headers;
 public:
-	ws_client() : m_closed(false)
-	{	
+	winapp_websocket() : m_connected(false), m_closeCode(0)
+	{
 	}
 
 	int add_header(const std::string& key, const std::string& value)
@@ -67,13 +67,35 @@ public:
 		return 0;
 	}
 
+	void on_close(IWebSocket^ sender, WebSocketClosedEventArgs^ args)
+	{
+		// Mark the close code and reason.
+		m_closeCode = args->Code;
+		m_closeReason = wstring_to_utf8(args->Reason->Data());
+
+		// Notify message processing loop.
+		std::lock_guard<std::mutex> autoLock(m_messagesMutex);
+		m_connected = false;
+		m_messagesSemaphore.notify();
+	}
+
+	void on_message(MessageWebSocket^ sender, MessageWebSocketMessageReceivedEventArgs^ args)
+	{
+		if (m_connected && args->MessageType == SocketMessageType::Utf8)
+		{
+			DataReader^ reader = args->GetDataReader();
+			reader->UnicodeEncoding = UnicodeEncoding::Utf8;
+			String^ message = reader->ReadString(reader->UnconsumedBufferLength);
+
+			std::lock_guard<std::mutex> lock(m_messagesMutex);
+			m_messages.push(wstring_to_utf8(message->Data()));
+			m_messagesSemaphore.notify();
+		}
+	}
+
 	int open(const std::string& uri, const on_ws_connect onConnect, const on_ws_message onMessage, const on_ws_error onError, const on_ws_close onClose)
 	{
 		int result = 0;
-		bool connected = false;
-		unsigned short closeCode = 0;
-		std::string closeReason;
-
 		m_ws = ref new MessageWebSocket();
 		m_ws->Control->MessageType = SocketMessageType::Utf8;
 
@@ -86,41 +108,23 @@ public:
 		}
 
 		// Add closed and received handlers.
-		m_ws->Closed += ref new TypedEventHandler<IWebSocket^, WebSocketClosedEventArgs^>([&](IWebSocket^ sender, WebSocketClosedEventArgs^ args)
-		{
-			closeCode = args->Code;
-			closeReason = wstring_to_utf8(args->Reason->Data());
-			std::lock_guard<std::mutex> autoLock(m_messagesMutex);
-			m_closed = true;
-			m_messagesSemaphore.notify();
-		});
-
-		m_ws->MessageReceived += ref new TypedEventHandler<MessageWebSocket^, MessageWebSocketMessageReceivedEventArgs^>([&](MessageWebSocket^ sender, MessageWebSocketMessageReceivedEventArgs^ args)
-		{
-			if (args->MessageType == SocketMessageType::Utf8)
-			{	
-				DataReader^ reader = args->GetDataReader();
-				reader->UnicodeEncoding = UnicodeEncoding::Utf8;
-				String^ message = reader->ReadString(reader->UnconsumedBufferLength);
-
-				std::lock_guard<std::mutex> lock(m_messagesMutex);
-				m_messages.push(wstring_to_utf8(message->Data()));
-				m_messagesSemaphore.notify();
-			}
-		});
-
-
-		// Connect asynchronously and then notify
+		std::function<void(IWebSocket^, WebSocketClosedEventArgs^)> onWsClose = std::bind(&winapp_websocket::on_close, this, std::placeholders::_1, std::placeholders::_2);
+		m_ws->Closed += ref new TypedEventHandler<IWebSocket^, WebSocketClosedEventArgs^>(onWsClose);
+		std::function<void(MessageWebSocket^, MessageWebSocketMessageReceivedEventArgs^)> onWsMessage = std::bind(&winapp_websocket::on_message, this, std::placeholders::_1, std::placeholders::_2);
+		m_ws->MessageReceived += ref new TypedEventHandler<MessageWebSocket^, MessageWebSocketMessageReceivedEventArgs^>(onWsMessage);
+		
+		// Convert uri string to Windows Uri object.
 		std::wstring uriWS = utf8_to_wstring(uri);
 		Uri^ uriRef = ref new Uri(StringReference(uriWS.c_str()));
-		
+
+		// Connect asynchronously and then notify
 		create_task(m_ws->ConnectAsync(uriRef)).then([&](task<void> prevTask)
 		{
 			std::lock_guard<std::mutex> autoLock(m_messagesMutex);
 			try
 			{
 				prevTask.get();
-				connected = true;
+				m_connected = true;
 			}
 			catch (Exception^ ex)
 			{
@@ -129,33 +133,31 @@ public:
 
 			m_openSemaphore.notify();
 		});
-		
 
-		// Wait for connection notificiiton.
+		// Wait for connection notification.
 		m_openSemaphore.wait();
-		if (0 != result)
+
+		// Call error handler if connection was not successful.
+		if (0 != result || !m_connected)
 		{
+
 			if (onError)
 			{
-				std::string message = "Connection failed.";
-				onError(*this, 4000, message);
-			}
-
-			return result;
-		}
-
-		if (m_closed)
-		{
-			if (closeCode)
-			{
-				if (onError)
+				if (m_closeCode)
 				{
-					onError(*this, closeCode, closeReason);
+					onError(*this, m_closeCode, m_closeReason);
+				}
+				else
+				{
+					std::string message = "Connection failed.";
+					onError(*this, 4000, message);
 				}
 			}
+
 			return result;
 		}
 
+		// Connection was successful.
 		if (onConnect)
 		{
 			std::string connectMessage = "Connected to: " + uri;
@@ -163,21 +165,16 @@ public:
 		}
 
 		// Process messages until the socket is closed;
-		for(;;)
+		for (;;)
 		{
 			// Wait for a message
 			m_messagesSemaphore.wait();
 
-			if (m_closed)
-			{	
-				if (onError)
-				{
-					onError(*this, closeCode, closeReason);
-				}
-
+			if (!m_connected)
+			{
 				if (onClose)
 				{
-					onClose(*this, closeCode, closeReason);
+					onClose(*this, m_closeCode, m_closeReason);
 				}
 
 				break;
@@ -201,7 +198,7 @@ public:
 
 	int send(const std::string& message)
 	{
-		if (m_closed)
+		if (!m_connected)
 		{
 			return E_ABORT;
 		}
@@ -223,13 +220,13 @@ public:
 
 	int read(std::string& message)
 	{
-		if (m_closed)
+		if (!m_connected)
 		{
 			return E_ABORT;
 		}
 
 		m_messagesSemaphore.wait();
-		if (m_closed)
+		if (!m_connected)
 		{
 			// Incorrectly consumed close notification, pass it on.
 			m_messagesSemaphore.notify();
@@ -245,15 +242,17 @@ public:
 
 	void close()
 	{
-		if (!m_closed)
-		{	
+		if (m_connected)
+		{
 			m_ws->Close(1000, nullptr);
 		}
 	}
 
 private:
 	MessageWebSocket ^ m_ws;
-	bool m_closed;
+	bool m_connected;
+	unsigned short m_closeCode;
+	std::string m_closeReason;
 	std::mutex m_messagesMutex;
 	semaphore m_messagesSemaphore;
 	semaphore m_openSemaphore;
@@ -264,7 +263,7 @@ private:
 std::unique_ptr<websocket>
 websocket_factory::make_websocket()
 {
-	return std::unique_ptr<websocket>(new ws_client());
+	return std::unique_ptr<websocket>(new winapp_websocket());
 }
 
 extern "C" {
