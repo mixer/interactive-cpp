@@ -924,8 +924,14 @@ void interactive_close_session(interactive_session session)
 		}
 
 		// Wait for both threads to terminate.
-		sessionInternal->incomingThread.join();
-		sessionInternal->outgoingThread.join();
+		if (sessionInternal->incomingThread.joinable())
+		{
+			sessionInternal->incomingThread.join();
+		}
+		if (sessionInternal->outgoingThread.joinable())
+		{
+			sessionInternal->outgoingThread.join();
+		}
 
 		// Clean up the session memory.
 		delete sessionInternal;

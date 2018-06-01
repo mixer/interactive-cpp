@@ -608,7 +608,6 @@ extern "C" {
 		MIXER_ERROR_WS_READ_FAILED,
 		MIXER_ERROR_WS_SEND_FAILED,
 		MIXER_ERROR_NOT_CONNECTED
-
 	} mixer_result_code;
 	/** @} */
 

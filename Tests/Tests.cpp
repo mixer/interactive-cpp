@@ -395,9 +395,10 @@ void handle_participants_changed(void* context, interactive_session session, int
 	Logger::WriteMessage(s.str().c_str());
 }
 
-void handle_error(void* context, interactive_session session, int errorCode, const char* errorMessage, size_t errorMessageLength)
+void handle_error_assert(void* context, interactive_session session, int errorCode, const char* errorMessage, size_t errorMessageLength)
 {
 	Logger::WriteMessage(("[ERROR] (" + std::to_string(errorCode) + ")" + errorMessage).c_str());
+	Assert::Fail(L"Error.");
 }
 
 void handle_unhandled_method(void* context, interactive_session session, const char* methodJson, size_t methodJsonLength)
@@ -537,6 +538,7 @@ public:
 		interactive_session session;
 		Logger::WriteMessage("Connecting...");
 		ASSERT_NOERR(interactive_open_session(&session));
+		ASSERT_NOERR(interactive_set_error_handler(session, handle_error_assert));
 		ASSERT_NOERR(interactive_connect(session, auth.c_str(), versionId.c_str(), shareCode.c_str(), true));
 
 		// Simulate 60 frames/sec for 1 seconds.
@@ -571,6 +573,7 @@ public:
 		interactive_session session;
 		Logger::WriteMessage("Connecting...");
 		ASSERT_NOERR(interactive_open_session(&session));
+		ASSERT_NOERR(interactive_set_error_handler(session, handle_error_assert));
 		ASSERT_NOERR(interactive_connect(session, auth.c_str(), versionId.c_str(), shareCode.c_str(), true));
 
 		// Simulate 60 frames/sec for 1 seconds.
@@ -603,10 +606,10 @@ public:
 
 		interactive_session session;
 		ASSERT_NOERR(interactive_open_session(&session));
-
+		ASSERT_NOERR(interactive_set_error_handler(session, handle_error_assert));
 		ASSERT_NOERR(interactive_set_input_handler(session, handle_input));
 		ASSERT_NOERR(interactive_set_state_changed_handler(session, handle_state_changed));
-		ASSERT_NOERR(interactive_set_error_handler(session, handle_error));
+		ASSERT_NOERR(interactive_set_error_handler(session, handle_error_assert));
 		ASSERT_NOERR(interactive_set_participants_changed_handler(session, handle_participants_changed));
 		ASSERT_NOERR(interactive_set_unhandled_method_handler(session, handle_unhandled_method));
 		ASSERT_NOERR(interactive_set_transaction_complete_handler(session, handle_transaction_complete));
@@ -646,6 +649,7 @@ public:
 
 		interactive_session session;
 		ASSERT_NOERR(interactive_open_session(&session));
+		ASSERT_NOERR(interactive_set_error_handler(session, handle_error_assert));
 		interactive_set_state_changed_handler(session, [](void* context, interactive_session session, interactive_state prevState, interactive_state newState)
 		{
 			Logger::WriteMessage(("Interactive state changed: " + std::to_string(prevState) + " -> " + std::to_string(newState)).c_str());
@@ -700,6 +704,7 @@ public:
 		interactive_session session;
 		Logger::WriteMessage("Connecting...");
 		ASSERT_NOERR(interactive_open_session(&session));
+		ASSERT_NOERR(interactive_set_error_handler(session, handle_error_assert));
 		ASSERT_NOERR(interactive_set_participants_changed_handler(session, handle_participants_changed));
 		ASSERT_NOERR(interactive_connect(session, auth.c_str(), versionId.c_str(), shareCode.c_str(), true));
 
@@ -803,6 +808,7 @@ public:
 		interactive_session session;
 		Logger::WriteMessage("Connecting...");
 		ASSERT_NOERR(interactive_open_session(&session));
+		ASSERT_NOERR(interactive_set_error_handler(session, handle_error_assert));
 		ASSERT_NOERR(interactive_connect(session, auth.c_str(), versionId.c_str(), shareCode.c_str(), true));
 		ASSERT_NOERR(interactive_set_participants_changed_handler(session, handle_participants_changed));
 		// Simulate 60 frames/sec for 1 second.
@@ -916,8 +922,6 @@ public:
 
 		Logger::WriteMessage("Disconnecting...");
 		interactive_close_session(session);
-
-		Assert::IsTrue(0 == err);
 	}
 };
 }
