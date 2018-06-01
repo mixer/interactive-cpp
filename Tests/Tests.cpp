@@ -14,6 +14,7 @@
 using namespace Microsoft::VisualStudio::CppUnitTestFramework;
 
 #define ASSERT_NOERR(x) do {err = x; Assert::IsTrue(0 == err); if (err) return;} while (0)
+#define ASSERT_ERR(x, y) do {err = y; Assert::IsTrue(x == err);} while (0)
 #define ASSERT_RETERR(x) do {err = x; Assert::IsTrue(0 == err); if (err) return err;} while (0)
 
 namespace MixerTests
@@ -535,7 +536,8 @@ public:
 
 		interactive_session session;
 		Logger::WriteMessage("Connecting...");
-		ASSERT_NOERR(interactive_open_session(auth.c_str(), versionId.c_str(), shareCode.c_str(), true, &session));
+		ASSERT_NOERR(interactive_open_session(&session));
+		ASSERT_NOERR(interactive_connect(session, auth.c_str(), versionId.c_str(), shareCode.c_str(), true));
 
 		// Simulate 60 frames/sec for 1 seconds.
 		const int fps = 60;
@@ -568,7 +570,8 @@ public:
 
 		interactive_session session;
 		Logger::WriteMessage("Connecting...");
-		ASSERT_NOERR(interactive_open_session(auth.c_str(), versionId.c_str(), shareCode.c_str(), true, &session));
+		ASSERT_NOERR(interactive_open_session(&session));
+		ASSERT_NOERR(interactive_connect(session, auth.c_str(), versionId.c_str(), shareCode.c_str(), true));
 
 		// Simulate 60 frames/sec for 1 seconds.
 		const int fps = 60;
@@ -599,7 +602,7 @@ public:
 		ASSERT_NOERR(do_auth(clientId, "", auth));
 
 		interactive_session session;
-		ASSERT_NOERR(interactive_open_session(auth.c_str(), versionId.c_str(), shareCode.c_str(), true, &session));
+		ASSERT_NOERR(interactive_open_session(&session));
 
 		ASSERT_NOERR(interactive_set_input_handler(session, handle_input));
 		ASSERT_NOERR(interactive_set_state_changed_handler(session, handle_state_changed));
@@ -610,6 +613,8 @@ public:
 
 		ASSERT_NOERR(interactive_set_bandwidth_throttle(session, throttle_participant_leave, 0, 0));
 		ASSERT_NOERR(interactive_set_bandwidth_throttle(session, throttle_input, 2 * 1024 * 1024 /* 2mb */, 512 * 1024 /* 512kbps */));
+
+		ASSERT_NOERR(interactive_connect(session, auth.c_str(), versionId.c_str(), shareCode.c_str(), true));
 
 		// Simulate 60 frames/sec
 		const int fps = 60;
@@ -640,7 +645,7 @@ public:
 		ASSERT_NOERR(do_auth(clientId, "", auth));
 
 		interactive_session session;
-		ASSERT_NOERR(interactive_open_session(auth.c_str(), versionId.c_str(), shareCode.c_str(), false, &session));
+		ASSERT_NOERR(interactive_open_session(&session));
 		interactive_set_state_changed_handler(session, [](void* context, interactive_session session, interactive_state prevState, interactive_state newState)
 		{
 			Logger::WriteMessage(("Interactive state changed: " + std::to_string(prevState) + " -> " + std::to_string(newState)).c_str());
@@ -658,6 +663,8 @@ public:
 				Assert::IsTrue(2 == order++ && interactive_not_ready == newState);
 			}
 		});
+
+		ASSERT_NOERR(interactive_connect(session, auth.c_str(), versionId.c_str(), shareCode.c_str(), false));
 
 		ASSERT_NOERR(interactive_set_ready(session, true));
 		ASSERT_NOERR(interactive_set_ready(session, false));
@@ -692,8 +699,9 @@ public:
 
 		interactive_session session;
 		Logger::WriteMessage("Connecting...");
-		ASSERT_NOERR(interactive_open_session(auth.c_str(), versionId.c_str(), shareCode.c_str(), true, &session));
+		ASSERT_NOERR(interactive_open_session(&session));
 		ASSERT_NOERR(interactive_set_participants_changed_handler(session, handle_participants_changed));
+		ASSERT_NOERR(interactive_connect(session, auth.c_str(), versionId.c_str(), shareCode.c_str(), true));
 
 		// Simulate 60fps
 		const int fps = 60;
@@ -794,7 +802,8 @@ public:
 
 		interactive_session session;
 		Logger::WriteMessage("Connecting...");
-		ASSERT_NOERR(interactive_open_session(auth.c_str(), versionId.c_str(), shareCode.c_str(), true, &session));
+		ASSERT_NOERR(interactive_open_session(&session));
+		ASSERT_NOERR(interactive_connect(session, auth.c_str(), versionId.c_str(), shareCode.c_str(), true));
 		ASSERT_NOERR(interactive_set_participants_changed_handler(session, handle_participants_changed));
 		// Simulate 60 frames/sec for 1 second.
 		const int fps = 60;
@@ -832,6 +841,78 @@ public:
 			ASSERT_NOERR(interactive_run(session, 1));
 			std::this_thread::sleep_for(std::chrono::milliseconds(1000 / fps));
 		}
+
+		Logger::WriteMessage("Disconnecting...");
+		interactive_close_session(session);
+
+		Assert::IsTrue(0 == err);
+	}
+
+	TEST_METHOD(NotConnectedTest)
+	{
+		g_start = std::chrono::high_resolution_clock::now();
+		interactive_config_debug(interactive_debug_trace, handle_debug_message);
+
+		int err = 0;
+		std::string clientId = CLIENT_ID;
+		std::string versionId = VERSION_ID;
+		std::string shareCode = SHARE_CODE;
+		std::string auth;
+
+		ASSERT_NOERR(do_auth(clientId, "", auth));
+
+		interactive_session session;
+		ASSERT_NOERR(interactive_open_session(&session));
+
+		std::string controlId = "GiveHealth";
+		size_t size;
+		interactive_property_type type;
+		char prop[8];
+		size = 8;
+		int intProp;
+		long long int64Prop;
+		bool boolProp;
+		float floatProp;
+		unsigned int uInt;
+		unsigned long long ulong64;
+
+
+		ASSERT_ERR(MIXER_ERROR_NOT_CONNECTED, interactive_get_scenes(session, [](void* context, interactive_session session, interactive_scene* scene) {}));
+		ASSERT_ERR(MIXER_ERROR_NOT_CONNECTED, interactive_get_groups(session, [](void* context, interactive_session session, interactive_group* group) {}));
+		ASSERT_ERR(MIXER_ERROR_NOT_CONNECTED, interactive_get_participants(session, [](void* context, interactive_session session, interactive_participant* participant) {}));
+
+		ASSERT_ERR(MIXER_ERROR_NOT_CONNECTED, interactive_participant_get_user_id(session, "participant", &uInt));
+		size = 8;
+		ASSERT_ERR(MIXER_ERROR_NOT_CONNECTED, interactive_participant_get_user_name(session, "participant", prop, &size));
+		ASSERT_ERR(MIXER_ERROR_NOT_CONNECTED, interactive_participant_get_level(session, "participant", &uInt));
+		ASSERT_ERR(MIXER_ERROR_NOT_CONNECTED, interactive_participant_get_last_input_at(session, "participant", &ulong64));
+		ASSERT_ERR(MIXER_ERROR_NOT_CONNECTED, interactive_participant_get_connected_at(session, "participant", &ulong64));
+		ASSERT_ERR(MIXER_ERROR_NOT_CONNECTED, interactive_participant_is_disabled(session, "participant", &boolProp));
+		size = 8;
+		ASSERT_ERR(MIXER_ERROR_NOT_CONNECTED, interactive_participant_get_group(session, controlId.c_str(), prop, &size));
+
+		ASSERT_ERR(MIXER_ERROR_NOT_CONNECTED, interactive_control_get_property_count(session, controlId.c_str(), &size));
+		size = 8;
+		ASSERT_ERR(MIXER_ERROR_NOT_CONNECTED, interactive_control_get_property_data(session, controlId.c_str(), 0, "id", &size, &type));
+		size = 8;
+		ASSERT_ERR(MIXER_ERROR_NOT_CONNECTED, interactive_control_get_meta_property_count(session, controlId.c_str(), &size));
+		size = 8;
+		ASSERT_ERR(MIXER_ERROR_NOT_CONNECTED, interactive_control_get_meta_property_data(session, controlId.c_str(), 0, "id", &size, &type));
+		
+
+		ASSERT_ERR(MIXER_ERROR_NOT_CONNECTED, interactive_control_get_property_int(session, controlId.c_str(), "key", &intProp));
+		ASSERT_ERR(MIXER_ERROR_NOT_CONNECTED, interactive_control_get_property_int64(session, controlId.c_str(), "key", &int64Prop));
+		ASSERT_ERR(MIXER_ERROR_NOT_CONNECTED, interactive_control_get_property_bool(session, controlId.c_str(), "key", &boolProp));
+		ASSERT_ERR(MIXER_ERROR_NOT_CONNECTED, interactive_control_get_property_float(session, controlId.c_str(), "key", &floatProp));
+		size = 8;
+		ASSERT_ERR(MIXER_ERROR_NOT_CONNECTED, interactive_control_get_property_string(session, controlId.c_str(), "key", prop, &size));
+
+		ASSERT_ERR(MIXER_ERROR_NOT_CONNECTED, interactive_control_get_meta_property_int(session, controlId.c_str(), "key", &intProp));
+		ASSERT_ERR(MIXER_ERROR_NOT_CONNECTED, interactive_control_get_meta_property_int64(session, controlId.c_str(), "key", &int64Prop));
+		ASSERT_ERR(MIXER_ERROR_NOT_CONNECTED, interactive_control_get_meta_property_bool(session, controlId.c_str(), "key", &boolProp));
+		ASSERT_ERR(MIXER_ERROR_NOT_CONNECTED, interactive_control_get_meta_property_float(session, controlId.c_str(), "key", &floatProp));
+		size = 8;
+		ASSERT_ERR(MIXER_ERROR_NOT_CONNECTED, interactive_control_get_meta_property_string(session, controlId.c_str(), "key", prop, &size));
 
 		Logger::WriteMessage("Disconnecting...");
 		interactive_close_session(session);

@@ -487,73 +487,33 @@ int update_server_time_offset(interactive_session_internal& session)
 	return MIXER_OK;
 }
 
-int do_connect(interactive_session_internal& session, bool isReady)
-{
-	session.isReady = isReady;
-
-	int err = 0;
-	if (session.shutdownRequested)
-	{
-		return MIXER_OK;
-	}
-
-	err = get_hosts(session);
-	if (err && session.onError)
-	{
-		std::string errorMessage = "Failed to acquire interactive host servers.";
-		session.onError(session.callerContext, &session, err, errorMessage.c_str(), errorMessage.length());
-		return err;
-	}
-
-	// Connect long running websocket.
-	session.ws->add_header("X-Protocol-Version", "2.0");
-	session.ws->add_header("Authorization", session.authorization);
-	session.ws->add_header("X-Interactive-Version", session.versionId);
-	if (!session.shareCode.empty())
-	{
-		session.ws->add_header("X-Interactive-Sharecode", session.shareCode);
-	}
-
-	// Create thread to open websocket and receive messages.
-	session.incomingThread = std::thread(std::bind(&interactive_session_internal::run_incoming_thread, &session));
-
-	std::unique_lock<std::mutex> wsOpenLock(session.wsOpenMutex);
-	if (!session.wsOpen)
-	{
-		session.wsOpenCV.wait(wsOpenLock);
-	}
-
-	if (!session.wsOpen)
-	{
-		return MIXER_ERROR_WS_CONNECT_FAILED;
-	}
-
-	// Create thread to send messages over the open websocket.
-	session.outgoingThread = std::thread(std::bind(&interactive_session_internal::run_outgoing_thread, &session));
-
-	// Get the server time offset.
-	err = update_server_time_offset(session);
-	if (err)
-	{
-		// Warn about this but don't fail interactive connecting as this may only affect control cooldowns.
-		DEBUG_WARNING("Failed to update server time offset: " + std::to_string(err));
-	}
-
-	// Cache scene and group data.
-	RETURN_IF_FAILED(cache_scenes(session));
-	DEBUG_TRACE("Cached scene data: " + jsonStringify(session.scenesRoot));
-	RETURN_IF_FAILED(cache_groups(session));
-
-	return MIXER_OK;
-}
-
 }
 
 using namespace mixer_internal;
 
-int interactive_open_session(const char* auth, const char* versionId, const char* shareCode, bool setReady, interactive_session* sessionPtr)
+int interactive_open_session(interactive_session* sessionPtr)
 {
-	if (nullptr == auth || nullptr == versionId || nullptr == sessionPtr)
+	if (nullptr == sessionPtr)
+	{
+		return MIXER_ERROR_INVALID_POINTER;
+	}
+
+	std::auto_ptr<interactive_session_internal> session(new interactive_session_internal());
+
+	// Register method handlers
+	register_method_handlers(*session);
+
+	// Initialize Http and Websocket clients
+	session->http = http_factory::make_http_client();
+	session->ws = websocket_factory::make_websocket();
+
+	*sessionPtr = session.release();
+	return MIXER_OK;
+}
+
+int interactive_connect(interactive_session session, const char* auth, const char* versionId, const char* shareCode, bool setReady)
+{
+	if (nullptr == auth || nullptr == versionId)
 	{
 		return MIXER_ERROR_INVALID_POINTER;
 	}
@@ -564,23 +524,66 @@ int interactive_open_session(const char* auth, const char* versionId, const char
 		return MIXER_ERROR_INVALID_VERSION_ID;
 	}
 
-	std::auto_ptr<interactive_session_internal> session(new interactive_session_internal());
-	session->authorization = auth;
-	session->versionId = versionId;
-	if (nullptr != shareCode)
+	interactive_session_internal* sessionInternal = reinterpret_cast<interactive_session_internal*>(session);
+	
+	sessionInternal->isReady = setReady;
+	sessionInternal->authorization = auth;
+	sessionInternal->versionId = versionId;
+	sessionInternal->shareCode = shareCode;
+
+	int err = 0;
+	if (sessionInternal->shutdownRequested)
 	{
-		session->shareCode = shareCode;
+		return MIXER_OK;
 	}
 
-	// Register method handlers
-	register_method_handlers(*session);
+	err = get_hosts(*sessionInternal);
+	if (err && sessionInternal->onError)
+	{
+		std::string errorMessage = "Failed to acquire interactive host servers.";
+		sessionInternal->onError(sessionInternal->callerContext, &session, err, errorMessage.c_str(), errorMessage.length());
+		return err;
+	}
 
-	// Initialize Http and Websocket clients
-	session->http = http_factory::make_http_client();
-	session->ws = websocket_factory::make_websocket();
-	do_connect(*session, setReady);
+	// Connect long running websocket.
+	sessionInternal->ws->add_header("X-Protocol-Version", "2.0");
+	sessionInternal->ws->add_header("Authorization", sessionInternal->authorization);
+	sessionInternal->ws->add_header("X-Interactive-Version", sessionInternal->versionId);
+	if (!sessionInternal->shareCode.empty())
+	{
+		sessionInternal->ws->add_header("X-Interactive-Sharecode", sessionInternal->shareCode);
+	}
 
-	*sessionPtr = session.release();
+	// Create thread to open websocket and receive messages.
+	sessionInternal->incomingThread = std::thread(std::bind(&interactive_session_internal::run_incoming_thread, sessionInternal));
+
+	std::unique_lock<std::mutex> wsOpenLock(sessionInternal->wsOpenMutex);
+	if (!sessionInternal->wsOpen)
+	{
+		sessionInternal->wsOpenCV.wait(wsOpenLock);
+	}
+
+	if (!sessionInternal->wsOpen)
+	{
+		return MIXER_ERROR_WS_CONNECT_FAILED;
+	}
+
+	// Create thread to send messages over the open websocket.
+	sessionInternal->outgoingThread = std::thread(std::bind(&interactive_session_internal::run_outgoing_thread, sessionInternal));
+
+	// Get the server time offset.
+	err = update_server_time_offset(*sessionInternal);
+	if (err)
+	{
+		// Warn about this but don't fail interactive connecting as this may only affect control cooldowns.
+		DEBUG_WARNING("Failed to update server time offset: " + std::to_string(err));
+	}
+
+	// Cache scene and group data.
+	RETURN_IF_FAILED(cache_scenes(*sessionInternal));
+	DEBUG_TRACE("Cached scene data: " + jsonStringify(sessionInternal->scenesRoot));
+	RETURN_IF_FAILED(cache_groups(*sessionInternal));
+
 	return MIXER_OK;
 }
 
