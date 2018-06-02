@@ -76,12 +76,12 @@ public:
 		// Notify message processing loop.
 		std::lock_guard<std::mutex> autoLock(m_messagesMutex);
 		m_connected = false;
-		m_messagesSemaphore.notify();
+		m_messagesReadyCV.notify_one();
 	}
 
 	void on_message(MessageWebSocket^ sender, MessageWebSocketMessageReceivedEventArgs^ args)
 	{
-		if (m_connected && args->MessageType == SocketMessageType::Utf8)
+		if (args->MessageType == SocketMessageType::Utf8)
 		{
 			DataReader^ reader = args->GetDataReader();
 			reader->UnicodeEncoding = UnicodeEncoding::Utf8;
@@ -89,7 +89,7 @@ public:
 
 			std::lock_guard<std::mutex> lock(m_messagesMutex);
 			m_messages.push(wstring_to_utf8(message->Data()));
-			m_messagesSemaphore.notify();
+			m_messagesReadyCV.notify_one();
 		}
 	}
 
@@ -140,7 +140,6 @@ public:
 		// Call error handler if connection was not successful.
 		if (0 != result || !m_connected)
 		{
-
 			if (onError)
 			{
 				if (m_closeCode)
@@ -167,9 +166,7 @@ public:
 		// Process messages until the socket is closed;
 		for (;;)
 		{
-			// Wait for a message
-			m_messagesSemaphore.wait();
-
+			// See if we're no longer connected, if so call the onClose callback.
 			if (!m_connected)
 			{
 				if (onClose)
@@ -180,12 +177,17 @@ public:
 				break;
 			}
 
-			std::string message;
-			{
-				std::lock_guard<std::mutex> autoLock(m_messagesMutex);
-				message = m_messages.front();
-				m_messages.pop();
+			// Check for messages
+			std::unique_lock<std::mutex> messagesLock(m_messagesMutex);
+			if (m_messages.empty())
+			{	
+				// Wait for a message
+				m_messagesReadyCV.wait(messagesLock);
 			}
+
+			std::string message = m_messages.front();
+			m_messages.pop();
+			messagesLock.unlock();
 
 			if (onMessage)
 			{
@@ -225,15 +227,20 @@ public:
 			return E_ABORT;
 		}
 
-		m_messagesSemaphore.wait();
-		if (!m_connected)
+		std::unique_lock<std::mutex> messagesLock(m_messagesMutex);
+		if (m_messages.empty())
 		{
-			// Incorrectly consumed close notification, pass it on.
-			m_messagesSemaphore.notify();
-			return E_ABORT;
-		}
+			// Wait for a message.
+			m_messagesReadyCV.wait(messagesLock);
 
-		std::lock_guard<std::mutex> autoLock(m_messagesMutex);
+			if (!m_connected && m_messages.empty())
+			{
+				// Incorrectly consumed close notification, pass it on.
+				m_messagesReadyCV.notify_one();
+				return E_ABORT;
+			}
+		}
+		
 		message = m_messages.front();
 		m_messages.pop();
 
@@ -254,7 +261,7 @@ private:
 	unsigned short m_closeCode;
 	std::string m_closeReason;
 	std::mutex m_messagesMutex;
-	semaphore m_messagesSemaphore;
+	std::condition_variable m_messagesReadyCV;
 	semaphore m_openSemaphore;
 	std::queue<std::string> m_messages;
 };

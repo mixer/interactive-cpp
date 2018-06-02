@@ -31,6 +31,12 @@ int interactive_get_participants(interactive_session session, on_participant_enu
 	}
 
 	interactive_session_internal* sessionInternal = reinterpret_cast<interactive_session_internal*>(session);
+	// Validate connection state.
+	if (interactive_disconnected == sessionInternal->state)
+	{
+		return MIXER_ERROR_NOT_CONNECTED;
+	}
+
 	for (auto& participantById : sessionInternal->participants)
 	{
 		interactive_participant participant;
@@ -72,6 +78,12 @@ int interactive_participant_get_user_id(interactive_session session, const char*
 	}
 
 	interactive_session_internal* sessionInternal = reinterpret_cast<interactive_session_internal*>(session);
+	// Validate connection state.
+	if (interactive_disconnected == sessionInternal->state)
+	{
+		return MIXER_ERROR_NOT_CONNECTED;
+	}
+
 	auto participantItr = sessionInternal->participants.find(std::string(participantId));
 	if (sessionInternal->participants.end() == participantItr)
 	{
@@ -91,6 +103,12 @@ int interactive_participant_get_user_name(interactive_session session, const cha
 	}
 
 	interactive_session_internal* sessionInternal = reinterpret_cast<interactive_session_internal*>(session);
+	// Validate connection state.
+	if (interactive_disconnected == sessionInternal->state)
+	{
+		return MIXER_ERROR_NOT_CONNECTED;
+	}
+
 	auto participantItr = sessionInternal->participants.find(std::string(participantId));
 	if (sessionInternal->participants.end() == participantItr)
 	{
@@ -120,6 +138,12 @@ int interactive_participant_get_level(interactive_session session, const char* p
 	}
 
 	interactive_session_internal* sessionInternal = reinterpret_cast<interactive_session_internal*>(session);
+	// Validate connection state.
+	if (interactive_disconnected == sessionInternal->state)
+	{
+		return MIXER_ERROR_NOT_CONNECTED;
+	}
+
 	auto participantItr = sessionInternal->participants.find(std::string(participantId));
 	if (sessionInternal->participants.end() == participantItr)
 	{
@@ -139,6 +163,12 @@ int interactive_participant_get_last_input_at(interactive_session session, const
 	}
 
 	interactive_session_internal* sessionInternal = reinterpret_cast<interactive_session_internal*>(session);
+	// Validate connection state.
+	if (interactive_disconnected == sessionInternal->state)
+	{
+		return MIXER_ERROR_NOT_CONNECTED;
+	}
+
 	auto participantItr = sessionInternal->participants.find(std::string(participantId));
 	if (sessionInternal->participants.end() == participantItr)
 	{
@@ -158,6 +188,12 @@ int interactive_participant_get_connected_at(interactive_session session, const 
 	}
 
 	interactive_session_internal* sessionInternal = reinterpret_cast<interactive_session_internal*>(session);
+	// Validate connection state.
+	if (interactive_disconnected == sessionInternal->state)
+	{
+		return MIXER_ERROR_NOT_CONNECTED;
+	}
+
 	auto participantItr = sessionInternal->participants.find(std::string(participantId));
 	if (sessionInternal->participants.end() == participantItr)
 	{
@@ -177,6 +213,12 @@ int interactive_participant_is_disabled(interactive_session session, const char*
 	}
 
 	interactive_session_internal* sessionInternal = reinterpret_cast<interactive_session_internal*>(session);
+	// Validate connection state.
+	if (interactive_disconnected == sessionInternal->state)
+	{
+		return MIXER_ERROR_NOT_CONNECTED;
+	}
+
 	auto participantItr = sessionInternal->participants.find(std::string(participantId));
 	if (sessionInternal->participants.end() == participantItr)
 	{
@@ -196,6 +238,12 @@ int interactive_participant_get_group(interactive_session session, const char* p
 	}
 
 	interactive_session_internal* sessionInternal = reinterpret_cast<interactive_session_internal*>(session);
+	// Validate connection state.
+	if (interactive_disconnected == sessionInternal->state)
+	{
+		return MIXER_ERROR_NOT_CONNECTED;
+	}
+
 	auto participantItr = sessionInternal->participants.find(std::string(participantId));
 	if (sessionInternal->participants.end() == participantItr)
 	{

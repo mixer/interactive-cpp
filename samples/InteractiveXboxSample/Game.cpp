@@ -113,6 +113,14 @@ int GetXToken(std::string& token)
 	return S_OK;
 }
 
+void handle_error(void* context, interactive_session session, int errorCode, const char* errorMessage, size_t errorMessageLength)
+{
+	(context);
+	(session);
+	(errorMessageLength);
+	std::string debugLine = "Mixer error " + std::to_string(errorCode) + ": " + errorMessage + "\r\n";
+	OutputDebugStringA(debugLine.c_str());
+}
 
 // Initialize the Direct3D resources required to run.
 void Game::Initialize(IUnknown* window)
@@ -142,7 +150,10 @@ void Game::Initialize(IUnknown* window)
 	}
 
 	// Connect to the user's interactive channel, using the interactive project specified by the version ID.
-	err = interactive_open_session(authorization.c_str(), INTERACTIVE_ID, SHARE_CODE, true, &m_interactiveSession);
+	err = interactive_open_session(&m_interactiveSession);
+	if (err) throw err;
+
+	err = interactive_set_error_handler(m_interactiveSession, handle_error);
 	if (err) throw err;
 
 	err = interactive_set_session_context(m_interactiveSession, this);
@@ -188,6 +199,9 @@ void Game::Initialize(IUnknown* window)
 
 		game->m_controlsById.erase(transactionId);
 	});
+
+	err = interactive_connect(m_interactiveSession, authorization.c_str(), INTERACTIVE_ID, SHARE_CODE, true);
+	if (err) throw err;
 }
 
 #pragma region Frame Update

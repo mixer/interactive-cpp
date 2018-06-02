@@ -42,6 +42,11 @@ int interactive_get_groups(interactive_session session, on_group_enumerate onGro
 	}
 
 	interactive_session_internal* sessionInternal = reinterpret_cast<interactive_session_internal*>(session);
+	// Validate connection state.
+	if (interactive_disconnected == sessionInternal->state)
+	{
+		return MIXER_ERROR_NOT_CONNECTED;
+	}
 
 	// Lock the scene cache
 	std::shared_lock<std::shared_mutex> l(sessionInternal->scenesMutex);

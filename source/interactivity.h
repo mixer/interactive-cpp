@@ -77,20 +77,29 @@ extern "C" {
 	/// <summary>
 	/// An opaque handle to an interactive session.
 	/// </summary>
-	typedef void* interactive_session;
+	typedef void* interactive_session;	
+
+	/// <summary>
+	/// Open an <c>interactive_session</c>.
+	/// <param name="session">A pointer to an <c>interactive_session</c> that will be allocated internally.</param>
+	/// <remarks>
+	/// All calls to <c>interactive_open_session</c> must eventually be followed by a call to <c>interactive_close_session</c> to free the handle.
+	/// </remarks>
+	/// </summary>
+	int interactive_open_session(interactive_session* session);
 
 	/// <summary>
 	/// Open an interactive session. All calls to <c>interactive_open_session</c> must eventually be followed by a call to <c>interactive_close_session</c> to avoid a memory leak.
 	/// </summary>
+	/// <param name="session">An interactive session handle opened with <c>interactive_open_session</c>.</param>
 	/// <param name="auth">The authorization header that is passed to the service. This should either be a OAuth Bearer token or an XToken.</param>
 	/// <param name="versionId">The id of the interative project that should be started.</param>
 	/// <param name="shareCode">An optional parameter that is used when starting an interactive project that the user does not have implicit access to. This is usually required unless a project has been published.</param>
 	/// <param name="setReady">Specifies if the session should set the interactive ready state during connection. If false, this can be manually toggled later with <c>interactive_set_ready</c></param>
-	/// <param name="session">A handle to an interactive session. All calls to <c>interactive_open_session</c> must eventually be followed by a call to <c>interactive_close_session</c> to free the handle.</param>
 	/// <remarks>
 	/// This is a blocking function that waits on network IO, it is not recommended to call this from the UI thread.
 	/// </remarks>
-	int interactive_open_session(const char* auth, const char* versionId, const char* shareCode, bool setReady, interactive_session* session);
+	int interactive_connect(interactive_session session, const char* auth, const char* versionId, const char* shareCode, bool setReady);
 
 	/// <summary>
 	/// Set the ready state for specified session. No participants will be able to see interactive scenes or give input
@@ -597,8 +606,8 @@ extern "C" {
 		MIXER_ERROR_WS_CONNECT_FAILED,
 		MIXER_ERROR_WS_DISCONNECT_FAILED,
 		MIXER_ERROR_WS_READ_FAILED,
-		MIXER_ERROR_WS_SEND_FAILED
-
+		MIXER_ERROR_WS_SEND_FAILED,
+		MIXER_ERROR_NOT_CONNECTED
 	} mixer_result_code;
 	/** @} */
 

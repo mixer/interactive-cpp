@@ -21,6 +21,8 @@ std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
 #define INTERACTIVE_ID	"135704"
 #define SHARE_CODE		"xe7dpqd5"
 
+#define MIXER_DEBUG 0
+
 // Called ~60 times per second
 int update(interactive_session session)
 {
@@ -75,6 +77,12 @@ int authorize(std::string& authorization)
 
 	authorization = std::string(authBuffer, authBufferLength);
 	return 0;
+}
+
+void handle_error(void* context, interactive_session session, int errorCode, const char* errorMessage, size_t errorMessageLength)
+{
+	std::string debugLine = "Mixer error " + std::to_string(errorCode) + ": " + errorMessage + "\r\n";
+	OutputDebugStringA(debugLine.c_str());
 }
 
 using namespace InteractiveSampleUWP;
@@ -161,6 +169,17 @@ void App::OnLaunched(Windows::ApplicationModel::Activation::LaunchActivatedEvent
     }	
 
 	m_appIsRunning = true;
+
+#if MIXER_DEBUG
+
+	interactive_config_debug(interactive_debug_trace, [](interactive_debug_level level, const char* dbgMessage, size_t dbgMessageSize)
+	{
+		std::string dbgLine = "[MIXER] " + std::string(dbgMessage, dbgMessageSize) + "\r\n";
+		OutputDebugStringA(dbgLine.c_str());
+	});
+
+#endif
+
 	// Simulate game update loop. All callbacks will be called from this thread.
 	m_interactiveThread = std::make_unique<std::thread>(std::thread([&]
 	{
@@ -177,7 +196,10 @@ void App::OnLaunched(Windows::ApplicationModel::Activation::LaunchActivatedEvent
 
 		// Connect to the user's interactive channel, using the interactive project specified by the version ID.
 		interactive_session session;
-		err = interactive_open_session(authorization.c_str(), INTERACTIVE_ID, SHARE_CODE, true, &session);
+		err = interactive_open_session(&session);
+		if (err) throw err;
+
+		err = interactive_set_error_handler(session, handle_error);
 		if (err) throw err;
 
 		err = interactive_set_session_context(session, &m_controlsByTransaction);
@@ -190,8 +212,11 @@ void App::OnLaunched(Windows::ApplicationModel::Activation::LaunchActivatedEvent
 			if ((input_type_key == input->type || input_type_click == input->type) && interactive_button_action_down == input->buttonData.action)
 			{
 				// Capture the transaction on button down to deduct sparks
-				controlsByTransaction[input->transactionId] = input->control.id;
-				interactive_capture_transaction(session, input->transactionId);				
+				if (input->transactionIdLength > 0)
+				{
+					controlsByTransaction[input->transactionId] = input->control.id;
+					interactive_capture_transaction(session, input->transactionId);
+				}
 			}
 		});
 		if (err) throw err;
@@ -215,6 +240,9 @@ void App::OnLaunched(Windows::ApplicationModel::Activation::LaunchActivatedEvent
 			controlsByTransaction.erase(transactionId);
 			
 		});
+		if (err) throw err;
+
+		err = interactive_connect(session, authorization.c_str(), INTERACTIVE_ID, SHARE_CODE, true);
 		if (err) throw err;
 
 		while (m_appIsRunning)

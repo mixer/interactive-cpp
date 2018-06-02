@@ -126,6 +126,12 @@ int verify_get_property_args_and_get_control_value(interactive_session session, 
 	}
 
 	interactive_session_internal* sessionInternal = reinterpret_cast<interactive_session_internal*>(session);
+	// Validate connection state.
+	if (interactive_disconnected == sessionInternal->state)
+	{
+		return MIXER_ERROR_NOT_CONNECTED;
+	}
+
 	if (sessionInternal->shutdownRequested)
 	{
 		return MIXER_OK;
@@ -191,6 +197,11 @@ int interactive_control_get_property_count(interactive_session session, const ch
 
 	*count = 0;
 	interactive_session_internal* sessionInternal = reinterpret_cast<interactive_session_internal*>(session);
+	// Validate connection state.
+	if (interactive_disconnected == sessionInternal->state)
+	{
+		return MIXER_ERROR_NOT_CONNECTED;
+	}
 
 	auto controlItr = sessionInternal->controls.find(std::string(controlId));
 	if (controlItr == sessionInternal->controls.end())
@@ -210,6 +221,11 @@ int interactive_control_get_meta_property_count(interactive_session session, con
 
 	*count = 0;
 	interactive_session_internal* sessionInternal = reinterpret_cast<interactive_session_internal*>(session);
+	// Validate connection state.
+	if (interactive_disconnected == sessionInternal->state)
+	{
+		return MIXER_ERROR_NOT_CONNECTED;
+	}
 
 	auto controlItr = sessionInternal->controls.find(std::string(controlId));
 	if (controlItr == sessionInternal->controls.end())
@@ -230,6 +246,11 @@ int interactive_control_get_property_data(interactive_session session, const cha
 
 	*propType = interactive_property_type::interactive_unknown_t;
 	interactive_session_internal* sessionInternal = reinterpret_cast<interactive_session_internal*>(session);
+	// Validate connection state.
+	if (interactive_disconnected == sessionInternal->state)
+	{
+		return MIXER_ERROR_NOT_CONNECTED;
+	}
 
 	auto controlItr = sessionInternal->controls.find(std::string(controlId));
 	if (controlItr == sessionInternal->controls.end())
@@ -250,6 +271,11 @@ int interactive_control_get_meta_property_data(interactive_session session, cons
 
 	*propType = interactive_property_type::interactive_unknown_t;
 	interactive_session_internal* sessionInternal = reinterpret_cast<interactive_session_internal*>(session);
+	// Validate connection state.
+	if (interactive_disconnected == sessionInternal->state)
+	{
+		return MIXER_ERROR_NOT_CONNECTED;
+	}
 
 	auto controlItr = sessionInternal->controls.find(std::string(controlId));
 	if (controlItr == sessionInternal->controls.end())

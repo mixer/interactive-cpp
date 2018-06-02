@@ -55,6 +55,12 @@ int interactive_get_scenes(interactive_session session, on_scene_enumerate onSce
 	}
 
 	interactive_session_internal* sessionInternal = reinterpret_cast<interactive_session_internal*>(session);
+	// Validate connection state.
+	if (interactive_disconnected == sessionInternal->state)
+	{
+		return MIXER_ERROR_NOT_CONNECTED;
+	}
+
 	// Lock the scenes while they are being enumerated.
 	std::shared_lock<std::shared_mutex> l(sessionInternal->scenesMutex);
 	for (auto sceneItr = sessionInternal->scenes.begin(); sessionInternal->scenes.end() != sceneItr; ++sceneItr)

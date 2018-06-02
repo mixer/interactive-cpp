@@ -23,6 +23,8 @@ std::map<std::string, std::string> controlsByTransaction;
 // Display an OAuth consent page to the user.
 int authorize(std::string& authorization);
 
+void handle_error(void* context, interactive_session session, int errorCode, const char* errorMessage, size_t errorMessageLength);
+
 // Handle completed interactive transactions.
 void handle_transaction_complete(void* context, interactive_session session, const char* transactionId, size_t transactionIdLength, unsigned int errorCode, const char* errorMessage, size_t errorMessageLength);
 
@@ -47,7 +49,11 @@ int main()
 
 	// Connect to the user's interactive channel, using the interactive project specified by the version ID.
 	interactive_session session;
-	err = interactive_open_session(authorization.c_str(), INTERACTIVE_ID, SHARE_CODE, false, &session);
+	err = interactive_open_session(&session);
+	if (err) return err;
+
+	// Register a callback for errors.
+	err = interactive_set_error_handler(session, handle_error);
 	if (err) return err;
 
 	// Register a callback for button presses.
@@ -56,6 +62,9 @@ int main()
 
 	// Register a callback for completed transactions.
 	err = interactive_set_transaction_complete_handler(session, handle_transaction_complete);
+	if (err) return err;
+
+	err = interactive_connect(session, authorization.c_str(), INTERACTIVE_ID, SHARE_CODE, false);
 	if (err) return err;
 
 	// Create a group for participants to view the joystick scene.
@@ -149,6 +158,11 @@ int get_participant_name(interactive_session session, const char* participantId,
 	participantName = participantName.erase(participantNameLength - 1);
 
 	return 0;
+}
+
+void handle_error(void* context, interactive_session session, int errorCode, const char* errorMessage, size_t errorMessageLength)
+{
+	std::cerr << "Unexpected Mixer interactive error: " << errorMessage;
 }
 
 void handle_interactive_input(void* context, interactive_session session, const interactive_input* input)
