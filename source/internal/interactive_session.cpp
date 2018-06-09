@@ -10,8 +10,11 @@ typedef std::function<void(rapidjson::Document::AllocatorType& allocator, rapidj
 
 int create_method_json(interactive_session_internal& session, const std::string& method, on_get_params getParams, bool discard, unsigned int* id, std::shared_ptr<rapidjson::Document>& methodDoc)
 {
-	std::shared_ptr<rapidjson::Document> doc(std::make_shared<rapidjson::Document>());
-	doc->SetObject();
+	std::shared_ptr<rapidjson::Document> doc(nullptr == methodDoc ? std::make_shared<rapidjson::Document>() : methodDoc);
+	if (!doc->IsObject()) {
+		doc->SetObject();
+	}
+
 	rapidjson::Document::AllocatorType& allocator = doc->GetAllocator();
 
 	unsigned int packetID = session.packetId++;
@@ -52,6 +55,12 @@ int send_method(interactive_session_internal& session, const std::string& method
 int queue_method(interactive_session_internal& session, const std::string& method, on_get_params getParams, method_handler onReply)
 {
 	std::shared_ptr<rapidjson::Document> methodDoc;
+	return queue_method(session, method, getParams, onReply, methodDoc);
+}
+
+int queue_method(interactive_session_internal& session, const std::string& method, on_get_params getParams, method_handler onReply, std::shared_ptr<rapidjson::Document>& methodDoc)
+{
+	std::shared_ptr<rapidjson::Document> doc(methodDoc);
 	unsigned int packetId = 0;
 	RETURN_IF_FAILED(create_method_json(session, method, getParams, nullptr == onReply, &packetId, methodDoc));
 	DEBUG_TRACE(std::string("Queueing method: ") + jsonStringify(*methodDoc));

@@ -173,6 +173,49 @@ extern "C" {
 	void interactive_close_session(interactive_session session);
 	/** @} */
 
+	/** @name Batch Requests
+	*   @{
+	*/
+	struct interactive_batch_public {};
+	struct interactive_batch_entry_public {};
+	struct interactive_batch_array_public {};
+
+	typedef interactive_batch_public* interactive_batch;
+
+	typedef interactive_batch_entry_public* interactive_batch_entry;
+
+	typedef interactive_batch_array_public* interactive_batch_array;
+
+	typedef void(*interactive_batch_object_callback)(interactive_batch, interactive_batch_entry);
+
+	typedef void(*interactive_batch_array_callback)(interactive_batch, interactive_batch_array);
+
+	int interactive_batch_add_param_null(interactive_batch batch, interactive_batch_entry entry, const char* name);
+
+	int interactive_batch_add_param_str(interactive_batch batch, interactive_batch_entry entry, const char* name, const char* value);
+
+	int interactive_batch_add_param_uint(interactive_batch batch, interactive_batch_entry entry, const char* name, unsigned int value);
+
+	int interactive_batch_add_param_bool(interactive_batch batch, interactive_batch_entry entry, const char* name, bool value);
+
+	int interactive_batch_add_param_object(interactive_batch batch, interactive_batch_entry entry, const char* name, interactive_batch_object_callback callback);
+
+	int interactive_batch_add_param_array(interactive_batch batch, interactive_batch_entry entry, const char* name, interactive_batch_array_callback callback);
+
+	int interactive_batch_array_push_null(interactive_batch batch, interactive_batch_array arrayItem);
+
+	int interactive_batch_array_push_str(interactive_batch batch, interactive_batch_array arrayItem, const char* value);
+
+	int interactive_batch_array_push_uint(interactive_batch batch, interactive_batch_array arrayItem, unsigned int value);
+
+	int interactive_batch_array_push_bool(interactive_batch batch, interactive_batch_array arrayItem, bool value);
+
+	int interactive_batch_array_push_object(interactive_batch batch, interactive_batch_array arrayItem, interactive_batch_object_callback callback);
+
+	int interactive_batch_array_push_array(interactive_batch batch, interactive_batch_array arrayItem, interactive_batch_array_callback callback);
+
+	/** @} */
+
 	/** @name Controls
 	*   @{
 	*/
@@ -286,6 +329,12 @@ extern "C" {
 	/// Get a <c>char*</c> meta property value by name.
 	/// </summary>
 	int interactive_control_get_meta_property_string(interactive_session session, const char* controlId, const char* key, char* property, size_t* propertyLength);
+
+	int interactive_control_batch_begin(interactive_session session, interactive_batch* batchPtr, const char* sceneId);
+
+	int interactive_control_batch_add(interactive_batch batch, interactive_batch_entry* entry, const char* controlId);
+
+	int interactive_control_batch_end(interactive_batch batch);
 	/** @} */
 
 	/** @name Groups
@@ -531,6 +580,17 @@ extern "C" {
 	/// Get the participant's group name.
 	/// </summary>
 	int interactive_participant_get_group(interactive_session session, const char* participantId, char* group, size_t* groupLength);
+
+	int interactive_participant_batch_begin(interactive_session session, interactive_batch* batchPtr);
+
+	int interactive_participant_batch_add(interactive_batch batch, interactive_batch_entry* entry, const char* participantId);
+
+	int interactive_participant_batch_end(interactive_batch batch);
+
+	/// <summary>
+	/// Reads a string value from the participant object.
+	/// </summary>
+	int interactive_participant_get_param_string(interactive_session session, const char * participantId, const char *paramName, char* value, size_t* valueLength);
 	/** @} */
 
 	/** @name Manual Protocol Integration

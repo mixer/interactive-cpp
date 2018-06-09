@@ -45,6 +45,7 @@
     <ClCompile Include="..\..\source\internal\win_websocket.cpp">
       <Filter>C++ Source</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\source\internal\interactive_batch.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\source\interactivity.h">
@@ -69,6 +70,9 @@
       <Filter>Includes</Filter>
     </ClInclude>
     <ClInclude Include="..\..\source\internal\websocket.h">
+      <Filter>Includes</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\source\internal\interactive_batch.h">
       <Filter>Includes</Filter>
     </ClInclude>
   </ItemGroup>

@@ -65,6 +65,7 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">true</ExcludedFromBuild>
     </ClCompile>
+    <ClCompile Include="..\..\source\internal\interactive_batch.cpp" />
     <ClCompile Include="..\..\source\internal\interactive_control.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Durango'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Durango'">true</ExcludedFromBuild>
@@ -98,6 +99,7 @@
     <ClInclude Include="..\..\source\interactivity.h" />
     <ClInclude Include="..\..\source\internal\common.h" />
     <ClInclude Include="..\..\source\internal\http_client.h" />
+    <ClInclude Include="..\..\source\internal\interactive_batch.h" />
     <ClInclude Include="..\..\source\internal\interactive_session.h" />
     <ClInclude Include="..\..\source\internal\winapp_http_client.h" />
   </ItemGroup>

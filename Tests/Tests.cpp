@@ -930,5 +930,100 @@ public:
 		Logger::WriteMessage("Disconnecting...");
 		interactive_close_session(session);
 	}
+
+	TEST_METHOD(ControlBatchTest)
+	{
+		g_start = std::chrono::high_resolution_clock::now();
+		interactive_config_debug(interactive_debug_trace, handle_debug_message);
+
+		int err = 0;
+		std::string clientId = CLIENT_ID;
+		std::string versionId = VERSION_ID;
+		std::string shareCode = SHARE_CODE;
+		std::string auth;
+
+		ASSERT_NOERR(do_auth(clientId, "", auth));
+
+		interactive_session session;
+		Logger::WriteMessage("Connecting...");
+		ASSERT_NOERR(interactive_open_session(&session));
+		ASSERT_NOERR(interactive_set_error_handler(session, handle_error_assert));
+		ASSERT_NOERR(interactive_connect(session, auth.c_str(), versionId.c_str(), shareCode.c_str(), true));
+		ASSERT_NOERR(interactive_set_participants_changed_handler(session, handle_participants_changed));
+
+		// Simulate 60 frames/sec for 1 second.
+		const int fps = 60;
+		const int seconds = 1;
+		for (int i = 0; i < fps * seconds; ++i)
+		{
+			ASSERT_NOERR(interactive_run(session, 1));
+			std::this_thread::sleep_for(std::chrono::milliseconds(1000 / fps));
+		}
+
+		interactive_batch batch;
+		Assert::AreEqual((int)MIXER_OK, interactive_control_batch_begin(session, &batch, "default"));
+
+		interactive_batch_entry entry;
+		Assert::AreEqual((int)MIXER_OK, interactive_control_batch_add(batch, &entry, "GiveHealth"));
+		Assert::AreEqual((int)MIXER_OK, interactive_batch_add_param_str(batch, entry, "foo", "bar"));
+		Assert::AreEqual((int)MIXER_OK, interactive_batch_add_param_uint(batch, entry, "number", 42));
+		Assert::AreEqual((int)MIXER_OK, interactive_batch_add_param_array(batch, entry, "array", [](interactive_batch batch, interactive_batch_array arrayItem)
+		{
+			Assert::AreEqual((int)MIXER_OK, interactive_batch_array_push_object(batch, arrayItem, [](interactive_batch batch, interactive_batch_entry objectEntry)
+			{
+				Assert::AreEqual((int)MIXER_OK, interactive_batch_add_param_str(batch, objectEntry, "foo", "bar"));
+				Assert::AreEqual((int)MIXER_OK, interactive_batch_add_param_uint(batch, objectEntry, "number", 42));
+			}));
+			Assert::AreEqual((int)MIXER_OK, interactive_batch_array_push_str(batch, arrayItem, "bar"));
+			Assert::AreEqual((int)MIXER_OK, interactive_batch_array_push_uint(batch, arrayItem, 42));
+		}));
+		Assert::AreEqual((int)MIXER_OK, interactive_batch_add_param_object(batch, entry, "object", [](interactive_batch batch, interactive_batch_entry objectEntry)
+		{
+			Assert::AreEqual((int)MIXER_OK, interactive_batch_add_param_str(batch, objectEntry, "foo", "bar"));
+			Assert::AreEqual((int)MIXER_OK, interactive_batch_add_param_uint(batch, objectEntry, "number", 42));
+		}));
+		Assert::AreEqual((int)MIXER_OK, interactive_control_batch_end(batch));
+
+		// Simulate 60 frames/sec for 1 second.
+		for (int i = 0; i < fps * seconds; ++i)
+		{
+			ASSERT_NOERR(interactive_run(session, 1));
+			std::this_thread::sleep_for(std::chrono::milliseconds(1000 / fps));
+		}
+
+		Logger::WriteMessage("Enumerating scenes.");
+		ASSERT_NOERR(interactive_get_scenes(session, [](void* context, interactive_session session, interactive_scene* scene)
+		{
+			std::stringstream s;
+			s << "[Scene] '" << std::string(scene->id, scene->idLength) << "'";
+			Logger::WriteMessage(s.str().c_str());
+
+			Logger::WriteMessage("Controls:");
+			interactive_scene_get_controls(session, scene->id, [](void* context, interactive_session session, interactive_control* control)
+			{
+				if (0 == strcmp(control->id, "GiveHealth")) {
+					char foo[4];
+					size_t nameLength = 4;
+					int number;
+					print_control_properties(session, control->id);
+					Assert::AreEqual((int)MIXER_OK, interactive_control_get_property_string(session, "GiveHealth", "foo", foo, &nameLength));
+					Assert::AreEqual((int)MIXER_OK, interactive_control_get_property_int(session, "GiveHealth", "number", &number));
+					Assert::AreEqual("bar", foo);
+				}
+			});
+		}));
+
+		for (int i = 0; i < fps * seconds; ++i)
+		{
+			ASSERT_NOERR(interactive_run(session, 1));
+			std::this_thread::sleep_for(std::chrono::milliseconds(1000 / fps));
+		}
+
+		Logger::WriteMessage("Disconnecting...");
+		interactive_close_session(session);
+
+		Assert::IsTrue(0 == err);
+	}
+
 };
 }
