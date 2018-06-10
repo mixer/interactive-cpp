@@ -154,6 +154,67 @@ int verify_get_property_args_and_get_control_value(interactive_session session, 
 	return MIXER_OK;
 }
 
+void parse_control(rapidjson::Value& controlJson, interactive_control& control)
+{
+	control.id = controlJson[RPC_CONTROL_ID].GetString();
+	control.idLength = controlJson[RPC_CONTROL_ID].GetStringLength();
+	control.kind = controlJson[RPC_CONTROL_KIND].GetString();
+	control.kindLength = controlJson[RPC_CONTROL_KIND].GetStringLength();
+}
+
+int cache_new_control(interactive_session_internal& session, const char* sceneId, interactive_control& control, rapidjson::Value& controlJson)
+{
+	if (session.controls.find(control.id) != session.controls.end())
+	{
+		return MIXER_ERROR_OBJECT_EXISTS;
+	}
+
+	auto sceneItr = session.scenes.find(sceneId);
+	if (sceneItr == session.controls.end())
+	{
+		return MIXER_ERROR_OBJECT_NOT_FOUND;
+	}
+
+	std::string scenePtr = sceneItr->second;
+	rapidjson::Value* scene = rapidjson::Pointer(rapidjson::StringRef(scenePtr.c_str(), scenePtr.length())).Get(session.scenesRoot);
+
+	rapidjson::Document::AllocatorType& allocator = session.scenesRoot.GetAllocator();
+	auto controlsItr = scene->FindMember(RPC_PARAM_CONTROLS);
+	rapidjson::Value* controls;
+	if (controlsItr == scene->MemberEnd() || !controlsItr->value.IsArray())
+	{
+		controls = &scene->AddMember(RPC_PARAM_CONTROLS, rapidjson::Value(rapidjson::kArrayType), allocator);
+	}
+	else
+	{
+		controls = &controlsItr->value;
+	}
+
+	rapidjson::Value myControlJson(rapidjson::kObjectType);
+	myControlJson.CopyFrom(controlJson, session.scenesRoot.GetAllocator());
+	controls->PushBack(myControlJson, allocator);
+	RETURN_IF_FAILED(update_control_pointers(session, sceneId));
+
+	return MIXER_OK;
+}
+
+int update_cached_control(interactive_session_internal& session, interactive_control& control, rapidjson::Value& controlJson)
+{
+	auto itr = session.controls.find(control.id);
+	if (itr == session.controls.end())
+	{
+		return MIXER_ERROR_OBJECT_NOT_FOUND;
+	}
+
+	std::string controlPtr = itr->second;
+	rapidjson::Value myControlJson(rapidjson::kObjectType);
+	myControlJson.CopyFrom(controlJson, session.scenesRoot.GetAllocator());
+	rapidjson::Pointer(rapidjson::StringRef(controlPtr.c_str(), controlPtr.length()))
+		.Swap(session.scenesRoot, myControlJson);
+
+	return MIXER_OK;
+}
+
 }
 
 using namespace mixer_internal;

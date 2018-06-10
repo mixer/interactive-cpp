@@ -395,6 +395,13 @@ void handle_participants_changed(void* context, interactive_session session, int
 	Logger::WriteMessage(s.str().c_str());
 }
 
+void handle_control_changed(void* context, interactive_session session, const interactive_control* control)
+{
+	std::stringstream s;
+	s << "'" << control->id << "' (" << control->kind << ")\r\n";
+	Logger::WriteMessage(s.str().c_str());
+}
+
 void handle_error_assert(void* context, interactive_session session, int errorCode, const char* errorMessage, size_t errorMessageLength)
 {
 	Logger::WriteMessage(("[ERROR] (" + std::to_string(errorCode) + ")" + errorMessage).c_str());

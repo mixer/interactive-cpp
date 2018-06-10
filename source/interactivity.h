@@ -436,6 +436,11 @@ extern "C" {
 	typedef void(*on_transaction_complete)(void* context, interactive_session session, const char* transactionId, size_t transactionIdLength, unsigned int error, const char* errorMessage, size_t errorMessageLength);
 
 	/// <summary>
+	/// Callback when a control is updated.
+	/// </summary>
+	typedef void(*on_control_updated)(void* context, interactive_session session, interactive_control control);
+
+	/// <summary>
 	/// Callback when any method is called that is not handled by the existing callbacks. This may be useful for more advanced scenarios or future protocol changes that may not have existed in this version of the library.
 	/// </summary>
 	typedef void(*on_unhandled_method)(void* context, interactive_session session, const char* methodJson, size_t methodJsonLength);
@@ -464,6 +469,11 @@ extern "C" {
 	/// Set the handler function for spark transaction completion. This function is called by your own thread during <c>interactive_run</c>
 	/// </summary>
 	int interactive_set_transaction_complete_handler(interactive_session session, on_transaction_complete onTransactionComplete);
+
+	/// <summary>
+	/// Set the handler function for control updates. This function is called by your own thread during <c>interactive_run</c>
+	/// </summary>
+	int interactive_set_control_update_handler(interactive_session session, on_control_updated onControlUpdated);
 
 	/// <summary>
 	/// Set the handler function for unhandled methods. This may be useful for more advanced scenarios or future protocol changes that may not have existed in this version of the library. This function is called by your own thread during <c>interactive_run</c>
@@ -607,7 +617,8 @@ extern "C" {
 		MIXER_ERROR_WS_DISCONNECT_FAILED,
 		MIXER_ERROR_WS_READ_FAILED,
 		MIXER_ERROR_WS_SEND_FAILED,
-		MIXER_ERROR_NOT_CONNECTED
+		MIXER_ERROR_NOT_CONNECTED,
+		MIXER_ERROR_OBJECT_EXISTS
 	} mixer_result_code;
 	/** @} */
 
