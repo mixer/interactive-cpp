@@ -405,7 +405,6 @@ int handle_control_changed(interactive_session_internal& session, rapidjson::Doc
 		return MIXER_ERROR_UNRECOGNIZED_DATA_FORMAT;
 	}
 
-	const char * sceneId = doc[RPC_PARAMS][RPC_SCENE_ID].GetString();
 	rapidjson::Value& controls = doc[RPC_PARAMS][RPC_PARAM_CONTROLS];
 	for (auto itr = controls.Begin(); itr != controls.End(); ++itr)
 	{

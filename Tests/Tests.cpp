@@ -982,7 +982,7 @@ public:
 			Assert::AreEqual((int)MIXER_OK, interactive_batch_add_param_str(batch, objectEntry, "foo", "bar"));
 			Assert::AreEqual((int)MIXER_OK, interactive_batch_add_param_uint(batch, objectEntry, "number", 42));
 		}));
-		Assert::AreEqual((int)MIXER_OK, interactive_control_batch_end(batch));
+		Assert::AreEqual((int)MIXER_OK, interactive_control_batch_commit(batch));
 
 		// Simulate 60 frames/sec for 1 second.
 		for (int i = 0; i < fps * seconds; ++i)
@@ -991,26 +991,41 @@ public:
 			std::this_thread::sleep_for(std::chrono::milliseconds(1000 / fps));
 		}
 
-		Logger::WriteMessage("Enumerating scenes.");
+		Logger::WriteMessage("Validating custom properties");
 		ASSERT_NOERR(interactive_get_scenes(session, [](void* context, interactive_session session, interactive_scene* scene)
 		{
-			std::stringstream s;
-			s << "[Scene] '" << std::string(scene->id, scene->idLength) << "'";
-			Logger::WriteMessage(s.str().c_str());
-
-			Logger::WriteMessage("Controls:");
-			interactive_scene_get_controls(session, scene->id, [](void* context, interactive_session session, interactive_control* control)
-			{
-				if (0 == strcmp(control->id, "GiveHealth")) {
-					char foo[4];
-					size_t nameLength = 4;
-					int number;
-					print_control_properties(session, control->id);
-					Assert::AreEqual((int)MIXER_OK, interactive_control_get_property_string(session, "GiveHealth", "foo", foo, &nameLength));
-					Assert::AreEqual((int)MIXER_OK, interactive_control_get_property_int(session, "GiveHealth", "number", &number));
-					Assert::AreEqual("bar", foo);
-				}
-			});
+			char foo[4];
+			size_t nameLength = 4;
+			int number = 0;
+			memset(foo, 0, sizeof(char[4]));
+			Assert::AreEqual((int)MIXER_OK, interactive_control_get_property_string(session, "GiveHealth", "foo", foo, &nameLength));
+			Assert::AreEqual((int)MIXER_OK, interactive_control_get_property_int(session, "GiveHealth", "number", &number));
+			Assert::AreEqual("bar", foo);
+			Assert::AreEqual(42, number);
+			memset(foo, 0, sizeof(char[4]));
+			number = 0;
+			Assert::AreEqual((int)MIXER_OK, interactive_control_get_property_string(session, "GiveHealth", "array/0/foo", foo, &nameLength));
+			Assert::AreEqual((int)MIXER_OK, interactive_control_get_property_int(session, "GiveHealth", "array/0/number", &number));
+			Assert::AreEqual("bar", foo);
+			Assert::AreEqual(42, number);
+			memset(foo, 0, sizeof(char[4]));
+			number = 0;
+			Assert::AreEqual((int)MIXER_OK, interactive_control_get_property_string(session, "GiveHealth", "array/1", foo, &nameLength));
+			Assert::AreEqual((int)MIXER_OK, interactive_control_get_property_int(session, "GiveHealth", "array/2", &number));
+			Assert::AreEqual("bar", foo);
+			Assert::AreEqual(42, number);
+			memset(foo, 0, sizeof(char[4]));
+			number = 0;
+			Assert::AreEqual((int)MIXER_OK, interactive_control_get_property_string(session, "GiveHealth", "array/1", foo, &nameLength));
+			Assert::AreEqual((int)MIXER_OK, interactive_control_get_property_int(session, "GiveHealth", "array/2", &number));
+			Assert::AreEqual("bar", foo);
+			Assert::AreEqual(42, number);
+			memset(foo, 0, sizeof(char[4]));
+			number = 0;
+			Assert::AreEqual((int)MIXER_OK, interactive_control_get_property_string(session, "GiveHealth", "object/foo", foo, &nameLength));
+			Assert::AreEqual((int)MIXER_OK, interactive_control_get_property_int(session, "GiveHealth", "object/number", &number));
+			Assert::AreEqual("bar", foo);
+			Assert::AreEqual(42, number);
 		}));
 
 		for (int i = 0; i < fps * seconds; ++i)

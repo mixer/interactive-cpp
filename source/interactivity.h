@@ -334,7 +334,7 @@ extern "C" {
 
 	int interactive_control_batch_add(interactive_batch batch, interactive_batch_entry* entry, const char* controlId);
 
-	int interactive_control_batch_end(interactive_batch batch);
+	int interactive_control_batch_commit(interactive_batch batch);
 	/** @} */
 
 	/** @name Groups
@@ -585,7 +585,7 @@ extern "C" {
 
 	int interactive_participant_batch_add(interactive_batch batch, interactive_batch_entry* entry, const char* participantId);
 
-	int interactive_participant_batch_end(interactive_batch batch);
+	int interactive_participant_batch_commit(interactive_batch batch);
 
 	/// <summary>
 	/// Reads a string value from the participant object.

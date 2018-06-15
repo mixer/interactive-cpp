@@ -132,7 +132,7 @@ int interactive_batch_add_param(interactive_batch batch, interactive_batch_entry
 	interactive_batch_internal* batchInternal = reinterpret_cast<interactive_batch_internal*>(batch);
 	interactive_batch_entry_internal* entryInternal = reinterpret_cast<interactive_batch_entry_internal*>(entry);
 	entryInternal->value.AddMember(
-		rapidjson::Value(std::string(name), batchInternal->document->GetAllocator()),
+		rapidjson::Value(std::string(name).c_str(), batchInternal->document->GetAllocator()),
 		value,
 		batchInternal->document->GetAllocator());
 
@@ -171,7 +171,7 @@ int interactive_batch_set_priority(interactive_batch batch, int priority)
 
 int interactive_batch_add_param_null(interactive_batch batch, interactive_batch_entry entry, const char* name)
 {
-	return interactive_batch_add_param(batch, entry, name, rapidjson::Value(rapidjson::kNullType));
+	return interactive_batch_add_param(batch, entry, name, rapidjson::Value(rapidjson::kNullType).Move());
 }
 
 int interactive_batch_add_param_str(interactive_batch batch, interactive_batch_entry entry, const char* name, const char* value)
@@ -182,17 +182,17 @@ int interactive_batch_add_param_str(interactive_batch batch, interactive_batch_e
 	}
 
 	interactive_batch_internal* batchInternal = reinterpret_cast<interactive_batch_internal*>(batch);
-	return interactive_batch_add_param(batch, entry, name, rapidjson::Value(std::string(value), batchInternal->document->GetAllocator()));
+	return interactive_batch_add_param(batch, entry, name, rapidjson::Value(std::string(value).c_str(), batchInternal->document->GetAllocator()).Move());
 }
 
 int interactive_batch_add_param_uint(interactive_batch batch, interactive_batch_entry entry, const char* name, unsigned int value)
 {
-	return interactive_batch_add_param(batch, entry, name, rapidjson::Value(value));
+	return interactive_batch_add_param(batch, entry, name, rapidjson::Value(value).Move());
 }
 
 int interactive_batch_add_param_bool(interactive_batch batch, interactive_batch_entry entry, const char* name, bool value)
 {
-	return interactive_batch_add_param(batch, entry, name, rapidjson::Value(value));
+	return interactive_batch_add_param(batch, entry, name, rapidjson::Value(value).Move());
 }
 
 int interactive_batch_add_param_object(interactive_batch batch, interactive_batch_entry entry, const char* name, interactive_batch_object_callback callback)
@@ -224,7 +224,7 @@ int interactive_batch_add_param_array(interactive_batch batch, interactive_batch
 
 int interactive_batch_array_push_null(interactive_batch batch, interactive_batch_array arrayItem)
 {
-	return interactive_batch_array_push(batch, arrayItem, rapidjson::Value(rapidjson::kNullType));
+	return interactive_batch_array_push(batch, arrayItem, rapidjson::Value(rapidjson::kNullType).Move());
 }
 
 int interactive_batch_array_push_str(interactive_batch batch, interactive_batch_array arrayItem, const char* value)
@@ -235,17 +235,17 @@ int interactive_batch_array_push_str(interactive_batch batch, interactive_batch_
 	}
 
 	interactive_batch_internal* batchInternal = reinterpret_cast<interactive_batch_internal*>(batch);
-	return interactive_batch_array_push(batch, arrayItem, rapidjson::Value(std::string(value), batchInternal->document->GetAllocator()));
+	return interactive_batch_array_push(batch, arrayItem, rapidjson::Value(std::string(value).c_str(), batchInternal->document->GetAllocator()).Move());
 }
 
 int interactive_batch_array_push_uint(interactive_batch batch, interactive_batch_array arrayItem, unsigned int value)
 {
-	return interactive_batch_array_push(batch, arrayItem, rapidjson::Value(value));
+	return interactive_batch_array_push(batch, arrayItem, rapidjson::Value(value).Move());
 }
 
 int interactive_batch_array_push_bool(interactive_batch batch, interactive_batch_array arrayItem, bool value)
 {
-	return interactive_batch_array_push(batch, arrayItem, rapidjson::Value(value));
+	return interactive_batch_array_push(batch, arrayItem, rapidjson::Value(value).Move());
 }
 
 int interactive_batch_array_push_object(interactive_batch batch, interactive_batch_array arrayItem, interactive_batch_object_callback callback)

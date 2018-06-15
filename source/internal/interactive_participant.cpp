@@ -292,7 +292,7 @@ int interactive_participant_batch_add(interactive_batch batch, interactive_batch
 	return MIXER_OK;
 }
 
-int interactive_participant_batch_end(interactive_batch batch)
+int interactive_participant_batch_commit(interactive_batch batch)
 {
 	if (nullptr == batch)
 	{
