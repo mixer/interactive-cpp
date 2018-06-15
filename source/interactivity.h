@@ -176,8 +176,19 @@ extern "C" {
 	/** @name Batch Requests
 	*   @{
 	*/
+	/// <summary>
+	/// Opaque handle for a batch update object
+	/// </summary>
 	struct interactive_batch_public {};
+
+	/// <summary>
+	/// Opqaque handle for a batch entry object
+	/// </summary>
 	struct interactive_batch_entry_public {};
+
+	/// <summary>
+	/// Opqaque handle for a batch entry array
+	/// </summary>
 	struct interactive_batch_array_public {};
 
 	typedef interactive_batch_public* interactive_batch;
@@ -190,28 +201,93 @@ extern "C" {
 
 	typedef void(*interactive_batch_array_callback)(interactive_batch, interactive_batch_array);
 
+	/// <summary>
+	/// Nullifies a field on a batch update object.
+	/// <remarks>
+	/// <para>The Mixer interactive protocol implements the JSON Merge Patch algorithm (RFC 7386) for updates on protocol objects - meaning that to delete an object property you need to set it to null rather than just omit it in an update.</para>
+	/// </remarks>
+	/// </summary>
 	int interactive_batch_add_param_null(interactive_batch batch, interactive_batch_entry entry, const char* name);
 
+	/// <summary>
+	/// Adds a string field on a batch update object.
+	/// </summary>
 	int interactive_batch_add_param_str(interactive_batch batch, interactive_batch_entry entry, const char* name, const char* value);
 
+	/// <summary>
+	/// Adds a uint field on a batch update object.
+	/// </summary>
 	int interactive_batch_add_param_uint(interactive_batch batch, interactive_batch_entry entry, const char* name, unsigned int value);
 
+	/// <summary>
+	/// Adds a bool field on a batch update object.
+	/// </summary>
 	int interactive_batch_add_param_bool(interactive_batch batch, interactive_batch_entry entry, const char* name, bool value);
 
+	/// <summary>
+	/// Adds an object field on a batch update object.
+	/// <remarks>
+	/// <para>Object properties must be added before the supplied callback returns using the `interactive_batch_add_param_*` family of methods.</para>
+	/// </remarks>
+	/// </summary>
 	int interactive_batch_add_param_object(interactive_batch batch, interactive_batch_entry entry, const char* name, interactive_batch_object_callback callback);
 
+	/// <summary>
+	/// Adds an array field on a batch update object.
+	/// <remarks>
+	/// <para>Array items must be added before the supplied callback returns using the `interactive_batch_array_push_*` family of methods.</para>
+	/// </remarks>
+	/// </summary>
 	int interactive_batch_add_param_array(interactive_batch batch, interactive_batch_entry entry, const char* name, interactive_batch_array_callback callback);
 
+	/// <summary>
+	/// Pushes a null item to a batch update array.
+	/// <remarks>
+	/// <para>Must be called within the callback from `interactive_batch_add_param_array` or `interactive_batch_array_push_object`.</para>
+	/// </remarks>
+	/// </summary>
 	int interactive_batch_array_push_null(interactive_batch batch, interactive_batch_array arrayItem);
 
+	/// <summary>
+	/// Pushes a string item to a batch update array.
+	/// <remarks>
+	/// <para>Must be called within the callback from `interactive_batch_add_param_array` or `interactive_batch_array_push_object`.</para>
+	/// </remarks>
+	/// </summary>
 	int interactive_batch_array_push_str(interactive_batch batch, interactive_batch_array arrayItem, const char* value);
 
+	/// <summary>
+	/// Pushes a uint item to a batch update array.
+	/// <remarks>
+	/// <para>Must be called within the callback from `interactive_batch_add_param_array` or `interactive_batch_array_push_object`.</para>
+	/// </remarks>
+	/// </summary>
 	int interactive_batch_array_push_uint(interactive_batch batch, interactive_batch_array arrayItem, unsigned int value);
 
+	/// <summary>
+	/// Pushes a bool item to a batch update array.
+	/// <remarks>
+	/// <para>Must be called within the callback from `interactive_batch_add_param_array` or `interactive_batch_array_push_object`.</para>
+	/// </remarks>
+	/// </summary>
 	int interactive_batch_array_push_bool(interactive_batch batch, interactive_batch_array arrayItem, bool value);
 
+	/// <summary>
+	/// Pushes an object on to a batch update array.
+	/// <remarks>
+	/// <para>Must be called within the callback from `interactive_batch_add_param_array` or `interactive_batch_array_push_object`.</para>
+	/// <para>Object properties must be added before the supplied callback returns using the `interactive_batch_add_param_*` family of methods.</para>
+	/// </remarks>
+	/// </summary>
 	int interactive_batch_array_push_object(interactive_batch batch, interactive_batch_array arrayItem, interactive_batch_object_callback callback);
 
+	/// <summary>
+	/// Pushes an array on to a batch update array.
+	/// <remarks>
+	/// <para>Must be called within the callback from `interactive_batch_add_param_array` or `interactive_batch_array_push_object`.</para>
+	/// <para>Array items must be added before the supplied callback returns using the `interactive_batch_array_push_*` family of methods.</para>
+	/// </remarks>
+	/// </summary>
 	int interactive_batch_array_push_array(interactive_batch batch, interactive_batch_array arrayItem, interactive_batch_array_callback callback);
 
 	/** @} */
@@ -330,10 +406,26 @@ extern "C" {
 	/// </summary>
 	int interactive_control_get_meta_property_string(interactive_session session, const char* controlId, const char* key, char* property, size_t* propertyLength);
 
+	/// <summary>
+	/// Starts a batch update of interactive control objects.
+	/// <remarks>
+	/// <para>Note that batch requests created with this method will only support updates to control objects.</para>
+	/// <para>Batch requests are finalized with the `interactive_control_batch_commit` method after using `interactive_control_batch_add` to add the individual updates.</para>
+	/// </remarks>
+	/// </summary>
 	int interactive_control_batch_begin(interactive_session session, interactive_batch* batchPtr, const char* sceneId);
 
+	/// <summary>
+	/// Adds an update to the control batch request for the control with the given id.
+	/// <remarks>
+	/// <para>Note that a batch request should only contain a single entry per control ID.</para>
+	/// </remarks>
+	/// </summary>
 	int interactive_control_batch_add(interactive_batch batch, interactive_batch_entry* entry, const char* controlId);
 
+	/// <summary>
+	/// Commits an interactive control batch update against the interactive service.
+	/// </summary>
 	int interactive_control_batch_commit(interactive_batch batch);
 	/** @} */
 
@@ -581,10 +673,26 @@ extern "C" {
 	/// </summary>
 	int interactive_participant_get_group(interactive_session session, const char* participantId, char* group, size_t* groupLength);
 
+	/// <summary>
+	/// Starts a batch update of participant objects.
+	/// <remarks>
+	/// <para>Note that batch requests created with this method will only support updates to participant objects.</para>
+	/// <para>Batch requests are finalized with the `interactive_participant_batch_commit` method after using `interactive_participant_batch_add` to add the individual updates.</para>
+	/// </remarks>
+	/// </summary>
 	int interactive_participant_batch_begin(interactive_session session, interactive_batch* batchPtr);
 
+	/// <summary>
+	/// Adds an update to the participant batch request for the participant with the given id.
+	/// <remarks>
+	/// <para>Note that a batch request should only contain a single entry per participant ID.</para>
+	/// </remarks>
+	/// </summary>
 	int interactive_participant_batch_add(interactive_batch batch, interactive_batch_entry* entry, const char* participantId);
 
+	/// <summary>
+	/// Commits an interactive participant batch update against the interactive service.
+	/// </summary>
 	int interactive_participant_batch_commit(interactive_batch batch);
 
 	/// <summary>
