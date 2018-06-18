@@ -135,7 +135,31 @@ int win_http_client::make_request(const std::string& uri, const std::string& ver
 	
 	if (!WinHttpSendRequest(request.get(), WINHTTP_NO_ADDITIONAL_HEADERS, 0, (void*)body.c_str(), (DWORD)body.length(), (DWORD)body.length(), 0))
 	{
-		return GetLastError();
+		DWORD result = GetLastError();
+		if (ERROR_WINHTTP_SECURE_FAILURE == result)
+		{
+			DWORD dwFlags =
+				SECURITY_FLAG_IGNORE_UNKNOWN_CA |
+				SECURITY_FLAG_IGNORE_CERT_WRONG_USAGE |
+				SECURITY_FLAG_IGNORE_CERT_CN_INVALID |
+				SECURITY_FLAG_IGNORE_CERT_DATE_INVALID;
+
+			if (WinHttpSetOption(
+				request.get(),
+				WINHTTP_OPTION_SECURITY_FLAGS,
+				&dwFlags,
+				sizeof(dwFlags)))
+			{
+				if (!WinHttpSendRequest(request.get(), WINHTTP_NO_ADDITIONAL_HEADERS, 0, (void*)body.c_str(), (DWORD)body.length(), (DWORD)body.length(), 0))
+				{
+					return GetLastError();
+				}
+			}
+		}
+		else
+		{
+			return result;
+		}
 	}
 
 	if (!WinHttpReceiveResponse(request.get(), nullptr))

@@ -72,7 +72,11 @@ int interactive_auth_get_short_code(const char* clientId, const char* clientSecr
 	}
 
 	http_response response;
+#ifdef MIXER_LOCAL
+	std::string oauthCodeUrl = "https://test.mixer.com/api/v1/oauth/shortcode";
+#else
 	std::string oauthCodeUrl = "https://mixer.com/api/v1/oauth/shortcode";
+#endif
 
 	// Construct the json body
 	std::string jsonBody;
@@ -124,7 +128,11 @@ int interactive_auth_wait_short_code(const char* clientId, const char* clientSec
 	// Poll that shortcode until it is validated or times out.
 	std::unique_ptr<http_client> httpClient = http_factory::make_http_client();
 	http_response response;
+#ifdef MIXER_LOCAL
+	std::string validateUrl = "https://test.mixer.com/api/v1/oauth/shortcode/check/" + std::string(shortCodeHandle);
+#else
 	std::string validateUrl = "https://mixer.com/api/v1/oauth/shortcode/check/" + std::string(shortCodeHandle);
+#endif
 
 	int handleStatus = 204;
 	while (204 == handleStatus)
@@ -163,7 +171,11 @@ int interactive_auth_wait_short_code(const char* clientId, const char* clientSec
 
 	// Exchange oauth code for oauth token.
 	std::string refreshTokenData;
+#ifdef MIXER_LOCAL
+	const std::string exchangeUrl = "https://test.mixer.com/api/v1/oauth/token";
+#else
 	const std::string exchangeUrl = "https://mixer.com/api/v1/oauth/token";
+#endif
 
 	std::string jsonBody;
 	if (nullptr == clientSecret)
@@ -226,7 +238,11 @@ int interactive_auth_refresh_token(const char* clientId, const char* clientSecre
 	}
 
 	http_response response;
+#ifdef MIXER_LOCAL
+	const std::string exchangeUrl = "https://test.mixer.com/api/v1/oauth/token";
+#else
 	const std::string exchangeUrl = "https://mixer.com/api/v1/oauth/token";
+#endif
 
 	std::string jsonBody;
 	if (nullptr == clientSecret || 0 == strlen(clientSecret))

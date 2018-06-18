@@ -12,11 +12,11 @@
 #include <map>
 #include <string>
 
-#define CLIENT_ID		"f0d20e2d263b75894f5cdaabc8a344b99b1ea6f9ecb7fa4f"
-#define INTERACTIVE_ID	"135704"
-#define SHARE_CODE		"xe7dpqd5"
+#define CLIENT_ID		"e175de029c7967f4a5ec549eba85e4cee37fc83723027f62"
+#define INTERACTIVE_ID	"1"
+#define SHARE_CODE		""
 
-#define MIXER_DEBUG 0
+#define MIXER_DEBUG 1
 
 std::map<std::string, std::string> controlsByTransaction;
 
@@ -102,7 +102,11 @@ int authorize(std::string& authorization)
 	if (err) return err;
 
 	// Pop the browser for the user to approve access.
+#if MIXER_LOCAL
+	std::string authUrl = std::string("https://test.mixer.com/go?code=") + shortCode;
+#else
 	std::string authUrl = std::string("https://www.mixer.com/go?code=") + shortCode;
+#endif
 	ShellExecuteA(0, 0, authUrl.c_str(), nullptr, nullptr, SW_SHOW);
 
 	// Wait for OAuth token response.

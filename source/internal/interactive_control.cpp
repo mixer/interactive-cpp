@@ -298,8 +298,6 @@ int interactive_control_get_meta_property_data(interactive_session session, cons
 	return err;
 }
 
-
-
 int interactive_control_get_property_int(interactive_session session, const char* controlId, const char* key, int* property)
 {
 	rapidjson::Value* controlValue;

@@ -423,6 +423,9 @@ void register_method_handlers(interactive_session_internal& session)
 
 int get_hosts(interactive_session_internal& session)
 {
+#ifdef MIXER_LOCAL
+	session.hosts.push_back("ws://127.0.0.1:3000/gameClient");
+#else
 	DEBUG_INFO("Retrieving hosts.");
 	http_response response;
 	static std::string hosts = "https://mixer.com/api/v1/interactive/hosts";
@@ -448,6 +451,7 @@ int get_hosts(interactive_session_internal& session)
 			DEBUG_TRACE("Host found: " + std::string(addressItr->value.GetString(), addressItr->value.GetStringLength()));
 		}
 	}
+#endif
 
 	return MIXER_OK;
 }
