@@ -227,7 +227,7 @@ int handle_input(interactive_session_internal& session, rapidjson::Document& doc
 		return errCode;
 	}
 
-	rapidjson::Value* control = rapidjson::Pointer(itr->second.c_str()).Get(session.scenesRoot);
+	rapidjson::Value* control = rapidjson::Pointer(itr->second.cachePointer.c_str()).Get(session.scenesRoot);
 	if (nullptr == control)
 	{
 		int errCode = MIXER_ERROR_OBJECT_NOT_FOUND;
@@ -404,19 +404,19 @@ int handle_control_changed(interactive_session_internal& session, rapidjson::Doc
 		memset(&control, 0, sizeof(interactive_control));
 		parse_control(*itr, control);
 
-		interactive_control_change_type changeType = interactive_control_updated;
+		interactive_control_event eventType = interactive_control_updated;
 		if (0 == strcmp(doc[RPC_METHOD].GetString(), RPC_METHOD_ON_CONTROL_UPDATE))
 		{
 			RETURN_IF_FAILED(update_cached_control(session, control, *itr));
 		}
 		else if (0 == strcmp(doc[RPC_METHOD].GetString(), RPC_METHOD_ON_CONTROL_CREATE))
 		{
-			changeType = interactive_control_created;
+			eventType = interactive_control_created;
 			RETURN_IF_FAILED(cache_new_control(session, sceneId, control, *itr));
 		}
 		else if (0 == strcmp(doc[RPC_METHOD].GetString(), RPC_METHOD_ON_CONTROL_DELETE))
 		{
-			changeType = interactive_control_deleted;
+			eventType = interactive_control_deleted;
 			RETURN_IF_FAILED(delete_cached_control(session, sceneId, control));
 		}
 		else
@@ -426,7 +426,7 @@ int handle_control_changed(interactive_session_internal& session, rapidjson::Doc
 		
 		if (session.onControlChanged)
 		{
-			session.onControlChanged(session.callerContext, &session, changeType, &control);
+			session.onControlChanged(session.callerContext, &session, eventType, &control);
 		}
 	}
 

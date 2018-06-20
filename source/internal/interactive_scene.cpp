@@ -51,7 +51,10 @@ int update_control_pointers(interactive_session_internal& session, const char* s
 			int controlIndex = 0;
 			for (auto& control : controlsArray->value.GetArray())
 			{
-				session.controls.emplace(control[RPC_CONTROL_ID].GetString(), scenePointer + "/" + std::string(RPC_PARAM_CONTROLS) + "/" + std::to_string(controlIndex++));
+				interactive_control_internal ctrl;
+				ctrl.sceneId = scene[RPC_SCENE_ID].GetString();
+				ctrl.cachePointer = scenePointer + "/" + std::string(RPC_PARAM_CONTROLS) + "/" + std::to_string(controlIndex++);
+				session.controls.emplace(control[RPC_CONTROL_ID].GetString(), ctrl);
 			}
 		}
 

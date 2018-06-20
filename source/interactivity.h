@@ -183,7 +183,7 @@ extern "C" {
 		size_t kindLength;
 	};
 
-	enum interactive_control_change_type
+	enum interactive_control_event
 	{
 		interactive_control_created,
 		interactive_control_updated,
@@ -205,7 +205,7 @@ extern "C" {
 	#define JOYSTICK_PROP_ANGLE "angle"
 	#define JOYSTICK_PROP_INTENSITY "intensity"
 
-	typedef enum interactive_property_type
+	enum interactive_property_type
 	{
 		interactive_unknown_t,
 		interactive_int_t,
@@ -214,7 +214,7 @@ extern "C" {
 		interactive_string_t,
 		interactive_array_t,
 		interactive_object_t
-	} interactive_property_type;
+	};
 
 	typedef void(*on_control_enumerate)(void* context, interactive_session session, interactive_control* control);
 
@@ -267,6 +267,36 @@ extern "C" {
 	/// Get a <c>char*</c> property value by name.
 	/// </summary>
 	int interactive_control_get_property_string(interactive_session session, const char* controlId, const char* key, char* property, size_t* propertyLength);
+
+	/// <summary>
+	/// Set a control property to null.
+	/// </summary>
+	int interactive_control_set_property_null(interactive_session session, const char* controlId, const char* key);
+
+	/// <summary>
+	/// Set an <c>int</c> property value by name.
+	/// </summary>
+	int interactive_control_set_property_int(interactive_session session, const char* controlId, const char* key, int property);
+
+	/// <summary>
+	/// Set a <c>long long</c> property value by name.
+	/// </summary>
+	int interactive_control_set_property_int64(interactive_session session, const char* controlId, const char* key, long long property);
+
+	/// <summary>
+	/// Set a <c>bool</c> property value by name.
+	/// </summary>
+	int interactive_control_set_property_bool(interactive_session session, const char* controlId, const char* key, bool property);
+
+	/// <summary>
+	/// Set a <c>float</c> property value by name.
+	/// </summary>
+	int interactive_control_set_property_float(interactive_session session, const char* controlId, const char* key, float property);
+
+	/// <summary>
+	/// Set a <c>char*</c> property value by name.
+	/// </summary>
+	int interactive_control_set_property_string(interactive_session session, const char* controlId, const char* key, char* property);
 
 	/// <summary>
 	/// Get an <c>int</c> meta property value by name.
@@ -442,9 +472,9 @@ extern "C" {
 	typedef void(*on_transaction_complete)(void* context, interactive_session session, const char* transactionId, size_t transactionIdLength, unsigned int error, const char* errorMessage, size_t errorMessageLength);
 
 	/// <summary>
-	/// Callback when a control is updated.
+	/// Callback when a control is created, added, or deleted.
 	/// </summary>
-	typedef void(*on_control_changed)(void* context, interactive_session session, interactive_control_change_type changeType, const interactive_control* control);
+	typedef void(*on_control_changed)(void* context, interactive_session session, interactive_control_event eventType, const interactive_control* control);
 
 	/// <summary>
 	/// Callback when any method is called that is not handled by the existing callbacks. This may be useful for more advanced scenarios or future protocol changes that may not have existed in this version of the library.
@@ -477,9 +507,9 @@ extern "C" {
 	int interactive_set_transaction_complete_handler(interactive_session session, on_transaction_complete onTransactionComplete);
 
 	/// <summary>
-	/// Set the handler function for control updates. This function is called by your own thread during <c>interactive_run</c>
+	/// Set the handler function for changes to controls. This function is called by your own thread during <c>interactive_run</c>
 	/// </summary>
-	int interactive_set_control_changed_handler(interactive_session session, on_control_changed onControlUpdated);
+	int interactive_set_control_changed_handler(interactive_session session, on_control_changed onControlChanged);
 
 	/// <summary>
 	/// Set the handler function for unhandled methods. This may be useful for more advanced scenarios or future protocol changes that may not have existed in this version of the library. This function is called by your own thread during <c>interactive_run</c>
