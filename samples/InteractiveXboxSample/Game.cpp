@@ -122,6 +122,54 @@ void handle_error(void* context, interactive_session session, int errorCode, con
 	OutputDebugStringA(debugLine.c_str());
 }
 
+// Handle user data.
+void handle_user(void* context, interactive_session session, const interactive_user* user)
+{
+	std::cout << "Connecting as: " << user->userName << std::endl;
+	std::cout << "Avatar: " << user->avatarUrl << std::endl;
+	std::cout << "Experience: " << user->experience << std::endl;
+	std::cout << "Level: " << user->level << std::endl;
+	std::cout << "Sparks: " << user->sparks << std::endl;
+	std::cout << "Broadcasting: " << (user->isBroadcasting ? "true" : "false") << std::endl;
+}
+
+void handle_input(void* context, interactive_session session, const interactive_input* input)
+{
+	Game* game = (Game*)context;
+	if ((input_type_key == input->type || input_type_click == input->type) && interactive_button_action_down == input->buttonData.action)
+	{
+		// Capture the transaction on button down to deduct sparks
+		int err = interactive_capture_transaction(session, input->transactionId);
+		if (!err)
+		{
+			game->m_controlsById[input->transactionId] = input->control.id;
+		}
+	}
+}
+
+void handle_transaction(void* context, interactive_session session, const char* transactionId, size_t transactionIdLength, unsigned int errorCode, const char* errorMessage, size_t errorMessageLength)
+{
+	UNREFERENCED_PARAMETER(session);
+	UNREFERENCED_PARAMETER(transactionIdLength);
+	UNREFERENCED_PARAMETER(errorMessageLength);
+	Game* game = (Game*)context;
+	if (errorCode)
+	{
+		OutputDebugStringA((std::string("ERROR: ") + errorMessage + "(" + std::to_string(errorCode) + ")").c_str());
+	}
+	else
+	{
+		// Transaction was captured, now execute the most super awesome interactive functionality!
+		std::string controlId = game->m_controlsById[transactionId];
+		if (0 == strcmp("GiveHealth", controlId.c_str()))
+		{
+			OutputDebugStringA("Giving health to the player!\n");
+		}
+	}
+
+	game->m_controlsById.erase(transactionId);
+}
+
 // Initialize the Direct3D resources required to run.
 void Game::Initialize(IUnknown* window)
 {
@@ -149,58 +197,33 @@ void Game::Initialize(IUnknown* window)
 		return;
 	}
 
-	// Connect to the user's interactive channel, using the interactive project specified by the version ID.
+	// Open an interactive session. This session will remain open for the duration of this sample but it should be 
+	// closed using interactive_close_session() to avoid memory leaks.
 	err = interactive_open_session(&m_interactiveSession);
 	if (err) throw err;
 
+	// Register an error handler for any errors from the interactive service.
 	err = interactive_set_error_handler(m_interactiveSession, handle_error);
 	if (err) throw err;
 
+	// Set the session context to this object so it can be referenced in callbacks.
 	err = interactive_set_session_context(m_interactiveSession, this);
 	if (err) throw err;
 
 	// Register a callback for button presses.
-	err = interactive_set_input_handler(m_interactiveSession, [](void* context, interactive_session session, const interactive_input* input)
-	{
-		Game* game = (Game*)context;
-		if ((input_type_key == input->type || input_type_click == input->type) && interactive_button_action_down == input->buttonData.action)
-		{
-			// Capture the transaction on button down to deduct sparks
-			int err = interactive_capture_transaction(session, input->transactionId);
-			if (!err)
-			{
-				game->m_controlsById[input->transactionId] = input->control.id;
-			}
-
-			
-		}
-	});
+	err = interactive_set_input_handler(m_interactiveSession, handle_input);
 	if (err) throw err;
 
-	err = interactive_set_transaction_complete_handler(m_interactiveSession, [](void* context, interactive_session session, const char* transactionId, size_t transactionIdLength, unsigned int errorCode, const char* errorMessage, size_t errorMessageLength)
-	{
-		UNREFERENCED_PARAMETER(session);
-		UNREFERENCED_PARAMETER(transactionIdLength);
-		UNREFERENCED_PARAMETER(errorMessageLength);
-		Game* game = (Game*)context;
-		if (errorCode)
-		{
-			OutputDebugStringA((std::string("ERROR: ") + errorMessage + "(" + std::to_string(errorCode) + ")").c_str());
-		}
-		else
-		{
-			// Transaction was captured, now execute the most super awesome interactive functionality!
-			std::string controlId = game->m_controlsById[transactionId];
-			if (0 == strcmp("GiveHealth", controlId.c_str()))
-			{
-				OutputDebugStringA("Giving health to the player!\n");
-			}
-		}
+	// Register a callback for transactions completing.
+	err = interactive_set_transaction_complete_handler(m_interactiveSession, handle_transaction);
+	if (err) throw err;
 
-		game->m_controlsById.erase(transactionId);
-	});
-
+	// Connect to the user's interactive channel, using the interactive project specified by the version ID.
 	err = interactive_connect(m_interactiveSession, authorization.c_str(), INTERACTIVE_ID, SHARE_CODE, true);
+	if (err) throw err;
+
+	// Get the connected user's data.
+	err = interactive_get_user(m_interactiveSession, handle_user);
 	if (err) throw err;
 }
 

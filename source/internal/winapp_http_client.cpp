@@ -341,7 +341,7 @@ winapp_http_client::~winapp_http_client()
 }
 
 int
-winapp_http_client::make_request(const std::string& uri, const std::string& verb, const std::map<std::string, std::string>* headers, const std::string& body, http_response& response, unsigned long timeoutMs) const
+winapp_http_client::make_request(const std::string& uri, const std::string& verb, const http_headers* headers, const std::string& body, http_response& response, unsigned long timeoutMs) const
 {
 	HRESULT hr = S_OK;
 	ComPtr<IXMLHTTPRequest2> request;
@@ -354,17 +354,17 @@ winapp_http_client::make_request(const std::string& uri, const std::string& verb
 	RETURN_HR_IF_FAILED(CoCreateInstance(__uuidof(FreeThreadedXMLHTTP60), nullptr, context, __uuidof(IXMLHTTPRequest2), reinterpret_cast<void**>(request.GetAddressOf())));
 	ComPtr<HttpRequestStringCallback> callback = Make<HttpRequestStringCallback>(request.Get());
 
-	if (nullptr != headers)
-	{
-		for (auto header : *headers)
-		{	
-			RETURN_HR_IF_FAILED(request->SetRequestHeader(utf8_to_wstring(header.first).c_str(), utf8_to_wstring(header.second).c_str()));
-		}
-	}
-
 	ComPtr<IXMLHTTPRequest2Callback> xhrRequestCallback;
 	RETURN_HR_IF_FAILED(callback.As<IXMLHTTPRequest2Callback>(&xhrRequestCallback));
 	RETURN_HR_IF_FAILED(request->Open(utf8_to_wstring(verb).c_str(), utf8_to_wstring(uri).c_str(), xhrRequestCallback.Get(), nullptr, nullptr, nullptr, nullptr));
+
+	if (nullptr != headers)
+	{
+		for (auto header : *headers)
+		{
+			RETURN_HR_IF_FAILED(request->SetRequestHeader(utf8_to_wstring(header.first).c_str(), utf8_to_wstring(header.second).c_str()));
+		}
+	}
 
 	RETURN_HR_IF_FAILED(request->SetProperty(XHR_PROP_TIMEOUT, timeoutMs));
 

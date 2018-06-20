@@ -981,5 +981,42 @@ public:
 
 		Assert::IsTrue(0 == err);
 	}
+
+	TEST_METHOD(UserDataTest)
+	{
+		g_start = std::chrono::high_resolution_clock::now();
+		interactive_config_debug(interactive_debug_trace, handle_debug_message);
+
+		int err = 0;
+		std::string clientId = CLIENT_ID;
+		std::string versionId = VERSION_ID;
+		std::string shareCode = SHARE_CODE;
+		std::string auth;
+
+		ASSERT_NOERR(do_auth(clientId, "", auth));
+
+		interactive_session session;
+		ASSERT_NOERR(interactive_open_session(&session));
+		ASSERT_NOERR(interactive_set_error_handler(session, handle_error_assert));
+		ASSERT_NOERR(interactive_connect(session, auth.c_str(), versionId.c_str(), shareCode.c_str(), true));
+		ASSERT_NOERR(interactive_get_user(session, [](void* context, interactive_session session, const interactive_user* user)
+		{
+			Assert::IsTrue(nullptr != user);
+			std::stringstream logStream;
+			logStream << "Connecting as: " << user->userName << std::endl;
+			logStream << "Id: " << user->id << std::endl;
+			logStream << "Avatar: " << user->avatarUrl << std::endl;
+			logStream << "Experience: " << user->experience << std::endl;
+			logStream << "Level: " << user->level << std::endl;
+			logStream << "Sparks: " << user->sparks << std::endl;
+			logStream << "Broadcasting: " << (user->isBroadcasting ? "true" : "false") << std::endl;
+			Logger::WriteMessage(logStream.str().c_str());
+		}));
+
+		Logger::WriteMessage("Disconnecting...");
+		interactive_close_session(session);
+
+		Assert::IsTrue(0 == err);
+	}
 };
 }

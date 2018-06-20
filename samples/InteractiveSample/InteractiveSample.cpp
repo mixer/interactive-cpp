@@ -23,7 +23,11 @@ std::map<std::string, std::string> controlsByTransaction;
 // Display an OAuth consent page to the user.
 int authorize(std::string& authorization);
 
+// Handle any errors from the interactive service.
 void handle_error(void* context, interactive_session session, int errorCode, const char* errorMessage, size_t errorMessageLength);
+
+// Handle user data.
+void handle_user(void* context, interactive_session session, const interactive_user* user);
 
 // Handle completed interactive transactions.
 void handle_transaction_complete(void* context, interactive_session session, const char* transactionId, size_t transactionIdLength, unsigned int errorCode, const char* errorMessage, size_t errorMessageLength);
@@ -64,7 +68,12 @@ int main()
 	err = interactive_set_transaction_complete_handler(session, handle_transaction_complete);
 	if (err) return err;
 
+	// Connect to the interactive session. Session state is not changed until messages are pumped using interactive_run.
 	err = interactive_connect(session, authorization.c_str(), INTERACTIVE_ID, SHARE_CODE, false);
+	if (err) return err;
+	
+	// Get the connected user's data.
+	err = interactive_get_user(session, handle_user);
 	if (err) return err;
 
 	// Create a group for participants to view the joystick scene.
@@ -163,6 +172,16 @@ int get_participant_name(interactive_session session, const char* participantId,
 void handle_error(void* context, interactive_session session, int errorCode, const char* errorMessage, size_t errorMessageLength)
 {
 	std::cerr << "Unexpected Mixer interactive error: " << errorMessage;
+}
+
+void handle_user(void* context, interactive_session session, const interactive_user* user)
+{
+	std::cout << "Connecting as: " << user->userName << std::endl;
+	std::cout << "Avatar: " << user->avatarUrl << std::endl;
+	std::cout << "Experience: " << user->experience << std::endl;
+	std::cout << "Level: " << user->level << std::endl;
+	std::cout << "Sparks: " << user->sparks << std::endl;
+	std::cout << "Broadcasting: " << (user->isBroadcasting ? "true" : "false") << std::endl;
 }
 
 void handle_interactive_input(void* context, interactive_session session, const interactive_input* input)
