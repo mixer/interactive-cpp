@@ -70,6 +70,7 @@ struct interactive_session_internal
 	on_error onError;
 	on_state_changed onStateChanged;
 	on_participants_changed onParticipantsChanged;
+	on_control_changed onControlChanged;
 	on_transaction_complete onTransactionComplete;
 	on_unhandled_method onUnhandledMethod;
 
@@ -130,7 +131,10 @@ int receive_reply(interactive_session_internal& session, unsigned int id, std::s
 
 int cache_groups(interactive_session_internal& session);
 int cache_scenes(interactive_session_internal& session);
+int update_cached_control(interactive_session_internal& session, interactive_control& control, rapidjson::Value& controlJson);
+int update_control_pointers(interactive_session_internal& session, const char* sceneId = nullptr);
 void parse_participant(rapidjson::Value& participantJson, interactive_participant& participant);
+void parse_control(rapidjson::Value& controlJson, interactive_control& control);
 
 // Common reply handler that checks a reply for errors and calls the session's error handler if it exists.
 int check_reply_errors(interactive_session_internal& session, rapidjson::Document& reply);
@@ -160,7 +164,9 @@ int check_reply_errors(interactive_session_internal& session, rapidjson::Documen
 #define RPC_METHOD_ON_READY_CHANGED    "onReady" // called by server to both game and participant clients
 #define RPC_METHOD_ON_GROUP_CREATE     "onGroupCreate"
 #define RPC_METHOD_ON_GROUP_UPDATE     "onGroupUpdate"
+#define RPC_METHOD_ON_CONTROL_CREATE   "onControlCreate"
 #define RPC_METHOD_ON_CONTROL_UPDATE   "onControlUpdate" 
+#define RPC_METHOD_ON_CONTROL_DELETE   "onControlDelete"
 #define RPC_METHOD_GET_TIME            "getTime"
 #define RPC_TIME                       "time"
 #define RPC_PARAM_IS_READY             "isReady"

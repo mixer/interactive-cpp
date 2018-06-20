@@ -24,11 +24,27 @@ int cache_scenes(interactive_session_internal& session)
 	scenesArray.CopyFrom(replyScenesArray, session.scenesRoot.GetAllocator());
 	session.scenesRoot.AddMember(RPC_PARAM_SCENES, scenesArray, session.scenesRoot.GetAllocator());
 
+	RETURN_IF_FAILED(update_control_pointers(session));
+
+	return MIXER_OK;
+}
+
+int update_control_pointers(interactive_session_internal& session, const char* sceneId)
+{
 	// Iterate through each scene and set up a pointer to each control.
 	int sceneIndex = 0;
 	for (auto& scene : session.scenesRoot[RPC_PARAM_SCENES].GetArray())
 	{
 		std::string scenePointer = "/" + std::string(RPC_PARAM_SCENES) + "/" + std::to_string(sceneIndex++);
+		auto thisSceneId = scene[RPC_SCENE_ID].GetString();
+		if (nullptr != sceneId)
+		{
+			if (0 != strcmp(sceneId, thisSceneId))
+			{
+				continue;
+			}
+		}
+
 		auto controlsArray = scene.FindMember(RPC_PARAM_CONTROLS);
 		if (controlsArray != scene.MemberEnd() && controlsArray->value.IsArray())
 		{
@@ -39,7 +55,7 @@ int cache_scenes(interactive_session_internal& session)
 			}
 		}
 
-		session.scenes.emplace(scene[RPC_SCENE_ID].GetString(), scenePointer);
+		session.scenes.emplace(thisSceneId, scenePointer);
 	}
 
 	return MIXER_OK;
@@ -136,6 +152,12 @@ int interactive_scene_get_controls(interactive_session session, const char* scen
 		for (auto& controlObj : (*sceneVal)[RPC_PARAM_CONTROLS].GetArray())
 		{
 			interactive_control control;
+			if (!controlObj.IsObject()) {
+				return MIXER_ERROR_UNRECOGNIZED_DATA_FORMAT;
+			}
+			if (!controlObj.HasMember(RPC_CONTROL_ID) || !controlObj[RPC_CONTROL_ID].IsString()) {
+				return MIXER_ERROR_UNRECOGNIZED_DATA_FORMAT;
+			}
 			control.id = controlObj[RPC_CONTROL_ID].GetString();
 			control.idLength = controlObj[RPC_CONTROL_ID].GetStringLength();
 			control.kind = controlObj[RPC_CONTROL_KIND].GetString();

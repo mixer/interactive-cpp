@@ -387,6 +387,52 @@ int handle_scene_changed(interactive_session_internal& session, rapidjson::Docum
 	return cache_scenes(session);
 }
 
+int handle_control_changed(interactive_session_internal& session, rapidjson::Document& doc)
+{
+	if (!doc.HasMember(RPC_PARAMS)
+		|| !doc[RPC_PARAMS].HasMember(RPC_PARAM_CONTROLS) || !doc[RPC_PARAMS][RPC_PARAM_CONTROLS].IsArray()
+		|| !doc[RPC_PARAMS].HasMember(RPC_SCENE_ID) || !doc[RPC_PARAMS][RPC_SCENE_ID].IsString())
+	{
+		return MIXER_ERROR_UNRECOGNIZED_DATA_FORMAT;
+	}
+
+	const char * sceneId = doc[RPC_PARAMS][RPC_SCENE_ID].GetString();
+	rapidjson::Value& controls = doc[RPC_PARAMS][RPC_PARAM_CONTROLS];
+	for (auto itr = controls.Begin(); itr != controls.End(); ++itr)
+	{
+		interactive_control control;
+		memset(&control, 0, sizeof(interactive_control));
+		parse_control(*itr, control);
+
+		interactive_control_change_type changeType = interactive_control_updated;
+		if (0 == strcmp(doc[RPC_METHOD].GetString(), RPC_METHOD_ON_CONTROL_UPDATE))
+		{
+			RETURN_IF_FAILED(update_cached_control(session, control, *itr));
+		}
+		else if (0 == strcmp(doc[RPC_METHOD].GetString(), RPC_METHOD_ON_CONTROL_CREATE))
+		{
+			changeType = interactive_control_created;
+			RETURN_IF_FAILED(cache_new_control(session, sceneId, control, *itr));
+		}
+		else if (0 == strcmp(doc[RPC_METHOD].GetString(), RPC_METHOD_ON_CONTROL_DELETE))
+		{
+			changeType = interactive_control_deleted;
+			RETURN_IF_FAILED(delete_cached_control(session, sceneId, control));
+		}
+		else
+		{
+			return MIXER_ERROR_UNKNOWN_METHOD;
+		}
+		
+		if (session.onControlChanged)
+		{
+			session.onControlChanged(session.callerContext, &session, changeType, &control);
+		}
+	}
+
+	return MIXER_OK;
+}
+
 int route_method(interactive_session_internal& session, rapidjson::Document& doc)
 {
 	std::string method = doc[RPC_METHOD].GetString();
@@ -418,6 +464,7 @@ void register_method_handlers(interactive_session_internal& session)
 	session.methodHandlers.emplace(RPC_METHOD_ON_PARTICIPANT_UPDATE, handle_participants_update);
 	session.methodHandlers.emplace(RPC_METHOD_ON_GROUP_UPDATE, handle_group_changed);
 	session.methodHandlers.emplace(RPC_METHOD_ON_GROUP_CREATE, handle_group_changed);
+	session.methodHandlers.emplace(RPC_METHOD_ON_CONTROL_UPDATE, handle_control_changed);
 	session.methodHandlers.emplace(RPC_METHOD_UPDATE_SCENES, handle_scene_changed);
 }
 
@@ -1000,6 +1047,20 @@ int interactive_set_transaction_complete_handler(interactive_session session, on
 
 	interactive_session_internal* sessionInternal = reinterpret_cast<interactive_session_internal*>(session);
 	sessionInternal->onTransactionComplete = onTransactionComplete;
+
+	return MIXER_OK;
+}
+
+
+int interactive_set_control_changed_handler(interactive_session session, on_control_changed onControlChanged)
+{
+	if (nullptr == session)
+	{
+		return MIXER_ERROR_INVALID_POINTER;
+	}
+
+	interactive_session_internal* sessionInternal = reinterpret_cast<interactive_session_internal*>(session);
+	sessionInternal->onControlChanged = onControlChanged;
 
 	return MIXER_OK;
 }
