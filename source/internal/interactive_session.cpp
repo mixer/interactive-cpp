@@ -849,6 +849,64 @@ int interactive_get_state(interactive_session session, interactive_state* state)
 	return MIXER_OK;
 }
 
+int interactive_get_user(interactive_session session, on_interactive_user onUser)
+{
+	if (nullptr == session || nullptr == onUser)
+	{
+		return MIXER_ERROR_INVALID_POINTER;
+	}
+
+	interactive_session_internal* sessionInternal = reinterpret_cast<interactive_session_internal*>(session);
+	if (sessionInternal->authorization.empty())
+	{
+		DEBUG_ERROR("Broadcasting check attempted without an authorization string set.");
+		return MIXER_ERROR_AUTH;
+	}
+	
+	std::string currentUserUrl = "https://mixer.com/api/v1/users/current";
+
+	http_headers headers;
+	headers["Authorization"] = sessionInternal->authorization;
+	http_response response;
+	memset(&response, 0, sizeof(http_response));
+	int httpErr = sessionInternal->http->make_request(currentUserUrl, "GET", &headers, "", response);
+	if (0 != httpErr)
+	{
+		DEBUG_ERROR(std::to_string(httpErr) + " Failed to GET /api/v1/users/current");
+		return MIXER_ERROR_HTTP;
+	}
+
+	rapidjson::Document responseDoc;
+	responseDoc.Parse(response.body);
+	if (responseDoc.HasParseError())
+	{
+		return MIXER_ERROR_JSON_PARSE;
+	}
+
+	// Validate the response.
+	if (!responseDoc.HasMember("id") || !responseDoc.HasMember("username") ||
+		!responseDoc.HasMember("level") || !responseDoc.HasMember("experience") ||
+		!responseDoc.HasMember("sparks") || !responseDoc.HasMember("avatarUrl") ||
+		!responseDoc.HasMember("channel") || !responseDoc["channel"].IsObject() || 
+		!responseDoc["channel"].HasMember("online"))
+	{
+		return MIXER_ERROR_UNRECOGNIZED_DATA_FORMAT;
+	}
+
+	interactive_user user;
+	memset(&user, 0, sizeof(interactive_user));
+	user.avatarUrl = responseDoc["avatarUrl"].GetString();
+	user.experience = responseDoc["experience"].GetUint();
+	user.id = responseDoc["id"].GetUint();
+	user.isBroadcasting = responseDoc["channel"]["online"].GetBool();
+	user.level = responseDoc["level"].GetUint();
+	user.sparks = responseDoc["sparks"].GetUint();
+	user.userName = responseDoc["username"].GetString();
+
+	onUser(sessionInternal->callerContext, session, &user);
+	return MIXER_OK;
+}
+
 int interactive_set_ready(interactive_session session, bool isReady)
 {
 	if (nullptr == session)

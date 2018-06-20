@@ -53,7 +53,7 @@ win_http_client::~win_http_client()
 {
 }
 
-int win_http_client::make_request(const std::string& uri, const std::string& verb, const std::map<std::string, std::string>* headers, const std::string& body, _Out_ http_response& response, unsigned long timeoutMs) const
+int win_http_client::make_request(const std::string& uri, const std::string& verb, const http_headers* headers, const std::string& body, _Out_ http_response& response, unsigned long timeoutMs) const
 {
 	// Crack the URI.
 	// Parse the url with regex in accordance with RFC 3986.

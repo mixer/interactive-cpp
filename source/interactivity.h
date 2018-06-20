@@ -173,6 +173,37 @@ extern "C" {
 	void interactive_close_session(interactive_session session);
 	/** @} */
 
+	/** @name User
+	*   @{
+	*/
+
+	/// <summary>
+	/// User data for the connected user. Call <c>interactive_get_user</c> after connecting.
+	/// </summary>
+	struct interactive_user
+	{
+		unsigned int id;
+		const char* userName;		
+		bool isBroadcasting;
+		unsigned int level;
+		unsigned int experience;
+		unsigned int sparks;
+		const char* avatarUrl;
+	};
+
+	/// <summary>
+	/// Callback for <c>interactive_get_user</c> when the user's data is ready.
+	/// </summary>
+	typedef void(*on_interactive_user)(void* context, interactive_session session, const interactive_user* user);
+
+	/// <summary>
+	/// Get the current authenticated user's data. <c>onUser</c> will be called when the request completes.
+	/// </summary>
+	/// <remarks>
+	/// This is a blocking function that waits on network IO. Do not call this from the UI thread.
+	/// </remarks>
+	int interactive_get_user(interactive_session session, on_interactive_user onUser);
+
 	/** @name Controls
 	*   @{
 	*/
