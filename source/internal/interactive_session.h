@@ -17,11 +17,16 @@ namespace mixer_internal
 {
 
 struct interactive_session_internal;
+struct interactive_control_internal
+{
+	std::string sceneId;
+	std::string cachePointer;
+};
 
 typedef std::pair<unsigned int, std::string> protocol_error;
 typedef std::map<std::string, std::string> scenes_by_id;
 typedef std::map<std::string, std::string> scenes_by_group;
-typedef std::map<std::string, std::string> controls_by_id;
+typedef std::map<std::string, interactive_control_internal> controls_by_id;
 typedef std::map<std::string, std::shared_ptr<rapidjson::Document>> participants_by_id;
 typedef std::function<int(interactive_session_internal&, rapidjson::Document&)> method_handler;
 typedef std::map<std::string, method_handler> method_handlers_by_method;

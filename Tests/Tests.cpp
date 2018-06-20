@@ -29,16 +29,6 @@ namespace MixerTests
 
 interactive_session g_activeSession = nullptr;
 
-template <typename T>
-struct async_context
-{
-	async_context() : taskComplete(false), taskData(nullptr) {};
-	std::mutex taskMutex;
-	std::condition_variable taskCV;
-	volatile bool taskComplete;
-	const T* taskData;
-};
-
 void print_control_properties(interactive_session session, const std::string& controlId)
 {
 	char propName[1024];
@@ -395,10 +385,10 @@ void handle_participants_changed(void* context, interactive_session session, int
 	Logger::WriteMessage(s.str().c_str());
 }
 
-void handle_control_changed(void* context, interactive_session session, interactive_control_change_type changeType, const interactive_control* control)
+void handle_control_changed(void* context, interactive_session session, interactive_control_event eventType, const interactive_control* control)
 {
 	std::stringstream s;
-	switch (changeType)
+	switch (eventType)
 	{
 	case interactive_control_created:
 		s << "Created ";
@@ -414,6 +404,14 @@ void handle_control_changed(void* context, interactive_session session, interact
 	}
 	s << "'" << control->id << "' (" << control->kind << ")\r\n";
 	Logger::WriteMessage(s.str().c_str());
+}
+
+void on_control_mod_update(void* context, interactive_session session, interactive_control_event eventType, const interactive_control* control)
+{
+	Assert::IsTrue(interactive_control_updated == eventType);
+	bool disabled = false;
+	interactive_control_get_property_bool(session, control->id, "disabled", &disabled);
+	Assert::IsTrue(disabled);
 }
 
 void handle_error_assert(void* context, interactive_session session, int errorCode, const char* errorMessage, size_t errorMessageLength)
@@ -630,7 +628,6 @@ public:
 		ASSERT_NOERR(interactive_set_error_handler(session, handle_error_assert));
 		ASSERT_NOERR(interactive_set_input_handler(session, handle_input));
 		ASSERT_NOERR(interactive_set_state_changed_handler(session, handle_state_changed));
-		ASSERT_NOERR(interactive_set_error_handler(session, handle_error_assert));
 		ASSERT_NOERR(interactive_set_participants_changed_handler(session, handle_participants_changed));
 		ASSERT_NOERR(interactive_set_unhandled_method_handler(session, handle_unhandled_method));
 		ASSERT_NOERR(interactive_set_transaction_complete_handler(session, handle_transaction_complete));
@@ -943,6 +940,46 @@ public:
 
 		Logger::WriteMessage("Disconnecting...");
 		interactive_close_session(session);
+	}
+
+	TEST_METHOD(ControlModificationTest)
+	{
+		g_start = std::chrono::high_resolution_clock::now();
+		interactive_config_debug(interactive_debug_trace, handle_debug_message);
+
+		int err = 0;
+		std::string clientId = CLIENT_ID;
+		std::string versionId = VERSION_ID;
+		std::string shareCode = SHARE_CODE;
+		std::string auth;
+
+		ASSERT_NOERR(do_auth(clientId, "", auth));
+
+		interactive_session session;
+		ASSERT_NOERR(interactive_open_session(&session));
+		ASSERT_NOERR(interactive_set_error_handler(session, handle_error_assert));
+		ASSERT_NOERR(interactive_set_input_handler(session, handle_input));
+		ASSERT_NOERR(interactive_set_state_changed_handler(session, handle_state_changed));
+		ASSERT_NOERR(interactive_set_participants_changed_handler(session, handle_participants_changed));
+		ASSERT_NOERR(interactive_set_unhandled_method_handler(session, handle_unhandled_method));
+		ASSERT_NOERR(interactive_set_transaction_complete_handler(session, handle_transaction_complete));
+		ASSERT_NOERR(interactive_set_control_changed_handler(session, on_control_mod_update));
+		ASSERT_NOERR(interactive_connect(session, auth.c_str(), versionId.c_str(), shareCode.c_str(), true));
+		ASSERT_NOERR(interactive_control_set_property_bool(session, "GiveHealth", "disabled", true));
+		
+		// Simulate 60 frames/sec
+		const int fps = 60;
+		const int seconds = 5;
+		for (int i = 0; i < fps * seconds; ++i)
+		{
+			ASSERT_NOERR(interactive_run(session, 1));
+			std::this_thread::sleep_for(std::chrono::milliseconds(1000 / fps));
+		}
+
+		Logger::WriteMessage("Disconnecting...");
+		interactive_close_session(session);
+
+		Assert::IsTrue(0 == err);
 	}
 };
 }
