@@ -183,6 +183,12 @@ extern "C" {
 		size_t kindLength;
 	};
 
+	enum interactive_control_change_type
+	{
+		interactive_control_created,
+		interactive_control_updated,
+		interactive_control_deleted
+	};
 
 	// Known control properties
 	#define CONTROL_PROP_DISABLED "disabled"
@@ -438,7 +444,7 @@ extern "C" {
 	/// <summary>
 	/// Callback when a control is updated.
 	/// </summary>
-	typedef void(*on_control_updated)(void* context, interactive_session session, interactive_control control);
+	typedef void(*on_control_changed)(void* context, interactive_session session, interactive_control_change_type changeType, const interactive_control* control);
 
 	/// <summary>
 	/// Callback when any method is called that is not handled by the existing callbacks. This may be useful for more advanced scenarios or future protocol changes that may not have existed in this version of the library.
@@ -473,7 +479,7 @@ extern "C" {
 	/// <summary>
 	/// Set the handler function for control updates. This function is called by your own thread during <c>interactive_run</c>
 	/// </summary>
-	int interactive_set_control_update_handler(interactive_session session, on_control_updated onControlUpdated);
+	int interactive_set_control_changed_handler(interactive_session session, on_control_changed onControlUpdated);
 
 	/// <summary>
 	/// Set the handler function for unhandled methods. This may be useful for more advanced scenarios or future protocol changes that may not have existed in this version of the library. This function is called by your own thread during <c>interactive_run</c>

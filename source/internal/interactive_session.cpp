@@ -401,12 +401,32 @@ int handle_control_changed(interactive_session_internal& session, rapidjson::Doc
 	for (auto itr = controls.Begin(); itr != controls.End(); ++itr)
 	{
 		interactive_control control;
+		memset(&control, 0, sizeof(interactive_control));
 		parse_control(*itr, control);
-		RETURN_IF_FAILED(update_cached_control(session, control, *itr));
+
+		interactive_control_change_type changeType = interactive_control_updated;
+		if (0 == strcmp(doc[RPC_METHOD].GetString(), RPC_METHOD_ON_CONTROL_UPDATE))
+		{
+			RETURN_IF_FAILED(update_cached_control(session, control, *itr));
+		}
+		else if (0 == strcmp(doc[RPC_METHOD].GetString(), RPC_METHOD_ON_CONTROL_CREATE))
+		{
+			changeType = interactive_control_created;
+			RETURN_IF_FAILED(cache_new_control(session, sceneId, control, *itr));
+		}
+		else if (0 == strcmp(doc[RPC_METHOD].GetString(), RPC_METHOD_ON_CONTROL_DELETE))
+		{
+			changeType = interactive_control_deleted;
+			RETURN_IF_FAILED(delete_cached_control(session, sceneId, control));
+		}
+		else
+		{
+			return MIXER_ERROR_UNKNOWN_METHOD;
+		}
 		
 		if (session.onControlChanged)
 		{
-			session.onControlChanged(session.callerContext, &session, control);
+			session.onControlChanged(session.callerContext, &session, changeType, &control);
 		}
 	}
 
@@ -1032,7 +1052,7 @@ int interactive_set_transaction_complete_handler(interactive_session session, on
 }
 
 
-int interactive_set_control_update_handler(interactive_session session, on_control_updated onControlUpdated)
+int interactive_set_control_changed_handler(interactive_session session, on_control_changed onControlChanged)
 {
 	if (nullptr == session)
 	{
@@ -1040,7 +1060,7 @@ int interactive_set_control_update_handler(interactive_session session, on_contr
 	}
 
 	interactive_session_internal* sessionInternal = reinterpret_cast<interactive_session_internal*>(session);
-	sessionInternal->onControlChanged = onControlUpdated;
+	sessionInternal->onControlChanged = onControlChanged;
 
 	return MIXER_OK;
 }

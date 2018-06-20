@@ -395,9 +395,23 @@ void handle_participants_changed(void* context, interactive_session session, int
 	Logger::WriteMessage(s.str().c_str());
 }
 
-void handle_control_changed(void* context, interactive_session session, const interactive_control* control)
+void handle_control_changed(void* context, interactive_session session, interactive_control_change_type changeType, const interactive_control* control)
 {
 	std::stringstream s;
+	switch (changeType)
+	{
+	case interactive_control_created:
+		s << "Created ";
+		break;
+	case interactive_control_updated:
+		s << "Updated ";
+		break;
+	case interactive_control_deleted:
+		s << "Deleted ";
+		break;
+	default:
+		break;
+	}
 	s << "'" << control->id << "' (" << control->kind << ")\r\n";
 	Logger::WriteMessage(s.str().c_str());
 }

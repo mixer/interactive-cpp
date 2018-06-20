@@ -70,7 +70,7 @@ struct interactive_session_internal
 	on_error onError;
 	on_state_changed onStateChanged;
 	on_participants_changed onParticipantsChanged;
-	on_control_updated onControlChanged;
+	on_control_changed onControlChanged;
 	on_transaction_complete onTransactionComplete;
 	on_unhandled_method onUnhandledMethod;
 
@@ -164,7 +164,9 @@ int check_reply_errors(interactive_session_internal& session, rapidjson::Documen
 #define RPC_METHOD_ON_READY_CHANGED    "onReady" // called by server to both game and participant clients
 #define RPC_METHOD_ON_GROUP_CREATE     "onGroupCreate"
 #define RPC_METHOD_ON_GROUP_UPDATE     "onGroupUpdate"
+#define RPC_METHOD_ON_CONTROL_CREATE   "onControlCreate"
 #define RPC_METHOD_ON_CONTROL_UPDATE   "onControlUpdate" 
+#define RPC_METHOD_ON_CONTROL_DELETE   "onControlDelete"
 #define RPC_METHOD_GET_TIME            "getTime"
 #define RPC_TIME                       "time"
 #define RPC_PARAM_IS_READY             "isReady"
