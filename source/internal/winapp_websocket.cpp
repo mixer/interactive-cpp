@@ -74,9 +74,9 @@ public:
 		m_closeReason = wstring_to_utf8(args->Reason->Data());
 
 		// Notify message processing loop.
-		std::lock_guard<std::mutex> autoLock(m_messagesMutex);
+		std::lock_guard<std::mutex> socketLock(m_socketEventMutex);
 		m_connected = false;
-		m_messagesReadyCV.notify_one();
+		m_socketEventCV.notify_one();
 	}
 
 	void on_message(MessageWebSocket^ sender, MessageWebSocketMessageReceivedEventArgs^ args)
@@ -87,9 +87,9 @@ public:
 			reader->UnicodeEncoding = UnicodeEncoding::Utf8;
 			String^ message = reader->ReadString(reader->UnconsumedBufferLength);
 
-			std::lock_guard<std::mutex> lock(m_messagesMutex);
+			std::lock_guard<std::mutex> socketLock(m_socketEventMutex);
 			m_messages.push(wstring_to_utf8(message->Data()));
-			m_messagesReadyCV.notify_one();
+			m_socketEventCV.notify_one();
 		}
 	}
 
@@ -120,7 +120,7 @@ public:
 		// Connect asynchronously and then notify
 		create_task(m_ws->ConnectAsync(uriRef)).then([&](task<void> prevTask)
 		{
-			std::lock_guard<std::mutex> autoLock(m_messagesMutex);
+			std::lock_guard<std::mutex> socketLock(m_socketEventMutex);
 			try
 			{
 				prevTask.get();
@@ -166,9 +166,13 @@ public:
 		// Process messages until the socket is closed;
 		for (;;)
 		{
+			// Check for messages
+			std::unique_lock<std::mutex> socketLock(m_socketEventMutex);
+
 			// See if we're no longer connected, if so call the onClose callback.
 			if (!m_connected)
 			{
+				socketLock.unlock();
 				if (onClose)
 				{
 					onClose(*this, m_closeCode, m_closeReason);
@@ -176,18 +180,29 @@ public:
 
 				break;
 			}
-
-			// Check for messages
-			std::unique_lock<std::mutex> messagesLock(m_messagesMutex);
+			
 			if (m_messages.empty())
-			{	
+			{
 				// Wait for a message
-				m_messagesReadyCV.wait(messagesLock);
+				m_socketEventCV.wait(socketLock);
+
+				// Check if connection terminated while waiting for messages.
+				if (!m_connected)
+				{
+					socketLock.unlock();
+					if (onClose)
+					{
+						onClose(*this, m_closeCode, m_closeReason);
+					}
+
+					break;
+				}
 			}
 
+			// Connected and a message is ready.
 			std::string message = m_messages.front();
 			m_messages.pop();
-			messagesLock.unlock();
+			socketLock.unlock();
 
 			if (onMessage)
 			{
@@ -227,16 +242,16 @@ public:
 			return E_ABORT;
 		}
 
-		std::unique_lock<std::mutex> messagesLock(m_messagesMutex);
+		std::unique_lock<std::mutex> socketLock(m_socketEventMutex);
 		if (m_messages.empty())
 		{
 			// Wait for a message.
-			m_messagesReadyCV.wait(messagesLock);
+			m_socketEventCV.wait(socketLock);
 
 			if (!m_connected && m_messages.empty())
 			{
 				// Incorrectly consumed close notification, pass it on.
-				m_messagesReadyCV.notify_one();
+				m_socketEventCV.notify_one();
 				return E_ABORT;
 			}
 		}
@@ -257,12 +272,14 @@ public:
 
 private:
 	MessageWebSocket ^ m_ws;
-	bool m_connected;
 	unsigned short m_closeCode;
 	std::string m_closeReason;
-	std::mutex m_messagesMutex;
-	std::condition_variable m_messagesReadyCV;
 	semaphore m_openSemaphore;
+
+	// Protect m_connected state and m_messages with a mutex and a condition variable.
+	std::mutex m_socketEventMutex;
+	std::condition_variable m_socketEventCV;
+	bool m_connected;
 	std::queue<std::string> m_messages;
 };
 

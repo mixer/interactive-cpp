@@ -50,12 +50,13 @@ int GetXToken(std::string& token)
 	HRESULT hr = S_OK;
 
 	// Note: This would fail certification. You must pop TCUI and allow a user to be chosen.
-	Windows::Xbox::System::User^ currentUser = Windows::Xbox::System::User::Users->GetAt(0);
-	if (nullptr == currentUser)
+	if (0 == Windows::Xbox::System::User::Users->Size)
 	{
 		OutputDebugStringA("No user signed in. Please sign in a user and try this sample again.");
 		return E_ABORT;
 	}
+
+	Windows::Xbox::System::User^ currentUser = Windows::Xbox::System::User::Users->GetAt(0);
 
 	try
 	{
