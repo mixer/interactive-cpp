@@ -3,83 +3,81 @@
 #include "common.h"
 
 #include <functional>
+#include <sstream>
+
+#include "rapidjson/pointer.h"
+
+#define OBJECT_BATCH(o) ((o)->_a)
+#define OBJECT_POINTER(o) ((o)->_b)
 
 namespace mixer_internal
 {
 
-interactive_batch_entry_internal::interactive_batch_entry_internal()
-	: next(nullptr), value(rapidjson::kObjectType)
+inline interactive_batch_internal* cast_batch(interactive_batch batch)
 {
+	return reinterpret_cast<interactive_batch_internal*>(batch);
 }
 
-interactive_batch_array_internal::interactive_batch_array_internal()
-	: value(rapidjson::kArrayType)
+inline interactive_batch_internal* object_get_batch(interactive_batch_object* obj)
 {
+	return reinterpret_cast<interactive_batch_internal*>(OBJECT_BATCH(obj));
 }
 
-int interactive_batch_begin(interactive_session session, interactive_batch* batchPtr, char *methodName, on_get_batch_params getParams)
+inline rapidjson::Value* object_get_value(interactive_batch_object* obj)
 {
-	if (nullptr == session || nullptr == batchPtr || nullptr == methodName || nullptr == getParams)
+	return reinterpret_cast<rapidjson::Value*>(OBJECT_POINTER(obj));
+}
+
+inline interactive_batch_internal* array_get_batch(interactive_batch_array* obj)
+{
+	return reinterpret_cast<interactive_batch_internal*>(OBJECT_BATCH(obj));
+}
+
+inline rapidjson::Value* array_get_value(interactive_batch_array* obj)
+{
+	return reinterpret_cast<rapidjson::Value*>(OBJECT_POINTER(obj));
+}
+
+int interactive_batch_begin(interactive_session session, interactive_batch* batchPtr, char *methodName)
+{
+	if (nullptr == session || nullptr == batchPtr || nullptr == methodName)
 	{
 		return MIXER_ERROR_INVALID_POINTER;
 	}
 
 	std::auto_ptr<interactive_batch_internal> batchInternal(new interactive_batch_internal());
 	batchInternal->session = reinterpret_cast<interactive_session_internal*>(session);
-	batchInternal->priority = RPC_PRIORITY_DEFAULT;
 	batchInternal->method = methodName;
-	batchInternal->getParams = getParams;
-	batchInternal->firstEntry = nullptr;
-	batchInternal->lastEntry = nullptr;
 	batchInternal->document = std::make_shared<rapidjson::Document>();
 	*batchPtr = reinterpret_cast<interactive_batch>(batchInternal.release());
+
+	interactive_batch_set_priority(*batchPtr, RPC_PRIORITY_DEFAULT);
 
 	return MIXER_OK;
 }
 
-int interactive_batch_add_entry(interactive_batch batch, interactive_batch_entry* entry)
+int interactive_batch_add_entry(interactive_batch batch, interactive_batch_entry* entry, const char * paramsKey)
 {
 	if (nullptr == batch || nullptr == entry)
 	{
 		return MIXER_ERROR_INVALID_POINTER;
 	}
 
-	interactive_batch_internal* batchInternal = reinterpret_cast<interactive_batch_internal*>(batch);
-	interactive_batch_entry_internal* entryInternal = new interactive_batch_entry_internal();
-	if (nullptr == batchInternal->firstEntry)
+	interactive_batch_internal* batchInternal = cast_batch(batch);
+	std::stringstream ss;
+	ss << "/" << RPC_PARAMS << "/" << paramsKey;
+	size_t pos = batchInternal->entries.size();
+	if (0 == pos)
 	{
-		batchInternal->firstEntry = entryInternal;
-		batchInternal->lastEntry = entryInternal;
-	}
-	else
-	{
-		batchInternal->lastEntry->next = entryInternal;
-		batchInternal->lastEntry = entryInternal;
+		rapidjson::Pointer(ss.str().c_str())
+			.Set(*batchInternal->document, rapidjson::Value(rapidjson::kArrayType));
 	}
 
-	*entry = reinterpret_cast<interactive_batch_entry>(entryInternal);
-
-	return MIXER_OK;
-}
-
-int interactive_batch_iterate_entries(interactive_batch_internal* batch, on_get_entry_params getParams)
-{
-	if (nullptr == getParams)
-	{
-		return MIXER_ERROR_INVALID_POINTER;
-	}
-
-	interactive_batch_entry_internal* freePtr = nullptr;
-	interactive_batch_entry_internal* next = batch->firstEntry;
-	while (nullptr != next) {
-		getParams(next);
-		freePtr = next;
-		next = next->next;
-		delete freePtr;
-	}
-
-	batch->firstEntry = nullptr;
-	batch->lastEntry = nullptr;
+	ss << "/" << pos;
+	OBJECT_BATCH(&entry->obj) = batchInternal;
+	OBJECT_POINTER(&entry->obj) = 
+		&rapidjson::Pointer(ss.str().c_str())
+			.Set(*batchInternal->document, rapidjson::Value(rapidjson::kObjectType));
 
 	return MIXER_OK;
 }
@@ -91,64 +89,69 @@ int interactive_batch_free(interactive_batch_internal* batch)
 		return MIXER_ERROR_INVALID_POINTER;
 	}
 
-	interactive_batch_entry_internal* freePtr = nullptr;
-	interactive_batch_entry_internal* next = batch->firstEntry;
-	while (nullptr != next) {
-		freePtr = next;
-		next = next->next;
-		delete freePtr;
-	}
-
 	delete batch;
 
 	return MIXER_OK;
 }
 
-int interactive_batch_end(interactive_batch_internal* batch)
+int interactive_batch_commit(interactive_batch_internal* batch)
 {
 	if (nullptr == batch)
 	{
 		return MIXER_ERROR_INVALID_POINTER;
 	}
 
-	int result = queue_method(*batch->session, batch->method, [&](rapidjson::Document::AllocatorType& allocator, rapidjson::Value& params)
-	{
-		params.AddMember(RPC_PRIORITY, batch->priority, allocator);
-		batch->getParams(batch, allocator, params);
-	}, nullptr, batch->document);
-
-	interactive_batch_free(batch);
-
-	return result;
+	return queue_method_prebuilt(*batch->session, batch->method.c_str(), nullptr, batch->document);
 }
 
-int interactive_batch_add_param(interactive_batch batch, interactive_batch_entry entry, const char* name, rapidjson::Value& value)
+int interactive_batch_add_param(interactive_batch_internal* batch, rapidjson::Pointer& ptr, rapidjson::Value& value)
 {
-	if (nullptr == batch || nullptr == entry || nullptr == name)
+	if (nullptr == batch)
 	{
 		return MIXER_ERROR_INVALID_POINTER;
 	}
 
-	interactive_batch_internal* batchInternal = reinterpret_cast<interactive_batch_internal*>(batch);
-	interactive_batch_entry_internal* entryInternal = reinterpret_cast<interactive_batch_entry_internal*>(entry);
-	entryInternal->value.AddMember(
-		rapidjson::Value(std::string(name).c_str(), batchInternal->document->GetAllocator()),
-		value,
-		batchInternal->document->GetAllocator());
+	ptr.Set(*batch->document, value);
 
 	return MIXER_OK;
 }
 
-int interactive_batch_array_push(interactive_batch batch, interactive_batch_array arrayItem, rapidjson::Value& value)
+int interactive_batch_add_param(interactive_batch_object* obj, const char *paramName, rapidjson::Value& value)
 {
-	if (nullptr == batch || nullptr == arrayItem)
+	if (nullptr == obj || nullptr == paramName)
 	{
 		return MIXER_ERROR_INVALID_POINTER;
 	}
 
-	interactive_batch_internal* batchInternal = reinterpret_cast<interactive_batch_internal*>(batch);
-	interactive_batch_array_internal* arrayInternal = reinterpret_cast<interactive_batch_array_internal*>(arrayItem);
-	arrayInternal->value.PushBack(value, batchInternal->document->GetAllocator());
+	object_get_value(obj)->AddMember(
+		rapidjson::Value(std::string(paramName).c_str(), object_get_batch(obj)->document->GetAllocator()),
+		value,
+		object_get_batch(obj)->document->GetAllocator());
+
+	return MIXER_OK;
+}
+
+int interactive_batch_array_push(interactive_batch_array* array, rapidjson::Value& value)
+{
+	if (nullptr == array)
+	{
+		return MIXER_ERROR_INVALID_POINTER;
+	}
+
+	array_get_value(array)->PushBack(value, array_get_batch(array)->document->GetAllocator());
+
+	return MIXER_OK;
+}
+
+int interactive_batch_array_push(interactive_batch_array* array, rapidjson::Pointer& ptr, rapidjson::Value& value)
+{
+	if (nullptr == array)
+	{
+		return MIXER_ERROR_INVALID_POINTER;
+	}
+
+	interactive_batch_internal* batch = array_get_batch(array);
+	ptr.Set(*batch->document.get(), value);
 
 	return MIXER_OK;
 }
@@ -157,6 +160,16 @@ int interactive_batch_array_push(interactive_batch batch, interactive_batch_arra
 
 using namespace mixer_internal;
 
+int interactive_batch_close(interactive_batch batch)
+{
+	if (nullptr == batch)
+	{
+		return MIXER_ERROR_INVALID_POINTER;
+	}
+
+	return interactive_batch_free(cast_batch(batch));
+}
+
 int interactive_batch_set_priority(interactive_batch batch, int priority)
 {
 	if (nullptr == batch)
@@ -164,112 +177,157 @@ int interactive_batch_set_priority(interactive_batch batch, int priority)
 		return MIXER_ERROR_INVALID_POINTER;
 	}
 
-	interactive_batch_internal* batchInternal = reinterpret_cast<interactive_batch_internal*>(batch);
-	batchInternal->priority = priority;
+	interactive_batch_internal* batchInternal = cast_batch(batch);
+	std::stringstream ss;
+	ss << "/" << RPC_PARAMS << "/" << RPC_PRIORITY;
+	rapidjson::Pointer(ss.str().c_str()).Set(*batchInternal->document, priority);
 	return MIXER_OK;
 }
 
-int interactive_batch_add_param_null(interactive_batch batch, interactive_batch_entry entry, const char* name)
+int interactive_batch_add_param_null(interactive_batch_object* obj, const char* name)
 {
-	return interactive_batch_add_param(batch, entry, name, rapidjson::Value(rapidjson::kNullType).Move());
+	return interactive_batch_add_param(
+		obj,
+		name,
+		rapidjson::Value(rapidjson::kNullType).Move());
 }
 
-int interactive_batch_add_param_str(interactive_batch batch, interactive_batch_entry entry, const char* name, const char* value)
+int interactive_batch_add_param_str(interactive_batch_object* obj, const char* name, const char* value)
+{
+	if (nullptr == obj || nullptr == value)
+	{
+		return MIXER_ERROR_INVALID_POINTER;
+	}
+
+	interactive_batch_internal* batch = object_get_batch(obj);
+	if (nullptr == batch)
+	{
+		return MIXER_ERROR_INVALID_POINTER;
+	}
+
+	return interactive_batch_add_param(
+		obj,
+		name,
+		rapidjson::Value(std::string(value).c_str(), batch->document->GetAllocator()).Move());
+}
+
+int interactive_batch_add_param_uint(interactive_batch_object* obj, const char* name, unsigned int value)
+{
+	return interactive_batch_add_param(
+		obj,
+		name,
+		rapidjson::Value(value).Move());
+}
+
+int interactive_batch_add_param_bool(interactive_batch_object* obj, const char* name, bool value)
+{
+	return interactive_batch_add_param(
+		obj,
+		name,
+		rapidjson::Value(value).Move());
+}
+
+int interactive_batch_add_param_object(interactive_batch_object* obj, const char* name, interactive_batch_object* paramObj)
+{
+	if (nullptr == obj || nullptr == name || nullptr == paramObj)
+	{
+		return MIXER_ERROR_INVALID_POINTER;
+	}
+
+	interactive_batch_internal* batch = object_get_batch(obj);
+	auto jsonObj = object_get_value(obj)->GetObject();
+	jsonObj.AddMember(
+		rapidjson::Value(std::string(name).c_str(), object_get_batch(obj)->document->GetAllocator()).Move(),
+		rapidjson::Value(rapidjson::kObjectType).Move(),
+		object_get_batch(obj)->document->GetAllocator());
+	OBJECT_BATCH(paramObj) = batch;
+	OBJECT_POINTER(paramObj) = &jsonObj.FindMember(name)->value;
+
+	return MIXER_OK;
+}
+
+int interactive_batch_add_param_array(interactive_batch_object* obj, const char* name, interactive_batch_array* paramArr)
+{
+	if (nullptr == obj || nullptr == name || nullptr == paramArr)
+	{
+		return MIXER_ERROR_INVALID_POINTER;
+	}
+
+	interactive_batch_internal* batch = object_get_batch(obj);
+	auto jsonObj = object_get_value(obj)->GetObject();
+	jsonObj.AddMember(
+		rapidjson::Value(std::string(name).c_str(), object_get_batch(obj)->document->GetAllocator()).Move(),
+		rapidjson::Value(rapidjson::kArrayType).Move(),
+		object_get_batch(obj)->document->GetAllocator());
+	OBJECT_BATCH(paramArr) = batch;
+	OBJECT_POINTER(paramArr) = &jsonObj.FindMember(name)->value;
+
+	return MIXER_OK;
+}
+
+int interactive_batch_array_push_null(interactive_batch_array* array)
+{
+	return interactive_batch_array_push(array, rapidjson::Value(rapidjson::kNullType).Move());
+}
+
+int interactive_batch_array_push_str(interactive_batch_array* array, const char* value)
 {
 	if (nullptr == value)
 	{
 		return MIXER_ERROR_INVALID_POINTER;
 	}
 
-	interactive_batch_internal* batchInternal = reinterpret_cast<interactive_batch_internal*>(batch);
-	return interactive_batch_add_param(batch, entry, name, rapidjson::Value(std::string(value).c_str(), batchInternal->document->GetAllocator()).Move());
-}
-
-int interactive_batch_add_param_uint(interactive_batch batch, interactive_batch_entry entry, const char* name, unsigned int value)
-{
-	return interactive_batch_add_param(batch, entry, name, rapidjson::Value(value).Move());
-}
-
-int interactive_batch_add_param_bool(interactive_batch batch, interactive_batch_entry entry, const char* name, bool value)
-{
-	return interactive_batch_add_param(batch, entry, name, rapidjson::Value(value).Move());
-}
-
-int interactive_batch_add_param_object(interactive_batch batch, interactive_batch_entry entry, const char* name, interactive_batch_object_callback callback)
-{
-	if (nullptr == batch || nullptr == entry)
-	{
-		return MIXER_ERROR_INVALID_POINTER;
-	}
-	
-	std::auto_ptr<interactive_batch_entry_internal> tempEntry(new interactive_batch_entry_internal());
-	callback(batch, reinterpret_cast<interactive_batch_entry>(tempEntry.get()));
-
-	return interactive_batch_add_param(batch, entry, name, tempEntry->value);
-}
-
-int interactive_batch_add_param_array(interactive_batch batch, interactive_batch_entry entry, const char* name, interactive_batch_array_callback callback)
-{
-	if (nullptr == batch || nullptr == entry)
+	interactive_batch_internal* batch = array_get_batch(array);
+	if (nullptr == batch)
 	{
 		return MIXER_ERROR_INVALID_POINTER;
 	}
 
-	std::auto_ptr<interactive_batch_array_internal> tempArray(new interactive_batch_array_internal());
-	tempArray->value.SetArray();
-	callback(batch, reinterpret_cast<interactive_batch_array>(tempArray.get()));
-
-	return interactive_batch_add_param(batch, entry, name, tempArray->value);
+	return interactive_batch_array_push(array, rapidjson::Value(std::string(value).c_str(), batch->document->GetAllocator()).Move());
 }
 
-int interactive_batch_array_push_null(interactive_batch batch, interactive_batch_array arrayItem)
+int interactive_batch_array_push_uint(interactive_batch_array* array, unsigned int value)
 {
-	return interactive_batch_array_push(batch, arrayItem, rapidjson::Value(rapidjson::kNullType).Move());
+	return interactive_batch_array_push(array, rapidjson::Value(value).Move());
 }
 
-int interactive_batch_array_push_str(interactive_batch batch, interactive_batch_array arrayItem, const char* value)
+int interactive_batch_array_push_bool(interactive_batch_array* array, bool value)
 {
-	if (nullptr == value)
+	return interactive_batch_array_push(array, rapidjson::Value(value).Move());
+}
+
+int interactive_batch_array_push_object(interactive_batch_array* array, interactive_batch_object* pushObj)
+{
+	if (nullptr == array || nullptr == pushObj)
 	{
 		return MIXER_ERROR_INVALID_POINTER;
 	}
 
-	interactive_batch_internal* batchInternal = reinterpret_cast<interactive_batch_internal*>(batch);
-	return interactive_batch_array_push(batch, arrayItem, rapidjson::Value(std::string(value).c_str(), batchInternal->document->GetAllocator()).Move());
+	interactive_batch_internal* batch = array_get_batch(array);
+	auto arr = array_get_value(array)->GetArray();
+	arr.PushBack(
+		rapidjson::Value(rapidjson::kObjectType).Move(),
+		array_get_batch(array)->document->GetAllocator());
+	OBJECT_BATCH(pushObj) = batch;
+	OBJECT_POINTER(pushObj) = &arr[arr.Size() - 1];
+
+	return MIXER_OK;
 }
 
-int interactive_batch_array_push_uint(interactive_batch batch, interactive_batch_array arrayItem, unsigned int value)
+int interactive_batch_array_push_array(interactive_batch_array* array, interactive_batch_array* pushArr)
 {
-	return interactive_batch_array_push(batch, arrayItem, rapidjson::Value(value).Move());
-}
-
-int interactive_batch_array_push_bool(interactive_batch batch, interactive_batch_array arrayItem, bool value)
-{
-	return interactive_batch_array_push(batch, arrayItem, rapidjson::Value(value).Move());
-}
-
-int interactive_batch_array_push_object(interactive_batch batch, interactive_batch_array arrayItem, interactive_batch_object_callback callback)
-{
-	if (nullptr == batch || nullptr == arrayItem)
+	if (nullptr == array || nullptr == pushArr)
 	{
 		return MIXER_ERROR_INVALID_POINTER;
 	}
 
-	std::auto_ptr<interactive_batch_entry_internal> tempEntry(new interactive_batch_entry_internal());
-	callback(batch, reinterpret_cast<interactive_batch_entry>(tempEntry.get()));
+	interactive_batch_internal* batch = array_get_batch(array);
+	auto arr = array_get_value(array)->GetArray();
+	arr.PushBack(
+		rapidjson::Value(rapidjson::kArrayType).Move(),
+		array_get_batch(array)->document->GetAllocator());
+	OBJECT_BATCH(pushArr) = batch;
+	OBJECT_POINTER(pushArr) = &arr[arr.Size() - 1];
 
-	return interactive_batch_array_push(batch, arrayItem, tempEntry->value);
-}
-
-int interactive_batch_array_push_array(interactive_batch batch, interactive_batch_array arrayItem, interactive_batch_array_callback callback)
-{
-	if (nullptr == batch || nullptr == arrayItem)
-	{
-		return MIXER_ERROR_INVALID_POINTER;
-	}
-
-	std::auto_ptr<interactive_batch_array_internal> tempArray(new interactive_batch_array_internal());
-	callback(batch, reinterpret_cast<interactive_batch_array>(tempArray.get()));
-
-	return interactive_batch_array_push(batch, arrayItem, tempArray->value);
+	return MIXER_OK;
 }

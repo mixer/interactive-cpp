@@ -2,6 +2,8 @@
 #include "interactive_batch.h"
 #include "common.h"
 
+#include <sstream>
+
 namespace mixer_internal
 {
 
@@ -541,17 +543,6 @@ int interactive_control_get_meta_property_string(interactive_session session, co
 	return MIXER_OK;
 }
 
-void interactive_control_batch_get_params(interactive_batch_internal* batchInternal, rapidjson::Document::AllocatorType& allocator, rapidjson::Value& params)
-{
-	rapidjson::Value controls(rapidjson::kArrayType);
-	interactive_batch_iterate_entries(batchInternal, [&](interactive_batch_entry_internal* entry)
-	{
-		controls.PushBack(entry->value, allocator);
-	});
-	params.AddMember(RPC_PARAM_CONTROLS, controls, allocator);
-	params.AddMember(RPC_SCENE_ID, std::string(batchInternal->param), allocator);
-}
-
 int interactive_control_batch_begin(interactive_session session, interactive_batch* batchPtr, const char* sceneId)
 {
 	if (nullptr == session || nullptr == batchPtr)
@@ -559,10 +550,16 @@ int interactive_control_batch_begin(interactive_session session, interactive_bat
 		return MIXER_ERROR_INVALID_POINTER;
 	}
 
-	RETURN_IF_FAILED(interactive_batch_begin(session, batchPtr, RPC_METHOD_UPDATE_CONTROLS, interactive_control_batch_get_params));
-
+	RETURN_IF_FAILED(interactive_batch_begin(session, batchPtr, RPC_METHOD_UPDATE_CONTROLS));
+	
 	interactive_batch_internal* batchInternal = reinterpret_cast<interactive_batch_internal*>(*batchPtr);
-	batchInternal->param = sceneId;
+	std::stringstream ss;
+	ss << "/" << RPC_PARAMS << "/" RPC_SCENE_ID;
+	rapidjson::Pointer ptr(ss.str().c_str());
+	interactive_batch_add_param(
+		batchInternal,
+		ptr,
+		rapidjson::Value(std::string(sceneId).c_str(), batchInternal->document->GetAllocator()).Move());
 
 	return MIXER_OK;
 }
@@ -573,9 +570,9 @@ int interactive_control_batch_add(interactive_batch batch, interactive_batch_ent
 		return MIXER_ERROR_INVALID_POINTER;
 	}
 
-	RETURN_IF_FAILED(interactive_batch_add_entry(batch, entry));
+	RETURN_IF_FAILED(interactive_batch_add_entry(batch, entry, RPC_PARAM_CONTROLS));
 
-	RETURN_IF_FAILED(interactive_batch_add_param_str(batch, *entry, RPC_CONTROL_ID, controlId));
+	RETURN_IF_FAILED(interactive_batch_add_param_str(&entry->obj, RPC_CONTROL_ID, controlId));
 
 	return MIXER_OK;
 }
@@ -588,5 +585,5 @@ int interactive_control_batch_commit(interactive_batch batch)
 	}
 
 	interactive_batch_internal* batchInternal = reinterpret_cast<interactive_batch_internal*>(batch);
-	return interactive_batch_end(batchInternal);
+	return interactive_batch_commit(batchInternal);
 }

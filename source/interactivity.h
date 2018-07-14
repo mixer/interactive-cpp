@@ -181,25 +181,38 @@ extern "C" {
 	/// </summary>
 	struct interactive_batch_public {};
 
-	/// <summary>
-	/// Opqaque handle for a batch entry object
-	/// </summary>
-	struct interactive_batch_entry_public {};
-
-	/// <summary>
-	/// Opqaque handle for a batch entry array
-	/// </summary>
-	struct interactive_batch_array_public {};
-
 	typedef interactive_batch_public* interactive_batch;
 
-	typedef interactive_batch_entry_public* interactive_batch_entry;
+	/// <summary>
+	/// Opaque handle for a batch object
+	/// </summary>
+	struct interactive_batch_object
+	{
+		void* _a;
+		void* _b;
+	};
 
-	typedef interactive_batch_array_public* interactive_batch_array;
+	/// <summary>
+	/// Opaque handle for a batch array
+	/// </summary>
+	struct interactive_batch_array
+	{
+		void* _a;
+		void* _b;
+	};
 
-	typedef void(*interactive_batch_object_callback)(interactive_batch, interactive_batch_entry);
+	/// <summary>
+	/// Handle for a batch entry
+	/// </summary>
+	struct interactive_batch_entry
+	{
+		interactive_batch_object obj;
+	};
 
-	typedef void(*interactive_batch_array_callback)(interactive_batch, interactive_batch_array);
+	/// <summary>
+	/// Closes an interactive batch request. Should be called after committing or aborting a batch request to free memory.
+	/// </summary>
+	int interactive_batch_close(interactive_batch batch);
 
 	/// <summary>
 	/// Nullifies a field on a batch update object.
@@ -207,22 +220,22 @@ extern "C" {
 	/// <para>The Mixer interactive protocol implements the JSON Merge Patch algorithm (RFC 7386) for updates on protocol objects - meaning that to delete an object property you need to set it to null rather than just omit it in an update.</para>
 	/// </remarks>
 	/// </summary>
-	int interactive_batch_add_param_null(interactive_batch batch, interactive_batch_entry entry, const char* name);
+	int interactive_batch_add_param_null(interactive_batch_object* obj, const char* name);
 
 	/// <summary>
 	/// Adds a string field on a batch update object.
 	/// </summary>
-	int interactive_batch_add_param_str(interactive_batch batch, interactive_batch_entry entry, const char* name, const char* value);
+	int interactive_batch_add_param_str(interactive_batch_object* obj, const char* name, const char* value);
 
 	/// <summary>
 	/// Adds a uint field on a batch update object.
 	/// </summary>
-	int interactive_batch_add_param_uint(interactive_batch batch, interactive_batch_entry entry, const char* name, unsigned int value);
+	int interactive_batch_add_param_uint(interactive_batch_object* obj, const char* name, unsigned int value);
 
 	/// <summary>
 	/// Adds a bool field on a batch update object.
 	/// </summary>
-	int interactive_batch_add_param_bool(interactive_batch batch, interactive_batch_entry entry, const char* name, bool value);
+	int interactive_batch_add_param_bool(interactive_batch_object* obj, const char* name, bool value);
 
 	/// <summary>
 	/// Adds an object field on a batch update object.
@@ -230,7 +243,7 @@ extern "C" {
 	/// <para>Object properties must be added before the supplied callback returns using the `interactive_batch_add_param_*` family of methods.</para>
 	/// </remarks>
 	/// </summary>
-	int interactive_batch_add_param_object(interactive_batch batch, interactive_batch_entry entry, const char* name, interactive_batch_object_callback callback);
+	int interactive_batch_add_param_object(interactive_batch_object* obj, const char* name, interactive_batch_object* paramObj);
 
 	/// <summary>
 	/// Adds an array field on a batch update object.
@@ -238,7 +251,7 @@ extern "C" {
 	/// <para>Array items must be added before the supplied callback returns using the `interactive_batch_array_push_*` family of methods.</para>
 	/// </remarks>
 	/// </summary>
-	int interactive_batch_add_param_array(interactive_batch batch, interactive_batch_entry entry, const char* name, interactive_batch_array_callback callback);
+	int interactive_batch_add_param_array(interactive_batch_object* obj, const char* name, interactive_batch_array* paramArr);
 
 	/// <summary>
 	/// Pushes a null item to a batch update array.
@@ -246,7 +259,7 @@ extern "C" {
 	/// <para>Must be called within the callback from `interactive_batch_add_param_array` or `interactive_batch_array_push_object`.</para>
 	/// </remarks>
 	/// </summary>
-	int interactive_batch_array_push_null(interactive_batch batch, interactive_batch_array arrayItem);
+	int interactive_batch_array_push_null(interactive_batch_array* array);
 
 	/// <summary>
 	/// Pushes a string item to a batch update array.
@@ -254,7 +267,7 @@ extern "C" {
 	/// <para>Must be called within the callback from `interactive_batch_add_param_array` or `interactive_batch_array_push_object`.</para>
 	/// </remarks>
 	/// </summary>
-	int interactive_batch_array_push_str(interactive_batch batch, interactive_batch_array arrayItem, const char* value);
+	int interactive_batch_array_push_str(interactive_batch_array* array, const char* value);
 
 	/// <summary>
 	/// Pushes a uint item to a batch update array.
@@ -262,7 +275,7 @@ extern "C" {
 	/// <para>Must be called within the callback from `interactive_batch_add_param_array` or `interactive_batch_array_push_object`.</para>
 	/// </remarks>
 	/// </summary>
-	int interactive_batch_array_push_uint(interactive_batch batch, interactive_batch_array arrayItem, unsigned int value);
+	int interactive_batch_array_push_uint(interactive_batch_array* array, unsigned int value);
 
 	/// <summary>
 	/// Pushes a bool item to a batch update array.
@@ -270,7 +283,7 @@ extern "C" {
 	/// <para>Must be called within the callback from `interactive_batch_add_param_array` or `interactive_batch_array_push_object`.</para>
 	/// </remarks>
 	/// </summary>
-	int interactive_batch_array_push_bool(interactive_batch batch, interactive_batch_array arrayItem, bool value);
+	int interactive_batch_array_push_bool(interactive_batch_array* array, bool value);
 
 	/// <summary>
 	/// Pushes an object on to a batch update array.
@@ -279,7 +292,7 @@ extern "C" {
 	/// <para>Object properties must be added before the supplied callback returns using the `interactive_batch_add_param_*` family of methods.</para>
 	/// </remarks>
 	/// </summary>
-	int interactive_batch_array_push_object(interactive_batch batch, interactive_batch_array arrayItem, interactive_batch_object_callback callback);
+	int interactive_batch_array_push_object(interactive_batch_array* array, interactive_batch_object* pushObj);
 
 	/// <summary>
 	/// Pushes an array on to a batch update array.
@@ -288,7 +301,12 @@ extern "C" {
 	/// <para>Array items must be added before the supplied callback returns using the `interactive_batch_array_push_*` family of methods.</para>
 	/// </remarks>
 	/// </summary>
-	int interactive_batch_array_push_array(interactive_batch batch, interactive_batch_array arrayItem, interactive_batch_array_callback callback);
+	int interactive_batch_array_push_array(interactive_batch_array* array, interactive_batch_array* pushArr);
+
+	/// <summary>
+	/// Sets the update priority of this batch update.
+	/// </summary>
+	int interactive_batch_set_priority(interactive_batch batch, int priority);
 
 	/** @} */
 

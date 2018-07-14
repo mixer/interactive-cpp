@@ -128,6 +128,7 @@ typedef std::function<void(rapidjson::Document::AllocatorType& allocator, rapidj
 int send_method(interactive_session_internal& session, const std::string& method, on_get_params getParams, bool discard, unsigned int* id);
 int queue_method(interactive_session_internal& session, const std::string& method, on_get_params getParams, method_handler onReply);
 int queue_method(interactive_session_internal& session, const std::string& method, on_get_params getParams, method_handler onReply, std::shared_ptr<rapidjson::Document>& methodDoc);
+int queue_method_prebuilt(interactive_session_internal& session, const std::string& method, method_handler onReply, std::shared_ptr<rapidjson::Document>& methodDoc);
 int receive_reply(interactive_session_internal& session, unsigned int id, std::shared_ptr<rapidjson::Document>& replyPtr, unsigned int timeoutMs = 5000);
 
 int cache_groups(interactive_session_internal& session);

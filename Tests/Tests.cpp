@@ -542,7 +542,6 @@ public:
 
 		ASSERT_NOERR(do_auth(clientId, "", auth));
 
-		interactive_session session;
 		Logger::WriteMessage("Connecting...");
 		ASSERT_NOERR(interactive_open_session(&session));
 		ASSERT_NOERR(interactive_set_error_handler(session, handle_error_assert));
@@ -559,6 +558,7 @@ public:
 
 		Logger::WriteMessage("Disconnecting...");
 		interactive_close_session(session);
+		session = nullptr;
 
 		Assert::IsTrue(0 == err);
 	}
@@ -577,7 +577,6 @@ public:
 
 		ASSERT_NOERR(do_auth(clientId, clientSecret, auth));
 
-		interactive_session session;
 		Logger::WriteMessage("Connecting...");
 		ASSERT_NOERR(interactive_open_session(&session));
 		ASSERT_NOERR(interactive_set_error_handler(session, handle_error_assert));
@@ -594,6 +593,7 @@ public:
 
 		Logger::WriteMessage("Disconnecting...");
 		interactive_close_session(session);
+		session = nullptr;
 
 		Assert::IsTrue(0 == err);
 	}
@@ -611,7 +611,6 @@ public:
 
 		ASSERT_NOERR(do_auth(clientId, "", auth));
 
-		interactive_session session;
 		ASSERT_NOERR(interactive_open_session(&session));
 		ASSERT_NOERR(interactive_set_error_handler(session, handle_error_assert));
 		ASSERT_NOERR(interactive_set_input_handler(session, handle_input));
@@ -637,6 +636,7 @@ public:
 
 		Logger::WriteMessage("Disconnecting...");
 		interactive_close_session(session);
+		session = nullptr;
 
 		Assert::IsTrue(0 == err);
 	}
@@ -654,7 +654,6 @@ public:
 
 		ASSERT_NOERR(do_auth(clientId, "", auth));
 
-		interactive_session session;
 		ASSERT_NOERR(interactive_open_session(&session));
 		ASSERT_NOERR(interactive_set_error_handler(session, handle_error_assert));
 		interactive_set_state_changed_handler(session, [](void* context, interactive_session session, interactive_state prevState, interactive_state newState)
@@ -691,6 +690,7 @@ public:
 
 		Logger::WriteMessage("Disconnecting...");
 		interactive_close_session(session);
+		session = nullptr;
 
 		Assert::IsTrue(0 == err);
 	}
@@ -708,7 +708,6 @@ public:
 
 		ASSERT_NOERR(do_auth(clientId, "", auth));
 
-		interactive_session session;
 		Logger::WriteMessage("Connecting...");
 		ASSERT_NOERR(interactive_open_session(&session));
 		ASSERT_NOERR(interactive_set_error_handler(session, handle_error_assert));
@@ -795,6 +794,7 @@ public:
 
 		Logger::WriteMessage("Disconnecting...");
 		interactive_close_session(session);
+		session = nullptr;
 
 		Assert::IsTrue(0 == err);
 	}
@@ -812,7 +812,6 @@ public:
 
 		ASSERT_NOERR(do_auth(clientId, "", auth));
 
-		interactive_session session;
 		Logger::WriteMessage("Connecting...");
 		ASSERT_NOERR(interactive_open_session(&session));
 		ASSERT_NOERR(interactive_set_error_handler(session, handle_error_assert));
@@ -857,6 +856,7 @@ public:
 
 		Logger::WriteMessage("Disconnecting...");
 		interactive_close_session(session);
+		session = nullptr;
 
 		Assert::IsTrue(0 == err);
 	}
@@ -874,7 +874,6 @@ public:
 
 		ASSERT_NOERR(do_auth(clientId, "", auth));
 
-		interactive_session session;
 		ASSERT_NOERR(interactive_open_session(&session));
 
 		std::string controlId = "GiveHealth";
@@ -929,6 +928,7 @@ public:
 
 		Logger::WriteMessage("Disconnecting...");
 		interactive_close_session(session);
+		session = nullptr;
 	}
 
 	TEST_METHOD(ControlBatchTest)
@@ -944,7 +944,6 @@ public:
 
 		ASSERT_NOERR(do_auth(clientId, "", auth));
 
-		interactive_session session;
 		Logger::WriteMessage("Connecting...");
 		ASSERT_NOERR(interactive_open_session(&session));
 		ASSERT_NOERR(interactive_set_error_handler(session, handle_error_assert));
@@ -965,24 +964,37 @@ public:
 
 		interactive_batch_entry entry;
 		Assert::AreEqual((int)MIXER_OK, interactive_control_batch_add(batch, &entry, "GiveHealth"));
-		Assert::AreEqual((int)MIXER_OK, interactive_batch_add_param_str(batch, entry, "foo", "bar"));
-		Assert::AreEqual((int)MIXER_OK, interactive_batch_add_param_uint(batch, entry, "number", 42));
-		Assert::AreEqual((int)MIXER_OK, interactive_batch_add_param_array(batch, entry, "array", [](interactive_batch batch, interactive_batch_array arrayItem)
-		{
-			Assert::AreEqual((int)MIXER_OK, interactive_batch_array_push_object(batch, arrayItem, [](interactive_batch batch, interactive_batch_entry objectEntry)
-			{
-				Assert::AreEqual((int)MIXER_OK, interactive_batch_add_param_str(batch, objectEntry, "foo", "bar"));
-				Assert::AreEqual((int)MIXER_OK, interactive_batch_add_param_uint(batch, objectEntry, "number", 42));
-			}));
-			Assert::AreEqual((int)MIXER_OK, interactive_batch_array_push_str(batch, arrayItem, "bar"));
-			Assert::AreEqual((int)MIXER_OK, interactive_batch_array_push_uint(batch, arrayItem, 42));
-		}));
-		Assert::AreEqual((int)MIXER_OK, interactive_batch_add_param_object(batch, entry, "object", [](interactive_batch batch, interactive_batch_entry objectEntry)
-		{
-			Assert::AreEqual((int)MIXER_OK, interactive_batch_add_param_str(batch, objectEntry, "foo", "bar"));
-			Assert::AreEqual((int)MIXER_OK, interactive_batch_add_param_uint(batch, objectEntry, "number", 42));
-		}));
+		Assert::AreEqual((int)MIXER_OK, interactive_batch_add_param_str(&entry.obj, "foo", "bar"));
+		Assert::AreEqual((int)MIXER_OK, interactive_batch_add_param_uint(&entry.obj, "number", 42));
+
+		interactive_batch_array entryArray;
+		interactive_batch_add_param_array(&entry.obj, "array", &entryArray);
+
+		interactive_batch_object entryArrayObject;
+		interactive_batch_array_push_object(&entryArray, &entryArrayObject);
+		Assert::AreEqual((int)MIXER_OK, interactive_batch_add_param_str(&entryArrayObject, "foo", "bar"));
+		Assert::AreEqual((int)MIXER_OK, interactive_batch_add_param_uint(&entryArrayObject, "number", 42));
+
+		Assert::AreEqual((int)MIXER_OK, interactive_batch_array_push_str(&entryArray, "bar"));
+		Assert::AreEqual((int)MIXER_OK, interactive_batch_array_push_uint(&entryArray, 42));
+
+		interactive_batch_array entryArrayArray;
+		interactive_batch_array_push_array(&entryArray, &entryArrayArray);
+
+		interactive_batch_object entryArrayArrayObject;
+		interactive_batch_array_push_object(&entryArrayArray, &entryArrayArrayObject);
+		Assert::AreEqual((int)MIXER_OK, interactive_batch_add_param_str(&entryArrayArrayObject, "foo", "bar"));
+		Assert::AreEqual((int)MIXER_OK, interactive_batch_add_param_uint(&entryArrayArrayObject, "number", 42));
+
+		Assert::AreEqual((int)MIXER_OK, interactive_batch_array_push_str(&entryArrayArray, "bar"));
+		Assert::AreEqual((int)MIXER_OK, interactive_batch_array_push_uint(&entryArrayArray, 42));
+
+		interactive_batch_object entryObject;
+		Assert::AreEqual((int)MIXER_OK, interactive_batch_add_param_object(&entry.obj, "object", &entryObject));
+		Assert::AreEqual((int)MIXER_OK, interactive_batch_add_param_str(&entryObject, "foo", "bar"));
+		Assert::AreEqual((int)MIXER_OK, interactive_batch_add_param_uint(&entryObject, "number", 42));
 		Assert::AreEqual((int)MIXER_OK, interactive_control_batch_commit(batch));
+		Assert::AreEqual((int)MIXER_OK, interactive_batch_close(batch));
 
 		// Simulate 60 frames/sec for 1 second.
 		for (int i = 0; i < fps * seconds; ++i)
@@ -1016,8 +1028,14 @@ public:
 			Assert::AreEqual(42, number);
 			memset(foo, 0, sizeof(char[4]));
 			number = 0;
-			Assert::AreEqual((int)MIXER_OK, interactive_control_get_property_string(session, "GiveHealth", "array/1", foo, &nameLength));
-			Assert::AreEqual((int)MIXER_OK, interactive_control_get_property_int(session, "GiveHealth", "array/2", &number));
+			Assert::AreEqual((int)MIXER_OK, interactive_control_get_property_string(session, "GiveHealth", "array/3/0/foo", foo, &nameLength));
+			Assert::AreEqual((int)MIXER_OK, interactive_control_get_property_int(session, "GiveHealth", "array/3/0/number", &number));
+			Assert::AreEqual("bar", foo);
+			Assert::AreEqual(42, number);
+			memset(foo, 0, sizeof(char[4]));
+			number = 0;
+			Assert::AreEqual((int)MIXER_OK, interactive_control_get_property_string(session, "GiveHealth", "array/3/1", foo, &nameLength));
+			Assert::AreEqual((int)MIXER_OK, interactive_control_get_property_int(session, "GiveHealth", "array/3/2", &number));
 			Assert::AreEqual("bar", foo);
 			Assert::AreEqual(42, number);
 			memset(foo, 0, sizeof(char[4]));
@@ -1036,9 +1054,34 @@ public:
 
 		Logger::WriteMessage("Disconnecting...");
 		interactive_close_session(session);
+		session = nullptr;
 
 		Assert::IsTrue(0 == err);
 	}
 
+	TEST_METHOD_CLEANUP(CleanupSession) {
+		if (nullptr != session)
+		{
+			try {
+				Logger::WriteMessage("Disconnecting in cleanup...");
+				interactive_close_session(session);
+			}
+			catch (std::exception e) {
+				Logger::WriteMessage((std::string("Error in cleanup handler: ") + e.what()).c_str());
+			}
+			catch (std::string e) {
+				Logger::WriteMessage(("Error in cleanup handler: " + e).c_str());
+			}
+			catch (...)
+			{
+				Logger::WriteMessage("Unknown error in cleanup handler. You should debug this.");
+			}
+		}
+
+		session = nullptr;
+	}
+
+private:
+	interactive_session session = nullptr;
 };
 }

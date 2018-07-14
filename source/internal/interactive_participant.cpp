@@ -265,29 +265,11 @@ int interactive_participant_get_group(interactive_session session, const char* p
 	return MIXER_OK;
 }
 
-int interactive_participant_batch_begin(interactive_session session, interactive_batch* batchPtr)
-{
-	if (nullptr == session || nullptr == batchPtr)
-	{
-		return MIXER_ERROR_INVALID_POINTER;
-	}
-
-	return interactive_batch_begin(session, batchPtr, RPC_METHOD_UPDATE_PARTICIPANTS, [](interactive_batch_internal* batchInternal, rapidjson::Document::AllocatorType& allocator, rapidjson::Value& params)
-	{
-		rapidjson::Value participants(rapidjson::kArrayType);
-		interactive_batch_iterate_entries(batchInternal, [&](interactive_batch_entry_internal* entry)
-		{
-			participants.PushBack(entry->value, allocator);
-		});
-		params.AddMember(RPC_PARAM_PARTICIPANTS, participants, allocator);
-	});
-}
-
 int interactive_participant_batch_add(interactive_batch batch, interactive_batch_entry* entry, const char* participantId)
 {
-	RETURN_IF_FAILED(interactive_batch_add_entry(batch, entry));
+	RETURN_IF_FAILED(interactive_batch_add_entry(batch, entry, RPC_PARAM_PARTICIPANTS));
 
-	RETURN_IF_FAILED(interactive_batch_add_param_str(batch, *entry, RPC_SESSION_ID, participantId));
+	RETURN_IF_FAILED(interactive_batch_add_param_str(&entry->obj, RPC_SESSION_ID, participantId));
 
 	return MIXER_OK;
 }
@@ -300,7 +282,7 @@ int interactive_participant_batch_commit(interactive_batch batch)
 	}
 
 	interactive_batch_internal* batchInternal = reinterpret_cast<interactive_batch_internal*>(batch);
-	return interactive_batch_end(batchInternal);
+	return interactive_batch_commit(batchInternal);
 }
 
 int interactive_participant_get_param_string(interactive_session session, const char * participantId, const char *paramName, char* value, size_t* valueLength)
