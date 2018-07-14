@@ -960,41 +960,48 @@ public:
 		}
 
 		interactive_batch batch;
-		Assert::AreEqual((int)MIXER_OK, interactive_control_batch_begin(session, "default", &batch));
+		ASSERT_NOERR(interactive_control_batch_begin(session, "default", &batch));
 
 		interactive_batch_entry entry;
-		Assert::AreEqual((int)MIXER_OK, interactive_control_batch_add(batch, "GiveHealth", &entry));
-		Assert::AreEqual((int)MIXER_OK, interactive_batch_add_param_str(&entry.obj, "foo", "bar"));
-		Assert::AreEqual((int)MIXER_OK, interactive_batch_add_param_uint(&entry.obj, "number", 42));
+		ASSERT_NOERR(interactive_control_batch_add(batch, "GiveHealth", &entry));
+		ASSERT_NOERR(interactive_batch_add_param_str(&entry.obj, "foo", "bar"));
+		ASSERT_NOERR(interactive_batch_add_param_uint(&entry.obj, "number", 42));
 
+		{
+			// Invalid Entry
+			interactive_batch_entry entryDupe;
+			ASSERT_ERR(MIXER_ERROR_DUPLICATE_ENTRY, interactive_control_batch_add(batch, "GiveHealth", &entryDupe));
+			ASSERT_ERR(MIXER_ERROR_INVALID_BATCH_TYPE, interactive_participant_batch_add(batch, "GiveHealth", &entryDupe));
+		}
+		
 		interactive_batch_array entryArray;
 		interactive_batch_add_param_array(&entry.obj, "array", &entryArray);
 
 		interactive_batch_object entryArrayObject;
 		interactive_batch_array_push_object(&entryArray, &entryArrayObject);
-		Assert::AreEqual((int)MIXER_OK, interactive_batch_add_param_str(&entryArrayObject, "foo", "bar"));
-		Assert::AreEqual((int)MIXER_OK, interactive_batch_add_param_uint(&entryArrayObject, "number", 42));
+		ASSERT_NOERR(interactive_batch_add_param_str(&entryArrayObject, "foo", "bar"));
+		ASSERT_NOERR(interactive_batch_add_param_uint(&entryArrayObject, "number", 42));
 
-		Assert::AreEqual((int)MIXER_OK, interactive_batch_array_push_str(&entryArray, "bar"));
-		Assert::AreEqual((int)MIXER_OK, interactive_batch_array_push_uint(&entryArray, 42));
+		ASSERT_NOERR(interactive_batch_array_push_str(&entryArray, "bar"));
+		ASSERT_NOERR(interactive_batch_array_push_uint(&entryArray, 42));
 
 		interactive_batch_array entryArrayArray;
 		interactive_batch_array_push_array(&entryArray, &entryArrayArray);
 
 		interactive_batch_object entryArrayArrayObject;
 		interactive_batch_array_push_object(&entryArrayArray, &entryArrayArrayObject);
-		Assert::AreEqual((int)MIXER_OK, interactive_batch_add_param_str(&entryArrayArrayObject, "foo", "bar"));
-		Assert::AreEqual((int)MIXER_OK, interactive_batch_add_param_uint(&entryArrayArrayObject, "number", 42));
+		ASSERT_NOERR(interactive_batch_add_param_str(&entryArrayArrayObject, "foo", "bar"));
+		ASSERT_NOERR(interactive_batch_add_param_uint(&entryArrayArrayObject, "number", 42));
 
-		Assert::AreEqual((int)MIXER_OK, interactive_batch_array_push_str(&entryArrayArray, "bar"));
-		Assert::AreEqual((int)MIXER_OK, interactive_batch_array_push_uint(&entryArrayArray, 42));
+		ASSERT_NOERR(interactive_batch_array_push_str(&entryArrayArray, "bar"));
+		ASSERT_NOERR(interactive_batch_array_push_uint(&entryArrayArray, 42));
 
 		interactive_batch_object entryObject;
-		Assert::AreEqual((int)MIXER_OK, interactive_batch_add_param_object(&entry.obj, "object", &entryObject));
-		Assert::AreEqual((int)MIXER_OK, interactive_batch_add_param_str(&entryObject, "foo", "bar"));
-		Assert::AreEqual((int)MIXER_OK, interactive_batch_add_param_uint(&entryObject, "number", 42));
-		Assert::AreEqual((int)MIXER_OK, interactive_control_batch_commit(batch));
-		Assert::AreEqual((int)MIXER_OK, interactive_batch_close(batch));
+		ASSERT_NOERR(interactive_batch_add_param_object(&entry.obj, "object", &entryObject));
+		ASSERT_NOERR(interactive_batch_add_param_str(&entryObject, "foo", "bar"));
+		ASSERT_NOERR(interactive_batch_add_param_uint(&entryObject, "number", 42));
+		ASSERT_NOERR(interactive_control_batch_commit(batch));
+		ASSERT_NOERR(interactive_batch_close(batch));
 
 		// Simulate 60 frames/sec for 1 second.
 		for (int i = 0; i < fps * seconds; ++i)
