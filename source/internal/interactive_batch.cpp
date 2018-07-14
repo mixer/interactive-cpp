@@ -38,7 +38,7 @@ inline rapidjson::Value* array_get_value(interactive_batch_array* obj)
 	return reinterpret_cast<rapidjson::Value*>(OBJECT_POINTER(obj));
 }
 
-int interactive_batch_begin(interactive_session session, interactive_batch* batchPtr, char *methodName)
+int interactive_batch_begin(interactive_session session, char *methodName, interactive_batch_type type, interactive_batch* batchPtr)
 {
 	if (nullptr == session || nullptr == batchPtr || nullptr == methodName)
 	{
@@ -48,6 +48,7 @@ int interactive_batch_begin(interactive_session session, interactive_batch* batc
 	std::auto_ptr<interactive_batch_internal> batchInternal(new interactive_batch_internal());
 	batchInternal->session = reinterpret_cast<interactive_session_internal*>(session);
 	batchInternal->method = methodName;
+	batchInternal->type = type;
 	batchInternal->document = std::make_shared<rapidjson::Document>();
 	*batchPtr = reinterpret_cast<interactive_batch>(batchInternal.release());
 
@@ -56,7 +57,7 @@ int interactive_batch_begin(interactive_session session, interactive_batch* batc
 	return MIXER_OK;
 }
 
-int interactive_batch_add_entry(interactive_batch batch, interactive_batch_entry* entry, const char * paramsKey)
+int interactive_batch_add_entry(interactive_batch batch, const char * paramsKey, const char* entryId, interactive_batch_entry* entry)
 {
 	if (nullptr == batch || nullptr == entry)
 	{
@@ -66,11 +67,17 @@ int interactive_batch_add_entry(interactive_batch batch, interactive_batch_entry
 	interactive_batch_internal* batchInternal = cast_batch(batch);
 	std::stringstream ss;
 	ss << "/" << RPC_PARAMS << "/" << paramsKey;
-	size_t pos = batchInternal->entries.size();
+	size_t pos = batchInternal->entryIds.size();
 	if (0 == pos)
 	{
 		rapidjson::Pointer(ss.str().c_str())
 			.Set(*batchInternal->document, rapidjson::Value(rapidjson::kArrayType));
+	}
+
+	auto result = batchInternal->entryIds.emplace(entryId);
+	if (!result.second)
+	{
+		return MIXER_ERROR_DUPLICATE_ENTRY;
 	}
 
 	ss << "/" << pos;

@@ -431,7 +431,7 @@ extern "C" {
 	/// <para>Batch requests are finalized with the `interactive_control_batch_commit` method after using `interactive_control_batch_add` to add the individual updates.</para>
 	/// </remarks>
 	/// </summary>
-	int interactive_control_batch_begin(interactive_session session, interactive_batch* batchPtr, const char* sceneId);
+	int interactive_control_batch_begin(interactive_session session, const char* sceneId, interactive_batch* batchPtr);
 
 	/// <summary>
 	/// Adds an update to the control batch request for the control with the given id.
@@ -439,7 +439,7 @@ extern "C" {
 	/// <para>Note that a batch request should only contain a single entry per control ID.</para>
 	/// </remarks>
 	/// </summary>
-	int interactive_control_batch_add(interactive_batch batch, interactive_batch_entry* entry, const char* controlId);
+	int interactive_control_batch_add(interactive_batch batch, const char* controlId, interactive_batch_entry* entry);
 
 	/// <summary>
 	/// Commits an interactive control batch update against the interactive service.
@@ -706,7 +706,7 @@ extern "C" {
 	/// <para>Note that a batch request should only contain a single entry per participant ID.</para>
 	/// </remarks>
 	/// </summary>
-	int interactive_participant_batch_add(interactive_batch batch, interactive_batch_entry* entry, const char* participantId);
+	int interactive_participant_batch_add(interactive_batch batch, const char* sessionId, interactive_batch_entry* entry);
 
 	/// <summary>
 	/// Commits an interactive participant batch update against the interactive service.
@@ -804,7 +804,9 @@ extern "C" {
 		MIXER_ERROR_WS_READ_FAILED,
 		MIXER_ERROR_WS_SEND_FAILED,
 		MIXER_ERROR_NOT_CONNECTED,
-		MIXER_ERROR_OBJECT_EXISTS
+		MIXER_ERROR_OBJECT_EXISTS,
+		MIXER_ERROR_INVALID_BATCH_TYPE,
+		MIXER_ERROR_DUPLICATE_ENTRY,
 	} mixer_result_code;
 	/** @} */
 

@@ -3,10 +3,17 @@
 #include "interactive_session.h"
 #include "rapidjson\document.h"
 
-#include <list>
+#include <unordered_set>
 
 namespace mixer_internal
 {
+
+enum interactive_batch_type
+{
+	INTERACTIVE_BATCH_TYPE_CONTROL,
+	INTERACTIVE_BATCH_TYPE_PARTICIPANT,
+	INTERACTIVE_BATCH_TYPE_SCENE
+};
 
 struct interactive_batch_internal;
 struct interactive_batch_internal
@@ -14,11 +21,12 @@ struct interactive_batch_internal
 	interactive_session_internal* session;
 	std::string method;
 	std::shared_ptr<rapidjson::Document> document;
-	std::list<interactive_batch_entry> entries;
+	std::unordered_set<std::string> entryIds;
+	interactive_batch_type type;
 };
 
-int interactive_batch_begin(interactive_session session, interactive_batch* batchPtr, char *methodName);
-int interactive_batch_add_entry(interactive_batch batch, interactive_batch_entry* entry, const char * paramsKey);
+int interactive_batch_begin(interactive_session session, char *methodName, interactive_batch_type type, interactive_batch* batchPtr);
+int interactive_batch_add_entry(interactive_batch batch, const char * paramsKey, const char* entryId, interactive_batch_entry* entry);
 int interactive_batch_free(interactive_batch_internal* batch);
 int interactive_batch_commit(interactive_batch_internal* batch);
 int interactive_batch_add_param(interactive_batch_internal* batch, rapidjson::Pointer& ptr, rapidjson::Value& value);

@@ -960,10 +960,10 @@ public:
 		}
 
 		interactive_batch batch;
-		Assert::AreEqual((int)MIXER_OK, interactive_control_batch_begin(session, &batch, "default"));
+		Assert::AreEqual((int)MIXER_OK, interactive_control_batch_begin(session, "default", &batch));
 
 		interactive_batch_entry entry;
-		Assert::AreEqual((int)MIXER_OK, interactive_control_batch_add(batch, &entry, "GiveHealth"));
+		Assert::AreEqual((int)MIXER_OK, interactive_control_batch_add(batch, "GiveHealth", &entry));
 		Assert::AreEqual((int)MIXER_OK, interactive_batch_add_param_str(&entry.obj, "foo", "bar"));
 		Assert::AreEqual((int)MIXER_OK, interactive_batch_add_param_uint(&entry.obj, "number", 42));
 

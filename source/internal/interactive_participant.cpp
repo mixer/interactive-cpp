@@ -265,11 +265,34 @@ int interactive_participant_get_group(interactive_session session, const char* p
 	return MIXER_OK;
 }
 
-int interactive_participant_batch_add(interactive_batch batch, interactive_batch_entry* entry, const char* participantId)
+int interactive_participant_batch_begin(interactive_session session, interactive_batch* batchPtr)
 {
-	RETURN_IF_FAILED(interactive_batch_add_entry(batch, entry, RPC_PARAM_PARTICIPANTS));
+	if (nullptr == session || nullptr == batchPtr)
+	{
+		return MIXER_ERROR_INVALID_POINTER;
+	}
 
-	RETURN_IF_FAILED(interactive_batch_add_param_str(&entry->obj, RPC_SESSION_ID, participantId));
+	RETURN_IF_FAILED(interactive_batch_begin(session, RPC_METHOD_UPDATE_PARTICIPANTS, INTERACTIVE_BATCH_TYPE_PARTICIPANT, batchPtr));
+
+	return MIXER_OK;
+}
+
+int interactive_participant_batch_add(interactive_batch batch, const char* sessionId, interactive_batch_entry* entry)
+{
+	if (nullptr == batch)
+	{
+		return MIXER_ERROR_INVALID_POINTER;
+	}
+
+	interactive_batch_internal* batchInternal = reinterpret_cast<interactive_batch_internal*>(batch);
+	if (batchInternal->type != INTERACTIVE_BATCH_TYPE_PARTICIPANT)
+	{
+		return MIXER_ERROR_INVALID_BATCH_TYPE;
+	}
+
+	RETURN_IF_FAILED(interactive_batch_add_entry(batch, RPC_PARAM_PARTICIPANTS, sessionId, entry));
+
+	RETURN_IF_FAILED(interactive_batch_add_param_str(&entry->obj, RPC_SESSION_ID, sessionId));
 
 	return MIXER_OK;
 }
@@ -282,6 +305,11 @@ int interactive_participant_batch_commit(interactive_batch batch)
 	}
 
 	interactive_batch_internal* batchInternal = reinterpret_cast<interactive_batch_internal*>(batch);
+	if (batchInternal->type != INTERACTIVE_BATCH_TYPE_PARTICIPANT)
+	{
+		return MIXER_ERROR_INVALID_BATCH_TYPE;
+	}
+
 	return interactive_batch_commit(batchInternal);
 }
 
