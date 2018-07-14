@@ -543,7 +543,7 @@ int interactive_control_get_meta_property_string(interactive_session session, co
 	return MIXER_OK;
 }
 
-int interactive_control_batch_begin(interactive_session session, const char* sceneId, interactive_batch* batchPtr)
+int interactive_control_batch_begin(interactive_session session, const char* sceneId, interactive_batch_op* batchPtr)
 {
 	if (nullptr == session || nullptr == batchPtr)
 	{
@@ -552,7 +552,7 @@ int interactive_control_batch_begin(interactive_session session, const char* sce
 
 	RETURN_IF_FAILED(interactive_batch_begin(session, RPC_METHOD_UPDATE_CONTROLS, INTERACTIVE_BATCH_TYPE_CONTROL, batchPtr));
 	
-	interactive_batch_internal* batchInternal = reinterpret_cast<interactive_batch_internal*>(*batchPtr);
+	interactive_batch_op_internal* batchInternal = reinterpret_cast<interactive_batch_op_internal*>(*batchPtr);
 	std::stringstream ss;
 	ss << "/" << RPC_PARAMS << "/" RPC_SCENE_ID;
 	rapidjson::Pointer ptr(ss.str().c_str());
@@ -564,13 +564,13 @@ int interactive_control_batch_begin(interactive_session session, const char* sce
 	return MIXER_OK;
 }
 
-int interactive_control_batch_add(interactive_batch batch, const char* controlId, interactive_batch_entry* entry)
+int interactive_control_batch_add(interactive_batch_op batch, const char* controlId, interactive_batch_entry* entry)
 {
 	if (nullptr == batch) {
 		return MIXER_ERROR_INVALID_POINTER;
 	}
 
-	interactive_batch_internal* batchInternal = reinterpret_cast<interactive_batch_internal*>(batch);
+	interactive_batch_op_internal* batchInternal = reinterpret_cast<interactive_batch_op_internal*>(batch);
 	if (batchInternal->type != INTERACTIVE_BATCH_TYPE_CONTROL)
 	{
 		return MIXER_ERROR_INVALID_BATCH_TYPE;
@@ -583,14 +583,14 @@ int interactive_control_batch_add(interactive_batch batch, const char* controlId
 	return MIXER_OK;
 }
 
-int interactive_control_batch_commit(interactive_batch batch)
+int interactive_control_batch_commit(interactive_batch_op batch)
 {
 	if (nullptr == batch)
 	{
 		return MIXER_ERROR_INVALID_POINTER;
 	}
 
-	interactive_batch_internal* batchInternal = reinterpret_cast<interactive_batch_internal*>(batch);
+	interactive_batch_op_internal* batchInternal = reinterpret_cast<interactive_batch_op_internal*>(batch);
 	if (batchInternal->type != INTERACTIVE_BATCH_TYPE_CONTROL)
 	{
 		return MIXER_ERROR_INVALID_BATCH_TYPE;

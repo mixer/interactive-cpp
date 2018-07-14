@@ -265,7 +265,7 @@ int interactive_participant_get_group(interactive_session session, const char* p
 	return MIXER_OK;
 }
 
-int interactive_participant_batch_begin(interactive_session session, interactive_batch* batchPtr)
+int interactive_participant_batch_begin(interactive_session session, interactive_batch_op* batchPtr)
 {
 	if (nullptr == session || nullptr == batchPtr)
 	{
@@ -277,14 +277,14 @@ int interactive_participant_batch_begin(interactive_session session, interactive
 	return MIXER_OK;
 }
 
-int interactive_participant_batch_add(interactive_batch batch, const char* sessionId, interactive_batch_entry* entry)
+int interactive_participant_batch_add(interactive_batch_op batch, const char* sessionId, interactive_batch_entry* entry)
 {
 	if (nullptr == batch)
 	{
 		return MIXER_ERROR_INVALID_POINTER;
 	}
 
-	interactive_batch_internal* batchInternal = reinterpret_cast<interactive_batch_internal*>(batch);
+	interactive_batch_op_internal* batchInternal = reinterpret_cast<interactive_batch_op_internal*>(batch);
 	if (batchInternal->type != INTERACTIVE_BATCH_TYPE_PARTICIPANT)
 	{
 		return MIXER_ERROR_INVALID_BATCH_TYPE;
@@ -297,14 +297,14 @@ int interactive_participant_batch_add(interactive_batch batch, const char* sessi
 	return MIXER_OK;
 }
 
-int interactive_participant_batch_commit(interactive_batch batch)
+int interactive_participant_batch_commit(interactive_batch_op batch)
 {
 	if (nullptr == batch)
 	{
 		return MIXER_ERROR_INVALID_POINTER;
 	}
 
-	interactive_batch_internal* batchInternal = reinterpret_cast<interactive_batch_internal*>(batch);
+	interactive_batch_op_internal* batchInternal = reinterpret_cast<interactive_batch_op_internal*>(batch);
 	if (batchInternal->type != INTERACTIVE_BATCH_TYPE_PARTICIPANT)
 	{
 		return MIXER_ERROR_INVALID_BATCH_TYPE;

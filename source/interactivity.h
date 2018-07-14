@@ -179,9 +179,9 @@ extern "C" {
 	/// <summary>
 	/// Opaque handle for a batch update object
 	/// </summary>
-	struct interactive_batch_public {};
+	struct interactive_batch_op_public {};
 
-	typedef interactive_batch_public* interactive_batch;
+	typedef interactive_batch_op_public* interactive_batch_op;
 
 	/// <summary>
 	/// Opaque handle for a batch object
@@ -212,7 +212,7 @@ extern "C" {
 	/// <summary>
 	/// Closes an interactive batch request. Should be called after committing or aborting a batch request to free memory.
 	/// </summary>
-	int interactive_batch_close(interactive_batch batch);
+	int interactive_batch_close(interactive_batch_op batch);
 
 	/// <summary>
 	/// Nullifies a field on a batch update object.
@@ -306,7 +306,7 @@ extern "C" {
 	/// <summary>
 	/// Sets the update priority of this batch update.
 	/// </summary>
-	int interactive_batch_set_priority(interactive_batch batch, int priority);
+	int interactive_batch_set_priority(interactive_batch_op batch, int priority);
 
 	/** @} */
 
@@ -431,7 +431,7 @@ extern "C" {
 	/// <para>Batch requests are finalized with the `interactive_control_batch_commit` method after using `interactive_control_batch_add` to add the individual updates.</para>
 	/// </remarks>
 	/// </summary>
-	int interactive_control_batch_begin(interactive_session session, const char* sceneId, interactive_batch* batchPtr);
+	int interactive_control_batch_begin(interactive_session session, const char* sceneId, interactive_batch_op* batchPtr);
 
 	/// <summary>
 	/// Adds an update to the control batch request for the control with the given id.
@@ -439,12 +439,12 @@ extern "C" {
 	/// <para>Note that a batch request should only contain a single entry per control ID.</para>
 	/// </remarks>
 	/// </summary>
-	int interactive_control_batch_add(interactive_batch batch, const char* controlId, interactive_batch_entry* entry);
+	int interactive_control_batch_add(interactive_batch_op batch, const char* controlId, interactive_batch_entry* entry);
 
 	/// <summary>
 	/// Commits an interactive control batch update against the interactive service.
 	/// </summary>
-	int interactive_control_batch_commit(interactive_batch batch);
+	int interactive_control_batch_commit(interactive_batch_op batch);
 	/** @} */
 
 	/** @name Groups
@@ -698,7 +698,7 @@ extern "C" {
 	/// <para>Batch requests are finalized with the `interactive_participant_batch_commit` method after using `interactive_participant_batch_add` to add the individual updates.</para>
 	/// </remarks>
 	/// </summary>
-	int interactive_participant_batch_begin(interactive_session session, interactive_batch* batchPtr);
+	int interactive_participant_batch_begin(interactive_session session, interactive_batch_op* batchPtr);
 
 	/// <summary>
 	/// Adds an update to the participant batch request for the participant with the given id.
@@ -706,12 +706,12 @@ extern "C" {
 	/// <para>Note that a batch request should only contain a single entry per participant ID.</para>
 	/// </remarks>
 	/// </summary>
-	int interactive_participant_batch_add(interactive_batch batch, const char* sessionId, interactive_batch_entry* entry);
+	int interactive_participant_batch_add(interactive_batch_op batch, const char* sessionId, interactive_batch_entry* entry);
 
 	/// <summary>
 	/// Commits an interactive participant batch update against the interactive service.
 	/// </summary>
-	int interactive_participant_batch_commit(interactive_batch batch);
+	int interactive_participant_batch_commit(interactive_batch_op batch);
 
 	/// <summary>
 	/// Reads a string value from the participant object.

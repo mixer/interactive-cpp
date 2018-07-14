@@ -959,7 +959,7 @@ public:
 			std::this_thread::sleep_for(std::chrono::milliseconds(1000 / fps));
 		}
 
-		interactive_batch batch;
+		interactive_batch_op batch;
 		ASSERT_NOERR(interactive_control_batch_begin(session, "default", &batch));
 
 		interactive_batch_entry entry;
