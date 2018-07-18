@@ -925,9 +925,13 @@ int interactive_capture_transaction(interactive_session session, const char* tra
 		return MIXER_ERROR_INVALID_POINTER;
 	}
 
-	interactive_session_internal* sessionInternal = reinterpret_cast<interactive_session_internal*>(session);
-
 	std::string transactionIdStr(transactionId);
+	if (transactionIdStr.empty())
+	{
+		return MIXER_ERROR_INVALID_POINTER;
+	}
+
+	interactive_session_internal* sessionInternal = reinterpret_cast<interactive_session_internal*>(session);
 	RETURN_IF_FAILED(queue_method(*sessionInternal, RPC_METHOD_CAPTURE, [&](rapidjson::Document::AllocatorType& allocator, rapidjson::Value& params)
 	{
 		params.AddMember(RPC_PARAM_TRANSACTION_ID, transactionIdStr, allocator);

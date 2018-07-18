@@ -637,6 +637,8 @@ public:
 
 		ASSERT_NOERR(interactive_connect(session, auth.c_str(), versionId.c_str(), shareCode.c_str(), true));
 
+		ASSERT_ERR(MIXER_ERROR_INVALID_POINTER, interactive_capture_transaction(session, ""));
+
 		// Simulate 60 frames/sec
 		const int fps = 60;
 		const int seconds = 15;
