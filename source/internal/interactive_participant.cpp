@@ -1,4 +1,5 @@
 #include "interactive_session.h"
+#include "interactive_batch.h"
 #include "common.h"
 
 namespace mixer_internal
@@ -261,5 +262,88 @@ int interactive_participant_get_group(interactive_session session, const char* p
 	memcpy(group, (*participantDoc)[RPC_GROUP_ID].GetString(), actualLength);
 	group[actualLength] = 0;
 	*groupLength = actualLength + 1;
+	return MIXER_OK;
+}
+
+int interactive_participant_batch_begin(interactive_session session, interactive_batch_op* batchPtr)
+{
+	if (nullptr == session || nullptr == batchPtr)
+	{
+		return MIXER_ERROR_INVALID_POINTER;
+	}
+
+	RETURN_IF_FAILED(interactive_batch_begin(session, RPC_METHOD_UPDATE_PARTICIPANTS, INTERACTIVE_BATCH_TYPE_PARTICIPANT, batchPtr));
+
+	return MIXER_OK;
+}
+
+int interactive_participant_batch_add(interactive_batch_op batch, const char* sessionId, interactive_batch_entry* entry)
+{
+	if (nullptr == batch)
+	{
+		return MIXER_ERROR_INVALID_POINTER;
+	}
+
+	interactive_batch_op_internal* batchInternal = reinterpret_cast<interactive_batch_op_internal*>(batch);
+	if (batchInternal->type != INTERACTIVE_BATCH_TYPE_PARTICIPANT)
+	{
+		return MIXER_ERROR_INVALID_BATCH_TYPE;
+	}
+
+	RETURN_IF_FAILED(interactive_batch_add_entry(batch, RPC_PARAM_PARTICIPANTS, sessionId, entry));
+
+	RETURN_IF_FAILED(interactive_batch_add_param_str(&entry->obj, RPC_SESSION_ID, sessionId));
+
+	return MIXER_OK;
+}
+
+int interactive_participant_batch_commit(interactive_batch_op batch)
+{
+	if (nullptr == batch)
+	{
+		return MIXER_ERROR_INVALID_POINTER;
+	}
+
+	interactive_batch_op_internal* batchInternal = reinterpret_cast<interactive_batch_op_internal*>(batch);
+	if (batchInternal->type != INTERACTIVE_BATCH_TYPE_PARTICIPANT)
+	{
+		return MIXER_ERROR_INVALID_BATCH_TYPE;
+	}
+
+	return interactive_batch_commit(batchInternal);
+}
+
+int interactive_participant_get_param_string(interactive_session session, const char * participantId, const char *paramName, char* value, size_t* valueLength)
+{
+	if (nullptr == session || nullptr == participantId || nullptr == valueLength)
+	{
+		return MIXER_ERROR_INVALID_POINTER;
+	}
+
+	interactive_session_internal* sessionInternal = reinterpret_cast<interactive_session_internal*>(session);
+	// Validate connection state.
+	if (interactive_disconnected == sessionInternal->state)
+	{
+		return MIXER_ERROR_NOT_CONNECTED;
+	}
+
+	auto participantItr = sessionInternal->participants.find(std::string(participantId));
+	if (sessionInternal->participants.end() == participantItr)
+	{
+		return MIXER_ERROR_OBJECT_NOT_FOUND;
+	}
+
+	std::shared_ptr<rapidjson::Document> participantDoc = participantItr->second;
+
+	size_t actualLength = (*participantDoc)[paramName].GetStringLength();
+	if (nullptr == value || *valueLength < actualLength + 1)
+	{
+		*valueLength = actualLength + 1;
+		return MIXER_ERROR_BUFFER_SIZE;
+	}
+
+	memcpy(value, (*participantDoc)[paramName].GetString(), actualLength);
+	value[actualLength] = 0;
+	*valueLength = actualLength + 1;
 	return MIXER_OK;
 }

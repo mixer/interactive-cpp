@@ -67,6 +67,12 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
     </ClCompile>
+	<ClCompile Include="..\..\source\internal\interactive_batch.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+    </ClCompile>
     <ClCompile Include="..\..\source\internal\interactive_control.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
@@ -121,6 +127,7 @@
     <ClInclude Include="..\..\source\internal\common.h" />
     <ClInclude Include="..\..\source\internal\debugging.h" />
     <ClInclude Include="..\..\source\internal\http_client.h" />
+    <ClInclude Include="..\..\source\internal\interactive_batch.h" />
     <ClInclude Include="..\..\source\internal\interactive_session.h" />
     <ClInclude Include="..\..\source\internal\json.h" />
     <ClInclude Include="..\..\source\internal\websocket.h" />

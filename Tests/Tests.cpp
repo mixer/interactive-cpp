@@ -556,7 +556,6 @@ public:
 
 		ASSERT_NOERR(do_auth(clientId, "", auth));
 
-		interactive_session session;
 		Logger::WriteMessage("Connecting...");
 		ASSERT_NOERR(interactive_open_session(&session));
 		ASSERT_NOERR(interactive_set_error_handler(session, handle_error_assert));
@@ -573,6 +572,7 @@ public:
 
 		Logger::WriteMessage("Disconnecting...");
 		interactive_close_session(session);
+		session = nullptr;
 
 		Assert::IsTrue(0 == err);
 	}
@@ -591,7 +591,6 @@ public:
 
 		ASSERT_NOERR(do_auth(clientId, clientSecret, auth));
 
-		interactive_session session;
 		Logger::WriteMessage("Connecting...");
 		ASSERT_NOERR(interactive_open_session(&session));
 		ASSERT_NOERR(interactive_set_error_handler(session, handle_error_assert));
@@ -608,6 +607,7 @@ public:
 
 		Logger::WriteMessage("Disconnecting...");
 		interactive_close_session(session);
+		session = nullptr;
 
 		Assert::IsTrue(0 == err);
 	}
@@ -625,7 +625,6 @@ public:
 
 		ASSERT_NOERR(do_auth(clientId, "", auth));
 
-		interactive_session session;
 		ASSERT_NOERR(interactive_open_session(&session));
 		ASSERT_NOERR(interactive_set_error_handler(session, handle_error_assert));
 		ASSERT_NOERR(interactive_set_input_handler(session, handle_input));
@@ -651,6 +650,7 @@ public:
 
 		Logger::WriteMessage("Disconnecting...");
 		interactive_close_session(session);
+		session = nullptr;
 
 		Assert::IsTrue(0 == err);
 	}
@@ -668,7 +668,6 @@ public:
 
 		ASSERT_NOERR(do_auth(clientId, "", auth));
 
-		interactive_session session;
 		ASSERT_NOERR(interactive_open_session(&session));
 		ASSERT_NOERR(interactive_set_error_handler(session, handle_error_assert));
 		interactive_set_state_changed_handler(session, [](void* context, interactive_session session, interactive_state prevState, interactive_state newState)
@@ -705,6 +704,7 @@ public:
 
 		Logger::WriteMessage("Disconnecting...");
 		interactive_close_session(session);
+		session = nullptr;
 
 		Assert::IsTrue(0 == err);
 	}
@@ -722,7 +722,6 @@ public:
 
 		ASSERT_NOERR(do_auth(clientId, "", auth));
 
-		interactive_session session;
 		Logger::WriteMessage("Connecting...");
 		ASSERT_NOERR(interactive_open_session(&session));
 		ASSERT_NOERR(interactive_set_error_handler(session, handle_error_assert));
@@ -809,6 +808,7 @@ public:
 
 		Logger::WriteMessage("Disconnecting...");
 		interactive_close_session(session);
+		session = nullptr;
 
 		Assert::IsTrue(0 == err);
 	}
@@ -826,7 +826,6 @@ public:
 
 		ASSERT_NOERR(do_auth(clientId, "", auth));
 
-		interactive_session session;
 		Logger::WriteMessage("Connecting...");
 		ASSERT_NOERR(interactive_open_session(&session));
 		ASSERT_NOERR(interactive_set_error_handler(session, handle_error_assert));
@@ -871,6 +870,7 @@ public:
 
 		Logger::WriteMessage("Disconnecting...");
 		interactive_close_session(session);
+		session = nullptr;
 
 		Assert::IsTrue(0 == err);
 	}
@@ -888,7 +888,6 @@ public:
 
 		ASSERT_NOERR(do_auth(clientId, "", auth));
 
-		interactive_session session;
 		ASSERT_NOERR(interactive_open_session(&session));
 
 		std::string controlId = "GiveHealth";
@@ -943,6 +942,167 @@ public:
 
 		Logger::WriteMessage("Disconnecting...");
 		interactive_close_session(session);
+		session = nullptr;
 	}
+
+	TEST_METHOD(ControlBatchTest)
+	{
+		g_start = std::chrono::high_resolution_clock::now();
+		interactive_config_debug(interactive_debug_trace, handle_debug_message);
+
+		int err = 0;
+		std::string clientId = CLIENT_ID;
+		std::string versionId = VERSION_ID;
+		std::string shareCode = SHARE_CODE;
+		std::string auth;
+
+		ASSERT_NOERR(do_auth(clientId, "", auth));
+
+		Logger::WriteMessage("Connecting...");
+		ASSERT_NOERR(interactive_open_session(&session));
+		ASSERT_NOERR(interactive_set_error_handler(session, handle_error_assert));
+		ASSERT_NOERR(interactive_connect(session, auth.c_str(), versionId.c_str(), shareCode.c_str(), true));
+		ASSERT_NOERR(interactive_set_participants_changed_handler(session, handle_participants_changed));
+
+		// Simulate 60 frames/sec for 1 second.
+		const int fps = 60;
+		const int seconds = 1;
+		for (int i = 0; i < fps * seconds; ++i)
+		{
+			ASSERT_NOERR(interactive_run(session, 1));
+			std::this_thread::sleep_for(std::chrono::milliseconds(1000 / fps));
+		}
+
+		interactive_batch_op batch;
+		ASSERT_NOERR(interactive_control_batch_begin(session, "default", &batch));
+
+		interactive_batch_entry entry;
+		ASSERT_NOERR(interactive_control_batch_add(batch, "GiveHealth", &entry));
+		ASSERT_NOERR(interactive_batch_add_param_str(&entry.obj, "foo", "bar"));
+		ASSERT_NOERR(interactive_batch_add_param_uint(&entry.obj, "number", 42));
+
+		{
+			// Invalid Entry
+			interactive_batch_entry entryDupe;
+			ASSERT_ERR(MIXER_ERROR_DUPLICATE_ENTRY, interactive_control_batch_add(batch, "GiveHealth", &entryDupe));
+			ASSERT_ERR(MIXER_ERROR_INVALID_BATCH_TYPE, interactive_participant_batch_add(batch, "GiveHealth", &entryDupe));
+		}
+		
+		interactive_batch_array entryArray;
+		interactive_batch_add_param_array(&entry.obj, "array", &entryArray);
+
+		interactive_batch_object entryArrayObject;
+		interactive_batch_array_push_object(&entryArray, &entryArrayObject);
+		ASSERT_NOERR(interactive_batch_add_param_str(&entryArrayObject, "foo", "bar"));
+		ASSERT_NOERR(interactive_batch_add_param_uint(&entryArrayObject, "number", 42));
+
+		ASSERT_NOERR(interactive_batch_array_push_str(&entryArray, "bar"));
+		ASSERT_NOERR(interactive_batch_array_push_uint(&entryArray, 42));
+
+		interactive_batch_array entryArrayArray;
+		interactive_batch_array_push_array(&entryArray, &entryArrayArray);
+
+		interactive_batch_object entryArrayArrayObject;
+		interactive_batch_array_push_object(&entryArrayArray, &entryArrayArrayObject);
+		ASSERT_NOERR(interactive_batch_add_param_str(&entryArrayArrayObject, "foo", "bar"));
+		ASSERT_NOERR(interactive_batch_add_param_uint(&entryArrayArrayObject, "number", 42));
+
+		ASSERT_NOERR(interactive_batch_array_push_str(&entryArrayArray, "bar"));
+		ASSERT_NOERR(interactive_batch_array_push_uint(&entryArrayArray, 42));
+
+		interactive_batch_object entryObject;
+		ASSERT_NOERR(interactive_batch_add_param_object(&entry.obj, "object", &entryObject));
+		ASSERT_NOERR(interactive_batch_add_param_str(&entryObject, "foo", "bar"));
+		ASSERT_NOERR(interactive_batch_add_param_uint(&entryObject, "number", 42));
+		ASSERT_NOERR(interactive_control_batch_commit(batch));
+		ASSERT_NOERR(interactive_batch_close(batch));
+
+		// Simulate 60 frames/sec for 1 second.
+		for (int i = 0; i < fps * seconds; ++i)
+		{
+			ASSERT_NOERR(interactive_run(session, 1));
+			std::this_thread::sleep_for(std::chrono::milliseconds(1000 / fps));
+		}
+
+		Logger::WriteMessage("Validating custom properties");
+		ASSERT_NOERR(interactive_get_scenes(session, [](void* context, interactive_session session, interactive_scene* scene)
+		{
+			char foo[4];
+			size_t nameLength = 4;
+			int number = 0;
+			memset(foo, 0, sizeof(char[4]));
+			Assert::AreEqual((int)MIXER_OK, interactive_control_get_property_string(session, "GiveHealth", "foo", foo, &nameLength));
+			Assert::AreEqual((int)MIXER_OK, interactive_control_get_property_int(session, "GiveHealth", "number", &number));
+			Assert::AreEqual("bar", foo);
+			Assert::AreEqual(42, number);
+			memset(foo, 0, sizeof(char[4]));
+			number = 0;
+			Assert::AreEqual((int)MIXER_OK, interactive_control_get_property_string(session, "GiveHealth", "array/0/foo", foo, &nameLength));
+			Assert::AreEqual((int)MIXER_OK, interactive_control_get_property_int(session, "GiveHealth", "array/0/number", &number));
+			Assert::AreEqual("bar", foo);
+			Assert::AreEqual(42, number);
+			memset(foo, 0, sizeof(char[4]));
+			number = 0;
+			Assert::AreEqual((int)MIXER_OK, interactive_control_get_property_string(session, "GiveHealth", "array/1", foo, &nameLength));
+			Assert::AreEqual((int)MIXER_OK, interactive_control_get_property_int(session, "GiveHealth", "array/2", &number));
+			Assert::AreEqual("bar", foo);
+			Assert::AreEqual(42, number);
+			memset(foo, 0, sizeof(char[4]));
+			number = 0;
+			Assert::AreEqual((int)MIXER_OK, interactive_control_get_property_string(session, "GiveHealth", "array/3/0/foo", foo, &nameLength));
+			Assert::AreEqual((int)MIXER_OK, interactive_control_get_property_int(session, "GiveHealth", "array/3/0/number", &number));
+			Assert::AreEqual("bar", foo);
+			Assert::AreEqual(42, number);
+			memset(foo, 0, sizeof(char[4]));
+			number = 0;
+			Assert::AreEqual((int)MIXER_OK, interactive_control_get_property_string(session, "GiveHealth", "array/3/1", foo, &nameLength));
+			Assert::AreEqual((int)MIXER_OK, interactive_control_get_property_int(session, "GiveHealth", "array/3/2", &number));
+			Assert::AreEqual("bar", foo);
+			Assert::AreEqual(42, number);
+			memset(foo, 0, sizeof(char[4]));
+			number = 0;
+			Assert::AreEqual((int)MIXER_OK, interactive_control_get_property_string(session, "GiveHealth", "object/foo", foo, &nameLength));
+			Assert::AreEqual((int)MIXER_OK, interactive_control_get_property_int(session, "GiveHealth", "object/number", &number));
+			Assert::AreEqual("bar", foo);
+			Assert::AreEqual(42, number);
+		}));
+
+		for (int i = 0; i < fps * seconds; ++i)
+		{
+			ASSERT_NOERR(interactive_run(session, 1));
+			std::this_thread::sleep_for(std::chrono::milliseconds(1000 / fps));
+		}
+
+		Logger::WriteMessage("Disconnecting...");
+		interactive_close_session(session);
+		session = nullptr;
+
+		Assert::IsTrue(0 == err);
+	}
+
+	TEST_METHOD_CLEANUP(CleanupSession) {
+		if (nullptr != session)
+		{
+			try {
+				Logger::WriteMessage("Disconnecting in cleanup...");
+				interactive_close_session(session);
+			}
+			catch (std::exception e) {
+				Logger::WriteMessage((std::string("Error in cleanup handler: ") + e.what()).c_str());
+			}
+			catch (std::string e) {
+				Logger::WriteMessage(("Error in cleanup handler: " + e).c_str());
+			}
+			catch (...)
+			{
+				Logger::WriteMessage("Unknown error in cleanup handler. You should debug this.");
+			}
+		}
+
+		session = nullptr;
+	}
+
+private:
+	interactive_session session = nullptr;
 };
 }

@@ -8,10 +8,8 @@ namespace mixer_internal
 
 typedef std::function<void(rapidjson::Document::AllocatorType& allocator, rapidjson::Value& value)> on_get_params;
 
-int create_method_json(interactive_session_internal& session, const std::string& method, on_get_params getParams, bool discard, unsigned int* id, std::shared_ptr<rapidjson::Document>& methodDoc)
+int set_packet_info(interactive_session_internal& session, const std::string& method, bool discard, unsigned int* id, std::shared_ptr<rapidjson::Document>& doc)
 {
-	std::shared_ptr<rapidjson::Document> doc(std::make_shared<rapidjson::Document>());
-	doc->SetObject();
 	rapidjson::Document::AllocatorType& allocator = doc->GetAllocator();
 
 	unsigned int packetID = session.packetId++;
@@ -19,6 +17,23 @@ int create_method_json(interactive_session_internal& session, const std::string&
 	doc->AddMember(RPC_METHOD, method, allocator);
 	doc->AddMember(RPC_DISCARD, discard, allocator);
 	doc->AddMember(RPC_SEQUENCE, session.sequenceId, allocator);
+
+	if (nullptr != id)
+	{
+		*id = packetID;
+	}
+
+	return MIXER_OK;
+}
+
+int create_method_json(on_get_params getParams, std::shared_ptr<rapidjson::Document>& methodDoc)
+{
+	std::shared_ptr<rapidjson::Document> doc(nullptr == methodDoc ? std::make_shared<rapidjson::Document>() : methodDoc);
+	if (!doc->IsObject()) {
+		doc->SetObject();
+	}
+
+	rapidjson::Document::AllocatorType& allocator = doc->GetAllocator();
 
 	// Get the parameters from the caller.
 	rapidjson::Value params(rapidjson::kObjectType);
@@ -28,10 +43,6 @@ int create_method_json(interactive_session_internal& session, const std::string&
 	}
 	doc->AddMember(RPC_PARAMS, params, allocator);
 
-	if (nullptr != id)
-	{
-		*id = packetID;
-	}
 	methodDoc = doc;
 	return MIXER_OK;
 }
@@ -39,7 +50,8 @@ int create_method_json(interactive_session_internal& session, const std::string&
 int send_method(interactive_session_internal& session, const std::string& method, on_get_params getParams, bool discard, unsigned int* id)
 {
 	std::shared_ptr<rapidjson::Document> methodDoc;
-	RETURN_IF_FAILED(create_method_json(session, method, getParams, discard, id, methodDoc));
+	RETURN_IF_FAILED(create_method_json(getParams, methodDoc));
+	RETURN_IF_FAILED(set_packet_info(session, method, discard, id, methodDoc));
 
 	// Synchronize access to the websocket.
 	std::string methodJson = jsonStringify(*methodDoc);
@@ -51,9 +63,22 @@ int send_method(interactive_session_internal& session, const std::string& method
 
 int queue_method(interactive_session_internal& session, const std::string& method, on_get_params getParams, method_handler onReply)
 {
-	std::shared_ptr<rapidjson::Document> methodDoc;
+	std::shared_ptr<rapidjson::Document> methodDoc(std::make_shared<rapidjson::Document>());
+	return queue_method(session, method, getParams, onReply, methodDoc);
+}
+
+int queue_method(interactive_session_internal& session, const std::string& method, on_get_params getParams, method_handler onReply, std::shared_ptr<rapidjson::Document>& methodDoc)
+{
+	std::shared_ptr<rapidjson::Document> doc(methodDoc);
+	RETURN_IF_FAILED(create_method_json(getParams, methodDoc));
+	return queue_method_prebuilt(session, method, onReply, doc);
+}
+
+int queue_method_prebuilt(interactive_session_internal& session, const std::string& method, method_handler onReply, std::shared_ptr<rapidjson::Document>& methodDoc)
+{
+	std::shared_ptr<rapidjson::Document> doc(methodDoc);
 	unsigned int packetId = 0;
-	RETURN_IF_FAILED(create_method_json(session, method, getParams, nullptr == onReply, &packetId, methodDoc));
+	RETURN_IF_FAILED(set_packet_info(session, method, nullptr == onReply, &packetId, methodDoc));
 	DEBUG_TRACE(std::string("Queueing method: ") + jsonStringify(*methodDoc));
 	if (onReply)
 	{
@@ -396,7 +421,6 @@ int handle_control_changed(interactive_session_internal& session, rapidjson::Doc
 		return MIXER_ERROR_UNRECOGNIZED_DATA_FORMAT;
 	}
 
-	const char * sceneId = doc[RPC_PARAMS][RPC_SCENE_ID].GetString();
 	rapidjson::Value& controls = doc[RPC_PARAMS][RPC_PARAM_CONTROLS];
 	for (auto itr = controls.Begin(); itr != controls.End(); ++itr)
 	{

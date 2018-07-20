@@ -1,6 +1,7 @@
 #include "internal/common.cpp"
 #include "internal/http_client.cpp"
 #include "internal/interactive_auth.cpp"
+#include "internal/interactive_batch.cpp"
 #include "internal/interactive_control.cpp"
 #include "internal/interactive_group.cpp"
 #include "internal/interactive_participant.cpp"

@@ -1,5 +1,8 @@
 #include "interactive_session.h"
+#include "interactive_batch.h"
 #include "common.h"
+
+#include <sstream>
 
 namespace mixer_internal
 {
@@ -587,4 +590,60 @@ int interactive_control_get_meta_property_string(interactive_session session, co
 	property[*propertyLength - 1] = '\0';
 
 	return MIXER_OK;
+}
+
+int interactive_control_batch_begin(interactive_session session, const char* sceneId, interactive_batch_op* batchPtr)
+{
+	if (nullptr == session || nullptr == batchPtr)
+	{
+		return MIXER_ERROR_INVALID_POINTER;
+	}
+
+	RETURN_IF_FAILED(interactive_batch_begin(session, RPC_METHOD_UPDATE_CONTROLS, INTERACTIVE_BATCH_TYPE_CONTROL, batchPtr));
+	
+	interactive_batch_op_internal* batchInternal = reinterpret_cast<interactive_batch_op_internal*>(*batchPtr);
+	std::stringstream ss;
+	ss << "/" << RPC_PARAMS << "/" RPC_SCENE_ID;
+	rapidjson::Pointer ptr(ss.str().c_str());
+	interactive_batch_add_param(
+		batchInternal,
+		ptr,
+		rapidjson::Value(std::string(sceneId).c_str(), batchInternal->document->GetAllocator()).Move());
+
+	return MIXER_OK;
+}
+
+int interactive_control_batch_add(interactive_batch_op batch, const char* controlId, interactive_batch_entry* entry)
+{
+	if (nullptr == batch) {
+		return MIXER_ERROR_INVALID_POINTER;
+	}
+
+	interactive_batch_op_internal* batchInternal = reinterpret_cast<interactive_batch_op_internal*>(batch);
+	if (batchInternal->type != INTERACTIVE_BATCH_TYPE_CONTROL)
+	{
+		return MIXER_ERROR_INVALID_BATCH_TYPE;
+	}
+
+	RETURN_IF_FAILED(interactive_batch_add_entry(batch, RPC_PARAM_CONTROLS, controlId, entry));
+
+	RETURN_IF_FAILED(interactive_batch_add_param_str(&entry->obj, RPC_CONTROL_ID, controlId));
+
+	return MIXER_OK;
+}
+
+int interactive_control_batch_commit(interactive_batch_op batch)
+{
+	if (nullptr == batch)
+	{
+		return MIXER_ERROR_INVALID_POINTER;
+	}
+
+	interactive_batch_op_internal* batchInternal = reinterpret_cast<interactive_batch_op_internal*>(batch);
+	if (batchInternal->type != INTERACTIVE_BATCH_TYPE_CONTROL)
+	{
+		return MIXER_ERROR_INVALID_BATCH_TYPE;
+	}
+
+	return interactive_batch_commit(batchInternal);
 }
