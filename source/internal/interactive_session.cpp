@@ -862,7 +862,7 @@ int interactive_get_user(interactive_session session, on_interactive_user onUser
 		DEBUG_ERROR("Broadcasting check attempted without an authorization string set.");
 		return MIXER_ERROR_AUTH;
 	}
-	
+
 	std::string currentUserUrl = "https://mixer.com/api/v1/users/current";
 
 	http_headers headers;
@@ -887,7 +887,7 @@ int interactive_get_user(interactive_session session, on_interactive_user onUser
 	if (!responseDoc.HasMember("id") || !responseDoc.HasMember("username") ||
 		!responseDoc.HasMember("level") || !responseDoc.HasMember("experience") ||
 		!responseDoc.HasMember("sparks") || !responseDoc.HasMember("avatarUrl") ||
-		!responseDoc.HasMember("channel") || !responseDoc["channel"].IsObject() || 
+		!responseDoc.HasMember("channel") || !responseDoc["channel"].IsObject() ||
 		!responseDoc["channel"].HasMember("online"))
 	{
 		return MIXER_ERROR_UNRECOGNIZED_DATA_FORMAT;
@@ -895,13 +895,35 @@ int interactive_get_user(interactive_session session, on_interactive_user onUser
 
 	interactive_user user;
 	memset(&user, 0, sizeof(interactive_user));
-	user.avatarUrl = responseDoc["avatarUrl"].GetString();
-	user.experience = responseDoc["experience"].GetUint();
-	user.id = responseDoc["id"].GetUint();
-	user.isBroadcasting = responseDoc["channel"]["online"].GetBool();
-	user.level = responseDoc["level"].GetUint();
-	user.sparks = responseDoc["sparks"].GetUint();
-	user.userName = responseDoc["username"].GetString();
+	if (responseDoc.HasMember("avatarUrl") && responseDoc["avatarUrl"].IsString())
+	{
+		user.avatarUrl = responseDoc["avatarUrl"].GetString();
+	}
+	if (responseDoc.HasMember("experience") && responseDoc["experience"].IsUint())
+	{
+		user.experience = responseDoc["experience"].GetUint();
+	}
+	if (responseDoc.HasMember("id") && responseDoc["id"].IsUint())
+	{
+		user.id = responseDoc["id"].GetUint();
+	}
+	if (responseDoc.HasMember("channel") && responseDoc["channel"].IsObject() &&
+		responseDoc["channel"].HasMember("online") && responseDoc["channel"]["online"].IsBool())
+	{
+		user.isBroadcasting = responseDoc["channel"]["online"].GetBool();
+	}
+	if (responseDoc.HasMember("level") && responseDoc["level"].IsUint())
+	{
+		user.level = responseDoc["level"].GetUint();
+	}
+	if (responseDoc.HasMember("sparks") && responseDoc["sparks"].IsUint())
+	{
+		user.sparks = responseDoc["sparks"].GetUint();
+	}
+	if (responseDoc.HasMember("username") && responseDoc["username"].IsString())
+	{
+		user.userName = responseDoc["username"].GetString();
+	}
 
 	onUser(sessionInternal->callerContext, session, &user);
 	return MIXER_OK;
