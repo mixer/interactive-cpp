@@ -8,7 +8,7 @@
 #include "rapidjson/pointer.h"
 
 #define OBJECT_BATCH(o) ((o)->_a)
-#define OBJECT_POINTER(o) ((o)->_b)
+#define OBJECT_VALUE(o) ((o)->_b)
 
 namespace mixer_internal
 {
@@ -25,7 +25,7 @@ inline interactive_batch_op_internal* object_get_batch(interactive_batch_object*
 
 inline rapidjson::Value* object_get_value(interactive_batch_object* obj)
 {
-	return reinterpret_cast<rapidjson::Value*>(OBJECT_POINTER(obj));
+	return reinterpret_cast<rapidjson::Value*>(OBJECT_VALUE(obj));
 }
 
 inline interactive_batch_op_internal* array_get_batch(interactive_batch_array* obj)
@@ -35,7 +35,7 @@ inline interactive_batch_op_internal* array_get_batch(interactive_batch_array* o
 
 inline rapidjson::Value* array_get_value(interactive_batch_array* obj)
 {
-	return reinterpret_cast<rapidjson::Value*>(OBJECT_POINTER(obj));
+	return reinterpret_cast<rapidjson::Value*>(OBJECT_VALUE(obj));
 }
 
 int interactive_batch_begin(interactive_session session, char *methodName, interactive_batch_type type, interactive_batch_op* batchPtr)
@@ -82,7 +82,7 @@ int interactive_batch_add_entry(interactive_batch_op batch, const char * paramsK
 
 	ss << "/" << pos;
 	OBJECT_BATCH(&entry->obj) = batchInternal;
-	OBJECT_POINTER(&entry->obj) = 
+	OBJECT_VALUE(&entry->obj) = 
 		&rapidjson::Pointer(ss.str().c_str())
 			.Set(*batchInternal->document, rapidjson::Value(rapidjson::kObjectType));
 
@@ -248,7 +248,7 @@ int interactive_batch_add_param_object(interactive_batch_object* obj, const char
 		rapidjson::Value(rapidjson::kObjectType).Move(),
 		object_get_batch(obj)->document->GetAllocator());
 	OBJECT_BATCH(paramObj) = batch;
-	OBJECT_POINTER(paramObj) = &jsonObj.FindMember(name)->value;
+	OBJECT_VALUE(paramObj) = &jsonObj.FindMember(name)->value;
 
 	return MIXER_OK;
 }
@@ -267,7 +267,7 @@ int interactive_batch_add_param_array(interactive_batch_object* obj, const char*
 		rapidjson::Value(rapidjson::kArrayType).Move(),
 		object_get_batch(obj)->document->GetAllocator());
 	OBJECT_BATCH(paramArr) = batch;
-	OBJECT_POINTER(paramArr) = &jsonObj.FindMember(name)->value;
+	OBJECT_VALUE(paramArr) = &jsonObj.FindMember(name)->value;
 
 	return MIXER_OK;
 }
@@ -316,7 +316,7 @@ int interactive_batch_array_push_object(interactive_batch_array* array, interact
 		rapidjson::Value(rapidjson::kObjectType).Move(),
 		array_get_batch(array)->document->GetAllocator());
 	OBJECT_BATCH(pushObj) = batch;
-	OBJECT_POINTER(pushObj) = &arr[arr.Size() - 1];
+	OBJECT_VALUE(pushObj) = &arr[arr.Size() - 1];
 
 	return MIXER_OK;
 }
@@ -334,7 +334,7 @@ int interactive_batch_array_push_array(interactive_batch_array* array, interacti
 		rapidjson::Value(rapidjson::kArrayType).Move(),
 		array_get_batch(array)->document->GetAllocator());
 	OBJECT_BATCH(pushArr) = batch;
-	OBJECT_POINTER(pushArr) = &arr[arr.Size() - 1];
+	OBJECT_VALUE(pushArr) = &arr[arr.Size() - 1];
 
 	return MIXER_OK;
 }
