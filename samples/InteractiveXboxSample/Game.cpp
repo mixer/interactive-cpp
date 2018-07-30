@@ -126,6 +126,8 @@ void handle_error(void* context, interactive_session session, int errorCode, con
 // Handle user data.
 void handle_user(void* context, interactive_session session, const interactive_user* user)
 {
+	(session);
+	(context);
 	std::cout << "Connecting as: " << user->userName << std::endl;
 	std::cout << "Avatar: " << user->avatarUrl << std::endl;
 	std::cout << "Experience: " << user->experience << std::endl;
@@ -219,12 +221,22 @@ void Game::Initialize(IUnknown* window)
 	err = interactive_set_transaction_complete_handler(m_interactiveSession, handle_transaction);
 	if (err) throw err;
 
+	// Register a state change handler to get user data after connection is successful.
+	interactive_set_state_changed_handler(m_interactiveSession, [](void* context, interactive_session session, interactive_state previousState, interactive_state currentState)
+	{
+		(context);
+		if (previousState != interactive_connecting && currentState != interactive_connected)
+		{
+			return;
+		}
+
+		// Get the connected user's data.
+		int err = interactive_get_user(session, handle_user);
+		if (err) throw err;
+	});
+
 	// Connect to the user's interactive channel, using the interactive project specified by the version ID.
 	err = interactive_connect(m_interactiveSession, authorization.c_str(), INTERACTIVE_ID, SHARE_CODE, true);
-	if (err) throw err;
-
-	// Get the connected user's data.
-	err = interactive_get_user(m_interactiveSession, handle_user);
 	if (err) throw err;
 }
 

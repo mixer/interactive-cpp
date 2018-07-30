@@ -55,6 +55,7 @@ win_http_client::~win_http_client()
 
 int win_http_client::make_request(const std::string& uri, const std::string& verb, const http_headers* headers, const std::string& body, _Out_ http_response& response, unsigned long timeoutMs) const
 {
+	DEBUG_TRACE(verb + " " + uri + " " + body);
 	// Crack the URI.
 	// Parse the url with regex in accordance with RFC 3986.
 	std::regex url_regex(R"(^(([^:/?#]+):)?(//([^:/?#]*):?([0-9]*)?)?([^?#]*)(\?([^#]*))?(#(.*))?)", std::regex::ECMAScript);
@@ -118,7 +119,7 @@ int win_http_client::make_request(const std::string& uri, const std::string& ver
 
 	if (nullptr != headers)
 	{
-		for (auto header : *headers)
+		for (const auto& header : *headers)
 		{
 			std::wstring str = utf8_to_wstring(header.first + ": " + header.second);
 			if (!WinHttpAddRequestHeaders(request.get(), str.c_str(), (DWORD)str.length(), WINHTTP_ADDREQ_FLAG_ADD | WINHTTP_ADDREQ_FLAG_REPLACE))

@@ -58,7 +58,7 @@ extern "C" {
 	int interactive_auth_is_token_stale(const char* token, bool* isStale);
 
 	/// <summary>
-	/// Refresh a stale <c>refreshToken<c>.
+	/// Refresh a stale <c>refreshToken</c>.
 	/// </summary>
 	/// <remarks>
 	/// This is a blocking function that waits on network IO.
@@ -89,16 +89,13 @@ extern "C" {
 	int interactive_open_session(interactive_session* session);
 
 	/// <summary>
-	/// Open an interactive session. All calls to <c>interactive_open_session</c> must eventually be followed by a call to <c>interactive_close_session</c> to avoid a memory leak.
+	/// Asynchronously connect an interactive session. Call <c>interactive_run</c> to bootstrap the connection and call <c>interactive_set_state_changed_handler</c> to respond to connection state changes.
 	/// </summary>
 	/// <param name="session">An interactive session handle opened with <c>interactive_open_session</c>.</param>
 	/// <param name="auth">The authorization header that is passed to the service. This should either be a OAuth Bearer token or an XToken.</param>
 	/// <param name="versionId">The id of the interative project that should be started.</param>
 	/// <param name="shareCode">An optional parameter that is used when starting an interactive project that the user does not have implicit access to. This is usually required unless a project has been published.</param>
 	/// <param name="setReady">Specifies if the session should set the interactive ready state during connection. If false, this can be manually toggled later with <c>interactive_set_ready</c></param>
-	/// <remarks>
-	/// This is a blocking function that waits on network IO, it is not recommended to call this from the UI thread.
-	/// </remarks>
 	int interactive_connect(interactive_session session, const char* auth, const char* versionId, const char* shareCode, bool setReady);
 
 	/// <summary>
@@ -121,7 +118,8 @@ extern "C" {
 	enum interactive_state
 	{
 		interactive_disconnected,
-		interactive_not_ready,
+		interactive_connecting,
+		interactive_connected,
 		interactive_ready
 	};
 
@@ -247,7 +245,7 @@ extern "C" {
 		interactive_object_t
 	};
 
-	typedef void(*on_control_enumerate)(void* context, interactive_session session, interactive_control* control);
+	typedef void(*on_control_enumerate)(void* context, interactive_session session, const interactive_control* control);
 
 	/// <summary>
 	/// Trigger a cooldown on a control for the specified number of milliseconds.
@@ -368,7 +366,7 @@ extern "C" {
 	/// <summary>
 	/// Callback for <c>interactive_get_groups</c>.
 	/// </summary>
-	typedef void(*on_group_enumerate)(void* context, interactive_session session, interactive_group* group);
+	typedef void(*on_group_enumerate)(void* context, interactive_session session, const interactive_group* group);
 
 	/// <summary>
 	/// Get the interactive groups for the specified session.
@@ -398,7 +396,7 @@ extern "C" {
 	/// <summary>
 	/// Callback for <c>interactive_get_scenes</c>
 	/// </summary>
-	typedef void(*on_scene_enumerate)(void* context, interactive_session session, interactive_scene* scene);
+	typedef void(*on_scene_enumerate)(void* context, interactive_session session, const interactive_scene* scene);
 
 	/// <summary>
 	/// Get all scenes for the specified session.
@@ -552,7 +550,7 @@ extern "C" {
 	*   @{
 	*/
 
-	typedef void(*on_participant_enumerate)(void* context, interactive_session session, interactive_participant* participant);
+	typedef void(*on_participant_enumerate)(void* context, interactive_session session, const interactive_participant* participant);
 
 	/// <summary>
 	/// Get all participants (viewers) for the specified session.
@@ -603,23 +601,15 @@ extern "C" {
 	/** @name Manual Protocol Integration
 	*   @{
 	*/
-	/// <summary>
-	/// Send a method to the interactive session. This may be used to interface with the interactive protocol directly and implement functionality 
-	/// that this SDK does not provide out of the box.
-	/// </summary>
-	/// <remarks>
-	/// This is a blocking function that waits on network IO.
-	/// </remarks>
-	int interactive_send_method(interactive_session session, const char* method, const char* paramsJson, bool discardReply, unsigned int* id);
+
+	typedef void(*on_method_reply)(void* context, interactive_session session, const char* replyJson, size_t replyJsonLength);
 
 	/// <summary>
-	/// Recieve a reply for a method with the specified id. This may be used to interface with the interactive protocol directly and implement functionality
-	/// that this SDK does not provide out of the box.
+	/// Send a method to the interactive session. This may be used to interface with the interactive protocol directly and implement functionality 
+	/// that this SDK does not provide.
 	/// </summary>
-	/// <remarks>
-	/// This is a blocking function that waits on network IO.
-	/// </remarks>
-	int interactive_receive_reply(interactive_session session, unsigned int id, unsigned int timeoutMs, char* replyJson, size_t* replyJsonLength);
+	int interactive_queue_method(interactive_session session, const char* method, const char* paramsJson, const on_method_reply onReply);
+
 	/** @} */
 
 	/** @name Debugging
@@ -685,7 +675,8 @@ extern "C" {
 		MIXER_ERROR_WS_READ_FAILED,
 		MIXER_ERROR_WS_SEND_FAILED,
 		MIXER_ERROR_NOT_CONNECTED,
-		MIXER_ERROR_OBJECT_EXISTS
+		MIXER_ERROR_OBJECT_EXISTS,
+		MIXER_ERROR_INVALID_STATE
 	} mixer_result_code;
 	/** @} */
 

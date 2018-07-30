@@ -1,6 +1,6 @@
 #include "interactive_session.h"
 #include "common.h"
-
+#include "interactive_event.h"
 #include <functional>
 
 namespace mixer_internal
@@ -36,20 +36,8 @@ int create_method_json(interactive_session_internal& session, const std::string&
 	return MIXER_OK;
 }
 
-int send_method(interactive_session_internal& session, const std::string& method, on_get_params getParams, bool discard, unsigned int* id)
-{
-	std::shared_ptr<rapidjson::Document> methodDoc;
-	RETURN_IF_FAILED(create_method_json(session, method, getParams, discard, id, methodDoc));
-
-	// Synchronize access to the websocket.
-	std::string methodJson = jsonStringify(*methodDoc);
-	std::lock_guard<std::mutex> sendLock(session.sendMutex);
-
-	DEBUG_TRACE("Sending websocket message: " + methodJson);
-	return session.ws->send(methodJson);
-}
-
-int queue_method(interactive_session_internal& session, const std::string& method, on_get_params getParams, method_handler onReply)
+// Queue a method to be sent out on the websocket. If handleImmediately is set to true, the handler will be called by the websocket receive thread rather than put on the reply queue.
+int queue_method(interactive_session_internal& session, const std::string& method, on_get_params getParams, method_handler onReply, const bool handleImmediately)
 {
 	std::shared_ptr<rapidjson::Document> methodDoc;
 	unsigned int packetId = 0;
@@ -57,41 +45,32 @@ int queue_method(interactive_session_internal& session, const std::string& metho
 	DEBUG_TRACE(std::string("Queueing method: ") + jsonStringify(*methodDoc));
 	if (onReply)
 	{
-		session.replyHandlersById[packetId] = onReply;
+		std::unique_lock<std::mutex> incomingLock(session.incomingMutex);
+		session.replyHandlersById[packetId] = std::pair<bool, method_handler>(handleImmediately, onReply);
 	}
 
 	// Synchronize write access to the queue.
+	std::shared_ptr<rpc_method_event> methodEvent = std::make_shared<rpc_method_event>(std::move(methodDoc));
 	std::unique_lock<std::mutex> queueLock(session.outgoingMutex);
-	session.outgoingMethods.emplace(methodDoc);
+	session.outgoingEvents.emplace(methodEvent);
 	session.outgoingCV.notify_one();
 
 	return MIXER_OK;
 }
 
-int queue_request(interactive_session_internal& session, const std::string uri, std::string& verb, const std::map<std::string, std::string>* headers, const std::string* body, http_response_handler onResponse)
+int queue_request(interactive_session_internal& session, const std::string uri, const std::string& verb, const http_headers* headers, const std::string* body, http_response_handler onResponse)
 {
-	http_request_data httpRequest;
-	httpRequest.packetId = session.packetId++;
-	httpRequest.uri = uri;
-	httpRequest.verb = verb;
-	if (nullptr != headers)
-	{
-		httpRequest.headers = *headers;
-	}
-	if (nullptr != body)
-	{
-		httpRequest.body = *body;
-	}
+	std::shared_ptr<http_request_event> requestEvent = std::make_shared<http_request_event>(session.packetId++, uri, verb, headers, body);
 
 	if (nullptr != onResponse)
 	{
-		session.httpResponseHandlers[httpRequest.packetId] = onResponse;
+		session.httpResponseHandlers[requestEvent->packetId] = onResponse;
 	}
 
 	// Queue the request, synchronizing access.
 	{
-		std::unique_lock<std::mutex> lock(session.outgoingMutex);
-		session.outgoingRequests.emplace(httpRequest);
+		std::unique_lock<std::mutex> outgoingLock(session.outgoingMutex);
+		session.outgoingEvents.emplace(requestEvent);
 		session.outgoingCV.notify_one();
 	}
 
@@ -120,50 +99,6 @@ int check_reply_errors(interactive_session_internal& session, rapidjson::Documen
 	return MIXER_OK;
 }
 
-int receive_reply(interactive_session_internal& session, unsigned int id, std::shared_ptr<rapidjson::Document>& replyPtr, unsigned int timeoutMs)
-{
-	if (session.shutdownRequested)
-	{
-		return MIXER_OK;
-	}
-
-	// Wait for a reply
-	std::shared_ptr<rapidjson::Document> spReply;
-	{
-		std::unique_lock<std::mutex> l(session.repliesMutex);
-		auto replyItr = session.replies.end();
-		replyItr = session.replies.find(id);
-		while (session.replies.end() == replyItr)
-		{
-			auto waitStatus = session.repliesCV.wait_for(l, std::chrono::milliseconds(timeoutMs));
-			if (waitStatus == std::cv_status::timeout)
-			{
-				return MIXER_ERROR_TIMED_OUT;
-			}
-
-			if (session.shutdownRequested)
-			{
-				return MIXER_ERROR_CANCELLED;
-			}
-			replyItr = session.replies.find(id);
-		}
-
-		if (session.replies.end() == replyItr)
-		{
-			return MIXER_ERROR_TIMED_OUT;
-		}
-
-		spReply = (*replyItr).second;
-		session.replies.erase(replyItr);
-	}
-
-	// Check for errors.
-	RETURN_IF_FAILED(check_reply_errors(session, *spReply));
-
-	replyPtr = spReply;
-	return MIXER_OK;
-}
-
 int send_ready_message(interactive_session_internal& session, bool ready = true)
 {
 	return queue_method(session, RPC_METHOD_READY, [&](rapidjson::Document::AllocatorType& allocator, rapidjson::Value& params)
@@ -172,22 +107,101 @@ int send_ready_message(interactive_session_internal& session, bool ready = true)
 	}, nullptr);
 }
 
-int handle_hello(interactive_session_internal& session, rapidjson::Document& doc)
+int bootstrap(interactive_session_internal& session);
+
+int update_server_time_offset(interactive_session_internal& session)
 {
-	(doc);
-	interactive_state previousState = session.state;
-	session.state = interactive_not_ready;
-	if (session.onStateChanged)
+	// Calculate the server time offset.
+	DEBUG_INFO("Requesting server time to calculate client offset.");
+	
+	int err = queue_method(session, RPC_METHOD_GET_TIME, nullptr, [](interactive_session_internal& session, rapidjson::Document& doc) -> int
 	{
-		session.onStateChanged(session.callerContext, &session, previousState, session.state);
+		// Note: This reply handler is executed immediately by the background websocket thread.
+		// Take care not to call callbacks that the user may expect on their own thread, the debug callback being the only exception.
+		if (!doc.HasMember(RPC_RESULT) || !doc[RPC_RESULT].HasMember(RPC_TIME))
+		{
+			DEBUG_ERROR("Unexpected reply format for server time reply");
+			return MIXER_ERROR_UNRECOGNIZED_DATA_FORMAT;
+		}
+
+		auto receivedTime = std::chrono::time_point_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now());
+		auto latency = (receivedTime - session.getTimeSent) / 2;
+		unsigned long long serverTime = doc[RPC_RESULT][RPC_TIME].GetUint64();
+		auto offset = receivedTime.time_since_epoch() - latency - std::chrono::milliseconds(serverTime);
+		session.serverTimeOffsetMs = offset.count();
+		DEBUG_INFO("Server time offset: " + std::to_string(session.serverTimeOffsetMs));
+
+		// Continue bootstrapping the session.
+		session.serverTimeOffsetCalculated = true;
+		return bootstrap(session);;
+	}, true);
+	if (err)
+	{
+		DEBUG_ERROR("Method "  RPC_METHOD_GET_TIME " failed: " + std::to_string(err));
+		return err;
 	}
 
-	if (session.isReady && interactive_ready != session.state)
+	session.getTimeSent = std::chrono::time_point_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now());
+
+	return MIXER_OK;
+}
+
+/*
+Bootstrapping Interactive
+
+A few things must happen before the interactive connection is ready for the client to use.
+
+- First, the server time offset needs to be calculated in order to properly synchronize the client's clock for setting control cooldowns.
+- Second, in order to give the caller information about the interactive world, that data must be fetched from the server and cached.
+
+Once this information is requested, the bootstraping state is checked on each reply. If all items are complete the caller is informed via a state change event and the client is ready.
+*/
+int bootstrap(interactive_session_internal& session)
+{
+	DEBUG_TRACE("Checking bootstrap state.");
+	assert(interactive_connecting == session.state);
+
+	if (!session.serverTimeOffsetCalculated)
 	{
-		return send_ready_message(session);
+		RETURN_IF_FAILED(update_server_time_offset(session));
+	}
+	else if (!session.scenesCached)
+	{
+		RETURN_IF_FAILED(cache_scenes(session));
+	}
+	else if (!session.groupsCached)
+	{
+		RETURN_IF_FAILED(cache_groups(session));
+	}
+	else
+	{
+		DEBUG_TRACE("Bootstrapping complete.");
+		interactive_state prevState = session.state;
+		session.state = interactive_connected;
+
+		if (session.onStateChanged)
+		{
+			session.onStateChanged(session.callerContext, &session, prevState, session.state);
+		}
+
+		if (session.isReady)
+		{
+			return send_ready_message(session);
+		}
 	}
 
 	return MIXER_OK;
+}
+
+int handle_hello(interactive_session_internal& session, rapidjson::Document& doc)
+{
+	(doc);
+	if (session.shutdownRequested)
+	{
+		return MIXER_OK;
+	}
+
+	return bootstrap(session);
 }
 
 int handle_input(interactive_session_internal& session, rapidjson::Document& doc)
@@ -299,7 +313,7 @@ int handle_input(interactive_session_internal& session, rapidjson::Document& doc
 }
 
 int handle_participants_change(interactive_session_internal& session, rapidjson::Document& doc, interactive_participant_action action)
-{	
+{
 	if (!doc.HasMember(RPC_PARAMS) || !doc[RPC_PARAMS].HasMember(RPC_PARAM_PARTICIPANTS))
 	{
 		return MIXER_ERROR_UNRECOGNIZED_DATA_FORMAT;
@@ -362,10 +376,10 @@ int handle_ready(interactive_session_internal& session, rapidjson::Document& doc
 
 	bool isReady = doc[RPC_PARAMS][RPC_PARAM_IS_READY].GetBool();
 	// Only change state and notify if the ready state is different.
-	if (isReady && interactive_ready != session.state || !isReady && interactive_not_ready != session.state)
+	if (isReady && interactive_ready != session.state || !isReady && interactive_connected != session.state)
 	{
 		interactive_state previousState = session.state;
-		session.state = isReady ? interactive_ready : interactive_not_ready;
+		session.state = isReady ? interactive_ready : interactive_connected;
 		if (session.onStateChanged)
 		{
 			session.onStateChanged(session.callerContext, &session, previousState, session.state);
@@ -423,7 +437,7 @@ int handle_control_changed(interactive_session_internal& session, rapidjson::Doc
 		{
 			return MIXER_ERROR_UNKNOWN_METHOD;
 		}
-		
+
 		if (session.onControlChanged)
 		{
 			session.onControlChanged(session.callerContext, &session, eventType, &control);
@@ -468,72 +482,6 @@ void register_method_handlers(interactive_session_internal& session)
 	session.methodHandlers.emplace(RPC_METHOD_UPDATE_SCENES, handle_scene_changed);
 }
 
-int get_hosts(interactive_session_internal& session)
-{
-	DEBUG_INFO("Retrieving hosts.");
-	http_response response;
-	static std::string hosts = "https://mixer.com/api/v1/interactive/hosts";
-	RETURN_IF_FAILED(session.http->make_request(hosts, "GET", nullptr, "", response));
-
-	if (200 != response.statusCode)
-	{
-		return MIXER_ERROR_NO_HOST;
-	}
-
-	rapidjson::Document doc;
-	if (doc.Parse(response.body.c_str()).HasParseError() || !doc.IsArray())
-	{
-		return MIXER_ERROR_JSON_PARSE;
-	}
-
-	for (auto itr = doc.Begin(); itr != doc.End(); ++itr)
-	{
-		auto addressItr = itr->FindMember("address");
-		if (addressItr != itr->MemberEnd())
-		{
-			session.hosts.push_back(addressItr->value.GetString());
-			DEBUG_TRACE("Host found: " + std::string(addressItr->value.GetString(), addressItr->value.GetStringLength()));
-		}
-	}
-
-	return MIXER_OK;
-}
-
-int update_server_time_offset(interactive_session_internal& session)
-{
-	// Calculate the server time offset.
-	DEBUG_INFO("Calculating server time offset.");
-	unsigned int id;
-	int err = send_method(session, RPC_METHOD_GET_TIME, nullptr, false, &id);
-	if (err)
-	{
-		DEBUG_ERROR("Method "  RPC_METHOD_GET_TIME " failed: " + std::to_string(err));
-		return err;
-	}
-	auto sentTime = std::chrono::time_point_cast<std::chrono::milliseconds>(std::chrono::system_clock::now());
-
-	std::shared_ptr<rapidjson::Document> replyDoc;
-	err = receive_reply(session, id, replyDoc);
-	if (err)
-	{
-		DEBUG_ERROR("Failed to receive reply for " RPC_METHOD_GET_TIME ": " + std::to_string(err));
-		return err;
-	}
-
-	if (!replyDoc->HasMember(RPC_RESULT) || !(*replyDoc)[RPC_RESULT].HasMember(RPC_TIME))
-	{
-		DEBUG_ERROR("Unexpected reply format for server time reply");
-	}
-
-	auto receivedTime = std::chrono::time_point_cast<std::chrono::milliseconds>(std::chrono::system_clock::now());
-	auto latency = (receivedTime - sentTime) / 2;
-	unsigned long long serverTime = (*replyDoc)[RPC_RESULT][RPC_TIME].GetUint64();
-	auto offset = receivedTime - latency - std::chrono::milliseconds(serverTime);
-	session.serverTimeOffsetMs = offset.time_since_epoch().count();
-	DEBUG_INFO("Server time offset: " + std::to_string(session.serverTimeOffsetMs));
-	return MIXER_OK;
-}
-
 }
 
 using namespace mixer_internal;
@@ -572,64 +520,32 @@ int interactive_connect(interactive_session session, const char* auth, const cha
 	}
 
 	interactive_session_internal* sessionInternal = reinterpret_cast<interactive_session_internal*>(session);
-	
+
+	if (interactive_disconnected != sessionInternal->state)
+	{
+		return MIXER_ERROR_INVALID_STATE;
+	}
+
 	sessionInternal->isReady = setReady;
 	sessionInternal->authorization = auth;
 	sessionInternal->versionId = versionId;
 	sessionInternal->shareCode = shareCode;
-
-	int err = 0;
-	if (sessionInternal->shutdownRequested)
+	
+	sessionInternal->state = interactive_connecting;
+	if (sessionInternal->onStateChanged)
 	{
-		return MIXER_OK;
-	}
-
-	err = get_hosts(*sessionInternal);
-	if (err && sessionInternal->onError)
-	{
-		std::string errorMessage = "Failed to acquire interactive host servers.";
-		sessionInternal->onError(sessionInternal->callerContext, &session, err, errorMessage.c_str(), errorMessage.length());
-		return err;
-	}
-
-	// Connect long running websocket.
-	sessionInternal->ws->add_header("X-Protocol-Version", "2.0");
-	sessionInternal->ws->add_header("Authorization", sessionInternal->authorization);
-	sessionInternal->ws->add_header("X-Interactive-Version", sessionInternal->versionId);
-	if (!sessionInternal->shareCode.empty())
-	{
-		sessionInternal->ws->add_header("X-Interactive-Sharecode", sessionInternal->shareCode);
+		sessionInternal->onStateChanged(sessionInternal->callerContext, sessionInternal, interactive_disconnected, sessionInternal->state);
+		if (sessionInternal->shutdownRequested)
+		{
+			return MIXER_ERROR_CANCELLED;
+		}
 	}
 
 	// Create thread to open websocket and receive messages.
 	sessionInternal->incomingThread = std::thread(std::bind(&interactive_session_internal::run_incoming_thread, sessionInternal));
 
-	std::unique_lock<std::mutex> wsOpenLock(sessionInternal->wsOpenMutex);
-	if (!sessionInternal->wsOpen)
-	{
-		sessionInternal->wsOpenCV.wait(wsOpenLock);
-	}
-
-	if (!sessionInternal->wsOpen)
-	{
-		return MIXER_ERROR_WS_CONNECT_FAILED;
-	}
-
 	// Create thread to send messages over the open websocket.
 	sessionInternal->outgoingThread = std::thread(std::bind(&interactive_session_internal::run_outgoing_thread, sessionInternal));
-
-	// Get the server time offset.
-	err = update_server_time_offset(*sessionInternal);
-	if (err)
-	{
-		// Warn about this but don't fail interactive connecting as this may only affect control cooldowns.
-		DEBUG_WARNING("Failed to update server time offset: " + std::to_string(err));
-	}
-
-	// Cache scene and group data.
-	RETURN_IF_FAILED(cache_scenes(*sessionInternal));
-	DEBUG_TRACE("Cached scene data: " + jsonStringify(sessionInternal->scenesRoot));
-	RETURN_IF_FAILED(cache_groups(*sessionInternal));
 
 	return MIXER_OK;
 }
@@ -667,6 +583,11 @@ int interactive_set_bandwidth_throttle(interactive_session session, interactive_
 	}
 
 	interactive_session_internal* sessionInternal = reinterpret_cast<interactive_session_internal*>(session);
+
+	if (interactive_connected > sessionInternal->state)
+	{
+		return MIXER_ERROR_NOT_CONNECTED;
+	}
 
 	std::string throttleMethod;
 	switch (throttleType)
@@ -719,117 +640,78 @@ int interactive_run(interactive_session session, unsigned int maxEventsToProcess
 		return MIXER_ERROR_CANCELLED;
 	}
 
-	unsigned int processed = 0;
-
-	// Check for any errors first.
-	if (!sessionInternal->errors.empty() && processed < maxEventsToProcess)
+	// Create a local queue and populate it with the top elements from the incoming event queue to minimize locking time.
+	interactive_event_queue processingQueue;
 	{
-		std::queue<protocol_error> errors;
+		std::lock_guard<std::mutex> incomingLock(sessionInternal->incomingMutex);
+		for (unsigned int i = 0; i < maxEventsToProcess && i < sessionInternal->incomingEvents.size(); ++i)
 		{
-			std::lock_guard<std::mutex> l(sessionInternal->errorsMutex);
-			while (!sessionInternal->errors.empty() && processed++ < maxEventsToProcess)
-			{
-				errors.emplace(sessionInternal->errors.front());
-				sessionInternal->errors.pop();
-			}
+			processingQueue.emplace(std::move(sessionInternal->incomingEvents.top()));
+			sessionInternal->incomingEvents.pop();
 		}
+	}
 
-		if (sessionInternal->onError)
+	// Process all the events in the local queue.
+	while (!processingQueue.empty())
+	{
+		auto ev = processingQueue.top();
+		switch (ev->type)
 		{
-			while (!errors.empty())
+		case interactive_event_type_error:
+		{
+			auto errorEvent = reinterpret_cast<std::shared_ptr<error_event>&>(ev);
+			if (sessionInternal->onError)
 			{
-				protocol_error error = errors.front();
-				errors.pop();
-				sessionInternal->onError(sessionInternal->callerContext, &sessionInternal, error.first, error.second.c_str(), error.second.length());
-
+				sessionInternal->onError(sessionInternal->callerContext, sessionInternal, errorEvent->error.first, errorEvent->error.second.c_str(), errorEvent->error.second.length());
 				if (sessionInternal->shutdownRequested)
 				{
 					return MIXER_OK;
 				}
 			}
+			break;
 		}
-	}
-
-	// Process any websocket replies.
-	if (!sessionInternal->replies.empty() && processed < maxEventsToProcess)
-	{
-		std::unique_lock<std::mutex> repliesLock(sessionInternal->repliesMutex);
-
-		for (auto replyByIdItr = sessionInternal->replies.begin(); replyByIdItr != sessionInternal->replies.end() && processed++ < maxEventsToProcess; /* No increment */)
+		case interactive_event_type_state_change:
 		{
-			auto replyHandlerItr = sessionInternal->replyHandlersById.find(replyByIdItr->first);
-			if (replyHandlerItr != sessionInternal->replyHandlersById.end())
+			auto stateChangeEvent = reinterpret_cast<std::shared_ptr<state_change_event>&>(ev);
+			interactive_state previousState = sessionInternal->state;
+			sessionInternal->state = stateChangeEvent->currentState;
+			if (sessionInternal->onStateChanged)
 			{
-				// Call the registered handler for this reply
-				std::shared_ptr<rapidjson::Document> replyDoc = replyByIdItr->second;
-				replyHandlerItr->second(*sessionInternal, *replyDoc);
+				sessionInternal->onStateChanged(sessionInternal->callerContext, sessionInternal, previousState, sessionInternal->state);
 			}
-
-			// This reply was processed, clear it.
-			sessionInternal->replies.erase(replyByIdItr++);
-
-			if (sessionInternal->shutdownRequested)
-			{
-				break;
-			}
+			break;
 		}
-	}
-
-	// Process any http responses.
-	if (!sessionInternal->httpResponsesById.empty() && processed < maxEventsToProcess)
-	{
-		std::unique_lock<std::mutex> responsesLock(sessionInternal->httpResponsesMutex);
-		
-		for (auto responsesItr = sessionInternal->httpResponsesById.begin(); responsesItr != sessionInternal->httpResponsesById.end(); /* No increment */)
+		case interactive_event_type_rpc_reply:
 		{
-			// Check if there is a handler for this response
-			auto responseHandlerItr = sessionInternal->httpResponseHandlers.find(responsesItr->first);
-			if (responseHandlerItr != sessionInternal->httpResponseHandlers.end())
-			{
-				responseHandlerItr->second(responsesItr->second.statusCode, responsesItr->second.body);
-				
-				// Clean up this handler now that is has been called.
-				sessionInternal->httpResponseHandlers.erase(responseHandlerItr);
-			}
-
-			// Clean up this response.
-			sessionInternal->httpResponsesById.erase(responsesItr++);
-
-			if (sessionInternal->shutdownRequested)
-			{
-				break;
-			}
+			auto replyEvent = reinterpret_cast<std::shared_ptr<rpc_reply_event>&>(ev);
+			replyEvent->replyHandler(*sessionInternal, *replyEvent->replyJson);
+			break;
 		}
-	}
-
-	// Process any incoming methods last.
-	if (processed < maxEventsToProcess)
-	{
-		std::queue<std::shared_ptr<rapidjson::Document>> methods;
+		case interactive_event_type_http_response:
 		{
-			std::lock_guard<std::mutex> l(sessionInternal->methodsMutex);
-			while (!sessionInternal->incomingMethods.empty() && processed++ < maxEventsToProcess)
+			auto httpResponseEvent = reinterpret_cast<std::shared_ptr<http_response_event>&>(ev);
+			httpResponseEvent->responseHandler(httpResponseEvent->response);
+			break;
+		}
+		case interactive_event_type_rpc_method:
+		{
+			auto rpcMethodEvent = reinterpret_cast<std::shared_ptr<rpc_method_event>&>(ev);
+			if (rpcMethodEvent->methodJson->HasMember(RPC_SEQUENCE))
 			{
-				methods.emplace(sessionInternal->incomingMethods.front());
-				sessionInternal->incomingMethods.pop();
+				sessionInternal->sequenceId = (*rpcMethodEvent->methodJson)[RPC_SEQUENCE].GetInt();
 			}
+
+			RETURN_IF_FAILED(route_method(*sessionInternal, *rpcMethodEvent->methodJson));
+			break;
+		}
+		default:
+			break;
 		}
 
-		while (!methods.empty())
+		processingQueue.pop();
+		if (sessionInternal->shutdownRequested)
 		{
-			std::shared_ptr<rapidjson::Document> method = methods.front();
-			methods.pop();
-
-			if (method->HasMember(RPC_SEQUENCE))
-			{
-				sessionInternal->sequenceId = (*method)[RPC_SEQUENCE].GetInt();
-			}
-
-			RETURN_IF_FAILED(route_method(*sessionInternal, *method));
-			if (sessionInternal->shutdownRequested)
-			{
-				return MIXER_OK;
-			}
+			return MIXER_OK;
 		}
 	}
 
@@ -937,6 +819,11 @@ int interactive_set_ready(interactive_session session, bool isReady)
 	}
 
 	interactive_session_internal* sessionInternal = reinterpret_cast<interactive_session_internal*>(session);
+	if (interactive_connected > sessionInternal->state)
+	{
+		return MIXER_ERROR_NOT_CONNECTED;
+	}
+
 	return send_ready_message(*sessionInternal, isReady);
 }
 
@@ -954,6 +841,11 @@ int interactive_capture_transaction(interactive_session session, const char* tra
 	}
 
 	interactive_session_internal* sessionInternal = reinterpret_cast<interactive_session_internal*>(session);
+	if (interactive_connected > sessionInternal->state)
+	{
+		return MIXER_ERROR_NOT_CONNECTED;
+	}
+	
 	RETURN_IF_FAILED(queue_method(*sessionInternal, RPC_METHOD_CAPTURE, [&](rapidjson::Document::AllocatorType& allocator, rapidjson::Value& params)
 	{
 		params.AddMember(RPC_PARAM_TRANSACTION_ID, transactionIdStr, allocator);
@@ -984,7 +876,7 @@ int interactive_capture_transaction(interactive_session session, const char* tra
 	return MIXER_OK;
 }
 
-int interactive_send_method(interactive_session session, const char* method, const char* paramsJson, bool discardReply, unsigned int* id)
+int interactive_queue_method(interactive_session session, const char* method, const char* paramsJson, on_method_reply onReply)
 {
 	if (nullptr == session)
 	{
@@ -992,6 +884,10 @@ int interactive_send_method(interactive_session session, const char* method, con
 	}
 
 	interactive_session_internal* sessionInternal = reinterpret_cast<interactive_session_internal*>(session);
+	if (interactive_connected > sessionInternal->state)
+	{
+		return MIXER_ERROR_NOT_CONNECTED;
+	}
 
 	rapidjson::Document paramsDoc;
 	if (paramsDoc.Parse(paramsJson).HasParseError())
@@ -999,39 +895,22 @@ int interactive_send_method(interactive_session session, const char* method, con
 		return MIXER_ERROR_JSON_PARSE;
 	}
 
-	RETURN_IF_FAILED(send_method(*sessionInternal, method, [&](rapidjson::Document::AllocatorType& allocator, rapidjson::Value& params)
+	method_handler replyHandler;
+	if (nullptr != onReply)
+	{
+		replyHandler = [onReply](interactive_session_internal& session, rapidjson::Document& replyJson)
+		{
+			std::string replyJsonStr = jsonStringify(replyJson);
+			onReply(session.callerContext, &session, replyJsonStr.c_str(), replyJsonStr.length());
+			return MIXER_OK;
+		};
+	}
+
+	RETURN_IF_FAILED(queue_method(*sessionInternal, method, [&](rapidjson::Document::AllocatorType& allocator, rapidjson::Value& params)
 	{
 		params.CopyFrom(paramsDoc, allocator);
-	}, discardReply, id));
+	}, replyHandler));
 
-	return MIXER_OK;
-}
-
-int interactive_receive_reply(interactive_session session, unsigned int id, unsigned int timeoutMs, char* replyJson, size_t* replyJsonLength)
-{
-	if (nullptr == session || nullptr == replyJsonLength)
-	{
-		return MIXER_ERROR_INVALID_POINTER;
-	}
-
-	interactive_session_internal* sessionInternal = reinterpret_cast<interactive_session_internal*>(session);
-
-	std::shared_ptr<rapidjson::Document> replyDoc;
-	RETURN_IF_FAILED(receive_reply(*sessionInternal, id, replyDoc, timeoutMs));
-	std::string replyJsonStr = jsonStringify(*replyDoc);
-
-	if (nullptr == replyJson || *replyJsonLength < replyJsonStr.length() + 1)
-	{
-		*replyJsonLength = replyJsonStr.length() + 1;
-		// Put the reply back
-		std::lock_guard<std::mutex> l(sessionInternal->repliesMutex);
-		sessionInternal->replies[id] = replyDoc;
-		return MIXER_ERROR_BUFFER_SIZE;
-	}
-
-	memcpy(replyJson, replyJsonStr.c_str(), replyJsonStr.length());
-	replyJson[replyJsonStr.length()] = 0;
-	*replyJsonLength = replyJsonStr.length() + 1;
 	return MIXER_OK;
 }
 
@@ -1134,7 +1013,6 @@ int interactive_set_transaction_complete_handler(interactive_session session, on
 
 	return MIXER_OK;
 }
-
 
 int interactive_set_control_changed_handler(interactive_session session, on_control_changed onControlChanged)
 {

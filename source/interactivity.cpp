@@ -2,6 +2,7 @@
 #include "internal/http_client.cpp"
 #include "internal/interactive_auth.cpp"
 #include "internal/interactive_control.cpp"
+#include "internal/interactive_event.cpp"
 #include "internal/interactive_group.cpp"
 #include "internal/interactive_participant.cpp"
 #include "internal/interactive_scene.cpp"

@@ -360,7 +360,7 @@ winapp_http_client::make_request(const std::string& uri, const std::string& verb
 
 	if (nullptr != headers)
 	{
-		for (auto header : *headers)
+		for (const auto& header : *headers)
 		{
 			RETURN_HR_IF_FAILED(request->SetRequestHeader(utf8_to_wstring(header.first).c_str(), utf8_to_wstring(header.second).c_str()));
 		}
