@@ -1,12 +1,18 @@
 #include "interactive_session.h"
 #include "common.h"
 
+#include <type_traits>
+
 namespace mixer_internal
 {
 
+interactive_control_internal::interactive_control_internal(std::string id, std::string kind) : interactive_object_internal(std::move(id)), kind(std::move(kind)) {}
+
+interactive_control_pointer::interactive_control_pointer(std::string sceneId, std::string cachePointer) : sceneId(std::move(sceneId)), cachePointer(std::move(cachePointer)) {}
+
+// Assumes caller holds read lock on scenes mutex.
 int get_control_scene_id(interactive_session_internal& session, const char* controlId, std::string& sceneId)
 {
-	// Locate the cached control data.
 	auto itr = session.controls.find(controlId);
 	if (itr == session.controls.end())
 	{
@@ -26,6 +32,7 @@ int get_control_scene_id(interactive_session_internal& session, const char* cont
 	return MIXER_OK;
 }
 
+// Assumes caller holds read lock on scenes mutex.
 int get_scene_object_prop_count(interactive_session_internal& session, const char* pointer, size_t* count)
 {
 	if (nullptr == pointer || nullptr == count)
@@ -34,8 +41,8 @@ int get_scene_object_prop_count(interactive_session_internal& session, const cha
 	}
 
 	*count = 0;
-	// Find the control in the cached scene document.
-	rapidjson::Value* value = rapidjson::Pointer(rapidjson::StringRef(pointer)).Get(session.scenesRoot);
+	rapidjson::Value* value = nullptr;
+	value = rapidjson::Pointer(rapidjson::StringRef(pointer)).Get(session.scenesRoot);
 	if (nullptr == value)
 	{
 		return MIXER_ERROR_OBJECT_NOT_FOUND;
@@ -45,6 +52,7 @@ int get_scene_object_prop_count(interactive_session_internal& session, const cha
 	return MIXER_OK;
 }
 
+// Assumes caller holds read lock on scenes mutex.
 int get_scene_object_prop_data(interactive_session_internal& session, const char* pointer, size_t index, char* propName, size_t* propNameLength, interactive_property_type* propType)
 {
 	if (nullptr == pointer || nullptr == propNameLength || nullptr == propType)
@@ -59,7 +67,6 @@ int get_scene_object_prop_data(interactive_session_internal& session, const char
 
 	*propType = interactive_property_type::interactive_unknown_t;
 
-	// Find the object in the cached scene document.
 	rapidjson::Value* value = rapidjson::Pointer(rapidjson::StringRef(pointer)).Get(session.scenesRoot);
 	if (nullptr == value)
 	{
@@ -118,42 +125,6 @@ int get_scene_object_prop_data(interactive_session_internal& session, const char
 	return MIXER_OK;
 }
 
-int verify_get_property_args_and_get_control_value(interactive_session session, const char* controlId, const char* key, void* property, rapidjson::Value** controlValue)
-{
-	if (nullptr == session || nullptr == property || nullptr == controlValue)
-	{
-		return MIXER_ERROR_INVALID_POINTER;
-	}
-
-	interactive_session_internal* sessionInternal = reinterpret_cast<interactive_session_internal*>(session);
-	// Validate connection state.
-	if (interactive_disconnected == sessionInternal->state)
-	{
-		return MIXER_ERROR_NOT_CONNECTED;
-	}
-
-	if (sessionInternal->shutdownRequested)
-	{
-		return MIXER_OK;
-	}
-
-	std::shared_lock<std::shared_mutex> lock(sessionInternal->scenesMutex);
-	auto controlItr = sessionInternal->controls.find(std::string(controlId));
-	if (controlItr == sessionInternal->controls.end())
-	{
-		return MIXER_ERROR_OBJECT_NOT_FOUND;
-	}
-
-	std::string controlPointer = controlItr->second.cachePointer + "/" + std::string(key);
-	*controlValue = rapidjson::Pointer(controlPointer.c_str()).Get(sessionInternal->scenesRoot);
-	if (nullptr == *controlValue)
-	{
-		return MIXER_ERROR_PROPERTY_NOT_FOUND;
-	}
-
-	return MIXER_OK;
-}
-
 void parse_control(rapidjson::Value& controlJson, interactive_control& control)
 {
 	control.id = controlJson[RPC_CONTROL_ID].GetString();
@@ -167,103 +138,200 @@ void parse_control(rapidjson::Value& controlJson, interactive_control& control)
 
 int cache_new_control(interactive_session_internal& session, const char* sceneId, interactive_control& control, rapidjson::Value& controlJson)
 {
-	std::shared_lock<std::shared_mutex> readLock(session.scenesMutex);
-	if (session.controls.find(control.id) != session.controls.end())
+	// Critical Section: Add a control to the scenes cache.
 	{
-		return MIXER_ERROR_OBJECT_EXISTS;
+		std::unique_lock<std::shared_mutex> scenesLock(session.scenesMutex);
+		if (session.controls.find(control.id) != session.controls.end())
+		{
+			return MIXER_ERROR_OBJECT_EXISTS;
+		}
+
+		auto sceneItr = session.scenes.find(sceneId);
+		if (sceneItr == session.scenes.end())
+		{
+			return MIXER_ERROR_OBJECT_NOT_FOUND;
+		}
+
+		std::string scenePtr = sceneItr->second;
+		rapidjson::Value* scene = rapidjson::Pointer(rapidjson::StringRef(scenePtr.c_str(), scenePtr.length())).Get(session.scenesRoot);
+
+		rapidjson::Document::AllocatorType& allocator = session.scenesRoot.GetAllocator();
+		auto controlsItr = scene->FindMember(RPC_PARAM_CONTROLS);
+		rapidjson::Value* controls;
+		if (controlsItr == scene->MemberEnd() || !controlsItr->value.IsArray())
+		{
+			controls = &scene->AddMember(RPC_PARAM_CONTROLS, rapidjson::Value(rapidjson::kArrayType), allocator);
+		}
+		else
+		{
+			controls = &controlsItr->value;
+		}
+
+		rapidjson::Value myControlJson(rapidjson::kObjectType);
+		myControlJson.CopyFrom(controlJson, session.scenesRoot.GetAllocator());
+		controls->PushBack(myControlJson, allocator);
 	}
 
-	auto sceneItr = session.scenes.find(sceneId);
-	if (sceneItr == session.scenes.end())
-	{
-		return MIXER_ERROR_OBJECT_NOT_FOUND;
-	}
-
-	std::string scenePtr = sceneItr->second;
-	rapidjson::Value* scene = rapidjson::Pointer(rapidjson::StringRef(scenePtr.c_str(), scenePtr.length())).Get(session.scenesRoot);
-
-	rapidjson::Document::AllocatorType& allocator = session.scenesRoot.GetAllocator();
-	auto controlsItr = scene->FindMember(RPC_PARAM_CONTROLS);
-	rapidjson::Value* controls;
-	if (controlsItr == scene->MemberEnd() || !controlsItr->value.IsArray())
-	{
-		readLock.unlock();
-		std::unique_lock<std::shared_mutex> writeLock(session.scenesMutex);
-		controls = &scene->AddMember(RPC_PARAM_CONTROLS, rapidjson::Value(rapidjson::kArrayType), allocator);
-		writeLock.unlock();
-		readLock.lock();
-	}
-	else
-	{
-		controls = &controlsItr->value;
-	}
-
-	rapidjson::Value myControlJson(rapidjson::kObjectType);
-	myControlJson.CopyFrom(controlJson, session.scenesRoot.GetAllocator());
-	controls->PushBack(myControlJson, allocator);
 	RETURN_IF_FAILED(update_control_pointers(session, sceneId));
 
 	return MIXER_OK;
 }
 
-
 int update_cached_control(interactive_session_internal& session, interactive_control& control, rapidjson::Value& controlJson)
 {
-	std::unique_lock<std::shared_mutex> writeLock(session.scenesMutex);
-	auto itr = session.controls.find(control.id);
-	if (itr == session.controls.end())
+	// Critical Section: Replace a control in the scenes cache.
 	{
-		return MIXER_ERROR_OBJECT_NOT_FOUND;
-	}
+		std::unique_lock<std::shared_mutex> scenesLock(session.scenesMutex);
+		auto itr = session.controls.find(control.id);
+		if (itr == session.controls.end())
+		{
+			return MIXER_ERROR_OBJECT_NOT_FOUND;
+		}
 
-	std::string controlPtr = itr->second.cachePointer;
-	rapidjson::Value myControlJson(rapidjson::kObjectType);
-	myControlJson.CopyFrom(controlJson, session.scenesRoot.GetAllocator());
-	rapidjson::Pointer(rapidjson::StringRef(controlPtr.c_str(), controlPtr.length()))
-		.Swap(session.scenesRoot, myControlJson);
+		std::string controlPtr = itr->second.cachePointer;
+		rapidjson::Value myControlJson(rapidjson::kObjectType);
+		myControlJson.CopyFrom(controlJson, session.scenesRoot.GetAllocator());
+		rapidjson::Pointer(rapidjson::StringRef(controlPtr.c_str(), controlPtr.length()))
+			.Swap(session.scenesRoot, myControlJson);
+	}
 
 	return MIXER_OK;
 }
 
 int delete_cached_control(interactive_session_internal& session, const char* sceneId, interactive_control& control)
 {
-	std::shared_lock<std::shared_mutex> readLock(session.scenesMutex);
-	if (session.controls.find(control.id) == session.controls.end())
+	// Critical Section: Erase the control if it exists on the scene.
 	{
-		// This control doesn't exist, ignore this deletion.
-		return MIXER_OK;
-	}
-
-	auto sceneItr = session.scenes.find(sceneId);
-	if (sceneItr == session.scenes.end())
-	{
-		return MIXER_ERROR_OBJECT_NOT_FOUND;
-	}
-
-	// Find the controls array on the scene.
-	std::string scenePtr = sceneItr->second;
-	rapidjson::Value* scene = rapidjson::Pointer(rapidjson::StringRef(scenePtr.c_str(), scenePtr.length())).Get(session.scenesRoot);
-	auto controlsItr = scene->FindMember(RPC_PARAM_CONTROLS);
-	if (controlsItr == scene->MemberEnd() || !controlsItr->value.IsArray())
-	{
-		// If the scene has no controls on it, ignore this deletion.
-		return MIXER_OK;
-	}
-
-	// Erase the value from the array.
-	rapidjson::Value* controls = &controlsItr->value;
-	for (auto controlItr = controls->Begin(); controlItr != controls->End(); ++controlItr)
-	{
-		if (0 == strcmp(controlItr->GetObject()[RPC_CONTROL_ID].GetString(), control.id))
+		std::unique_lock<std::shared_mutex> scenesLock(session.scenesMutex);
+		if (session.controls.find(control.id) == session.controls.end())
 		{
-			controls->Erase(controlItr);
-			break;
+			// This control doesn't exist, ignore this deletion.
+			return MIXER_OK;
+		}
+
+		auto sceneItr = session.scenes.find(sceneId);
+		if (sceneItr == session.scenes.end())
+		{
+			return MIXER_ERROR_OBJECT_NOT_FOUND;
+		}
+
+		// Find the controls array on the scene.
+		std::string scenePtr = sceneItr->second;
+		rapidjson::Value* scene = rapidjson::Pointer(rapidjson::StringRef(scenePtr.c_str(), scenePtr.length())).Get(session.scenesRoot);
+		auto controlsItr = scene->FindMember(RPC_PARAM_CONTROLS);
+		if (controlsItr == scene->MemberEnd() || !controlsItr->value.IsArray())
+		{
+			// If the scene has no controls on it, ignore this deletion.
+			return MIXER_OK;
+		}
+
+		// Erase the value from the array.
+		rapidjson::Value* controls = &controlsItr->value;
+		for (rapidjson::Value* controlItr = controls->Begin(); controlItr != controls->End(); ++controlItr)
+		{
+			if (0 == strcmp(controlItr->GetObject()[RPC_CONTROL_ID].GetString(), control.id))
+			{
+				controls->Erase(controlItr);
+				break;
+			}
 		}
 	}
 
 	RETURN_IF_FAILED(update_control_pointers(session, sceneId));
 
 	return MIXER_OK;
+}
+
+int safe_get_value(rapidjson::Value* jsonValue, int* value)
+{
+	if (!jsonValue->IsInt())
+	{
+		return MIXER_ERROR_INVALID_PROPERTY_TYPE;
+	}
+
+	*value = jsonValue->GetInt();
+	return MIXER_OK;
+}
+
+int safe_get_value(rapidjson::Value* jsonValue, long long* value)
+{
+	if (!jsonValue->IsInt64())
+	{
+		return MIXER_ERROR_INVALID_PROPERTY_TYPE;
+	}
+
+	*value = jsonValue->GetInt64();
+	return MIXER_OK;
+}
+
+int safe_get_value(rapidjson::Value* jsonValue, bool* value)
+{
+	if (!jsonValue->IsBool())
+	{
+		return MIXER_ERROR_INVALID_PROPERTY_TYPE;
+	}
+
+	*value = jsonValue->GetBool();
+	return MIXER_OK;
+}
+
+int safe_get_value(rapidjson::Value* jsonValue, float* value)
+{
+	if (!jsonValue->IsFloat())
+	{
+		return MIXER_ERROR_INVALID_PROPERTY_TYPE;
+	}
+
+	*value = jsonValue->GetFloat();
+	return MIXER_OK;
+}
+
+int safe_get_value(rapidjson::Value* jsonValue, std::string* value)
+{
+	if (!jsonValue->IsString())
+	{
+		return MIXER_ERROR_INVALID_PROPERTY_TYPE;
+	}
+
+	*value = jsonValue->GetString();
+	return MIXER_OK;
+}
+
+template<typename T>
+int interactive_control_get_property(interactive_session session, const char* controlId, const char* key, T* prop)
+{
+	if (nullptr == session || nullptr == controlId|| nullptr == key || nullptr == prop)
+	{
+		return MIXER_ERROR_INVALID_POINTER;
+	}
+
+	interactive_session_internal* sessionInternal = reinterpret_cast<interactive_session_internal*>(session);
+	// Validate connection state.
+	if (interactive_connected > sessionInternal->state)
+	{
+		return MIXER_ERROR_NOT_CONNECTED;
+	}
+
+	if (sessionInternal->shutdownRequested)
+	{
+		return MIXER_OK;
+	}
+
+	std::shared_lock<std::shared_mutex> scenesReadLock(sessionInternal->scenesMutex);
+	auto controlItr = sessionInternal->controls.find(std::string(controlId));
+	if (controlItr == sessionInternal->controls.end())
+	{
+		return MIXER_ERROR_OBJECT_NOT_FOUND;
+	}
+
+	std::string controlPointer = controlItr->second.cachePointer + "/" + std::string(key);
+	rapidjson::Value* controlValue = rapidjson::Pointer(controlPointer.c_str()).Get(sessionInternal->scenesRoot);
+	if (nullptr == controlValue)
+	{
+		return MIXER_ERROR_PROPERTY_NOT_FOUND;
+	}
+
+	return safe_get_value(controlValue, prop);
 }
 
 template <typename T>
@@ -275,6 +343,10 @@ int interactive_control_set_property(interactive_session session, const char* co
 	}
 
 	interactive_session_internal* sessionInternal = reinterpret_cast<interactive_session_internal*>(session);
+	if (interactive_connected > sessionInternal->state)
+	{
+		return MIXER_ERROR_NOT_CONNECTED;
+	}
 
 	// Find the control
 	std::shared_lock<std::shared_mutex> l(sessionInternal->scenesMutex);
@@ -304,6 +376,13 @@ int interactive_control_set_property(interactive_session session, const char* co
 	return MIXER_OK;
 }
 
+template <typename T>
+int interactive_control_get_meta_property(interactive_session session, const char* controlId, const char* key, T* property)
+{
+	std::string metaKey = std::string(RPC_METADATA) + "/" + std::string(key) + "/value";
+	return interactive_control_get_property<T>(session, controlId, metaKey.c_str(), property);
+}
+
 }
 
 using namespace mixer_internal;
@@ -316,23 +395,30 @@ int interactive_control_trigger_cooldown(interactive_session session, const char
 	}
 
 	interactive_session_internal* sessionInternal = reinterpret_cast<interactive_session_internal*>(session);
+	if (interactive_connected > sessionInternal->state)
+	{
+		return MIXER_ERROR_NOT_CONNECTED;
+	}
 
 	std::string controlSceneId;
-	RETURN_IF_FAILED(get_control_scene_id(*sessionInternal, controlId, controlSceneId));
+	// Critical Section: Get the control's scene id.
+	{
+		std::shared_lock<std::shared_mutex> scenesReadLock(sessionInternal->scenesMutex);
+		RETURN_IF_FAILED(get_control_scene_id(*sessionInternal, controlId, controlSceneId));
+	}
 
-	long long cooldownTimestamp = std::chrono::time_point_cast<std::chrono::milliseconds>(std::chrono::system_clock::now()).time_since_epoch().count() - sessionInternal->serverTimeOffsetMs + cooldownMs;
-	std::string controlIdStr(controlId);
-	RETURN_IF_FAILED(queue_method(*sessionInternal, RPC_METHOD_UPDATE_CONTROLS, [controlSceneId, controlIdStr, cooldownTimestamp](rapidjson::Document::AllocatorType& allocator, rapidjson::Value& params)
+	long long cooldownTimestamp = std::chrono::time_point_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now()).time_since_epoch().count() - sessionInternal->serverTimeOffsetMs + cooldownMs;
+	RETURN_IF_FAILED(queue_method(*sessionInternal, RPC_METHOD_UPDATE_CONTROLS, [&](rapidjson::Document::AllocatorType& allocator, rapidjson::Value& params)
 	{
 		params.AddMember(RPC_SCENE_ID, controlSceneId, allocator);
 		params.AddMember("priority", 1, allocator);
 
 		rapidjson::Value controls(rapidjson::kArrayType);
 		rapidjson::Value control(rapidjson::kObjectType);
-		control.AddMember(RPC_CONTROL_ID, controlIdStr, allocator);
+		control.AddMember(RPC_CONTROL_ID, std::string(controlId), allocator);
 		control.AddMember(RPC_CONTROL_BUTTON_COOLDOWN, cooldownTimestamp, allocator);
-		controls.PushBack(control, allocator);
-		params.AddMember(RPC_PARAM_CONTROLS, controls, allocator);
+		controls.PushBack(std::move(control), allocator);
+		params.AddMember(RPC_PARAM_CONTROLS, std::move(controls), allocator);
 	}, nullptr));
 
 	return MIXER_OK;
@@ -348,12 +434,13 @@ int interactive_control_get_property_count(interactive_session session, const ch
 	*count = 0;
 	interactive_session_internal* sessionInternal = reinterpret_cast<interactive_session_internal*>(session);
 	// Validate connection state.
-	if (interactive_disconnected == sessionInternal->state)
+	if (interactive_connected > sessionInternal->state)
 	{
 		return MIXER_ERROR_NOT_CONNECTED;
 	}
 
-	auto controlItr = sessionInternal->controls.find(std::string(controlId));
+	std::shared_lock<std::shared_mutex> scenesReadLock(sessionInternal->scenesMutex);
+	auto controlItr = sessionInternal->controls.find(controlId);
 	if (controlItr == sessionInternal->controls.end())
 	{
 		return MIXER_ERROR_OBJECT_NOT_FOUND;
@@ -372,11 +459,12 @@ int interactive_control_get_meta_property_count(interactive_session session, con
 	*count = 0;
 	interactive_session_internal* sessionInternal = reinterpret_cast<interactive_session_internal*>(session);
 	// Validate connection state.
-	if (interactive_disconnected == sessionInternal->state)
+	if (interactive_connected > sessionInternal->state)
 	{
 		return MIXER_ERROR_NOT_CONNECTED;
 	}
 
+	std::shared_lock<std::shared_mutex> scenesReadLock(sessionInternal->scenesMutex);
 	auto controlItr = sessionInternal->controls.find(std::string(controlId));
 	if (controlItr == sessionInternal->controls.end())
 	{
@@ -397,12 +485,13 @@ int interactive_control_get_property_data(interactive_session session, const cha
 	*propType = interactive_property_type::interactive_unknown_t;
 	interactive_session_internal* sessionInternal = reinterpret_cast<interactive_session_internal*>(session);
 	// Validate connection state.
-	if (interactive_disconnected == sessionInternal->state)
+	if (interactive_connected > sessionInternal->state)
 	{
 		return MIXER_ERROR_NOT_CONNECTED;
 	}
 
-	auto controlItr = sessionInternal->controls.find(std::string(controlId));
+	std::shared_lock<std::shared_mutex> scenesReadLock(sessionInternal->scenesMutex);
+	auto controlItr = sessionInternal->controls.find(controlId);
 	if (controlItr == sessionInternal->controls.end())
 	{
 		return MIXER_ERROR_OBJECT_NOT_FOUND;
@@ -422,11 +511,12 @@ int interactive_control_get_meta_property_data(interactive_session session, cons
 	*propType = interactive_property_type::interactive_unknown_t;
 	interactive_session_internal* sessionInternal = reinterpret_cast<interactive_session_internal*>(session);
 	// Validate connection state.
-	if (interactive_disconnected == sessionInternal->state)
+	if (interactive_connected > sessionInternal->state)
 	{
 		return MIXER_ERROR_NOT_CONNECTED;
 	}
 
+	std::shared_lock<std::shared_mutex> scenesReadLock(sessionInternal->scenesMutex);
 	auto controlItr = sessionInternal->controls.find(std::string(controlId));
 	if (controlItr == sessionInternal->controls.end())
 	{
@@ -450,84 +540,43 @@ int interactive_control_get_meta_property_data(interactive_session session, cons
 
 int interactive_control_get_property_int(interactive_session session, const char* controlId, const char* key, int* property)
 {
-	rapidjson::Value* controlValue;
-	RETURN_IF_FAILED(verify_get_property_args_and_get_control_value(session, controlId, key, property, &controlValue));
-	if (!controlValue->IsInt())
-	{
-		return MIXER_ERROR_INVALID_PROPERTY_TYPE;
-	}
-
-	*property = controlValue->GetInt();
-	return MIXER_OK;
+	return interactive_control_get_property<int>(session, controlId, key, property);
 }
 
 int interactive_control_get_property_int64(interactive_session session, const char* controlId, const char* key, long long* property)
 {
-	rapidjson::Value* controlValue;
-	RETURN_IF_FAILED(verify_get_property_args_and_get_control_value(session, controlId, key, property, &controlValue));
-	if (!controlValue->IsInt64())
-	{
-		return MIXER_ERROR_INVALID_PROPERTY_TYPE;
-	}
-
-	*property = controlValue->GetInt64();
-	return MIXER_OK;
+	return interactive_control_get_property<long long>(session, controlId, key, property);
 }
 
 int interactive_control_get_property_bool(interactive_session session, const char* controlId, const char* key, bool* property)
 {
-	rapidjson::Value* controlValue;
-	RETURN_IF_FAILED(verify_get_property_args_and_get_control_value(session, controlId, key, property, &controlValue));
-	if (!controlValue->IsBool())
-	{
-		return MIXER_ERROR_INVALID_PROPERTY_TYPE;
-	}
-
-	*property = controlValue->GetBool();
-	return MIXER_OK;
+	return interactive_control_get_property<bool>(session, controlId, key, property);
 }
 
 int interactive_control_get_property_float(interactive_session session, const char* controlId, const char* key, float* property)
 {
-	rapidjson::Value* controlValue;
-	RETURN_IF_FAILED(verify_get_property_args_and_get_control_value(session, controlId, key, property, &controlValue));
-	if (!controlValue->IsFloat())
-	{
-		return MIXER_ERROR_INVALID_PROPERTY_TYPE;
-	}
-
-	*property = controlValue->GetFloat();
-	return MIXER_OK;
+	return interactive_control_get_property<float>(session, controlId, key, property);
 }
 
 int interactive_control_get_property_string(interactive_session session, const char* controlId, const char* key, char* property, size_t* propertyLength)
 {
-	rapidjson::Value* controlValue;
-	RETURN_IF_FAILED(verify_get_property_args_and_get_control_value(session, controlId, key, propertyLength, &controlValue));
-	if (!controlValue->IsString())
-	{
-		return MIXER_ERROR_INVALID_PROPERTY_TYPE;
-	}
-
 	if (*propertyLength > 0 && nullptr == property)
 	{
 		return MIXER_ERROR_INVALID_POINTER;
 	}
 
-	if (!controlValue->IsString())
-	{
-		return MIXER_ERROR_INVALID_PROPERTY_TYPE;
-	}
+	std::string stringProp;
+	RETURN_IF_FAILED(interactive_control_get_property<std::string>(session, controlId, key, &stringProp));
 
-	if (*propertyLength < controlValue->GetStringLength() + 1)
+	if (*propertyLength < stringProp.length() + 1)
 	{
-		*propertyLength = controlValue->GetStringLength() + 1;
+		*propertyLength = stringProp.length() + 1;
 		return MIXER_ERROR_BUFFER_SIZE;
 	}
 
-	if (0 != controlValue->GetStringLength())
+	if (0 != stringProp.length())
 	{
-		memcpy(property, controlValue->GetString(), *propertyLength - 1);
+		memcpy(property, stringProp.c_str(), *propertyLength - 1);
 	}
 
 	property[*propertyLength - 1] = '\0';
@@ -568,89 +617,44 @@ int interactive_control_set_property_string(interactive_session session, const c
 
 int interactive_control_get_meta_property_int(interactive_session session, const char* controlId, const char* key, int* property)
 {
-	rapidjson::Value* controlValue;
-	std::string metaKey = std::string(RPC_METADATA) + "/" + std::string(key) + "/value";
-	RETURN_IF_FAILED(verify_get_property_args_and_get_control_value(session, controlId, metaKey.c_str(), property, &controlValue));
-	if (!controlValue->IsInt())
-	{
-		return MIXER_ERROR_INVALID_PROPERTY_TYPE;
-	}
-
-	*property = controlValue->GetInt();
-	return MIXER_OK;
+	return interactive_control_get_meta_property(session, controlId, key, property);
 }
 
 int interactive_control_get_meta_property_int64(interactive_session session, const char* controlId, const char* key, long long* property)
 {
-	rapidjson::Value* controlValue;
-	std::string metaKey = std::string(RPC_METADATA) + "/" + std::string(key) + "/value";
-	RETURN_IF_FAILED(verify_get_property_args_and_get_control_value(session, controlId, metaKey.c_str(), property, &controlValue));
-	if (!controlValue->IsInt64())
-	{
-		return MIXER_ERROR_INVALID_PROPERTY_TYPE;
-	}
-
-	*property = controlValue->GetInt64();
-	return MIXER_OK;
+	return interactive_control_get_meta_property(session, controlId, key, property);
 }
 
 int interactive_control_get_meta_property_bool(interactive_session session, const char* controlId, const char* key, bool* property)
 {
-	rapidjson::Value* controlValue;
-	std::string metaKey = std::string(RPC_METADATA) + "/" + std::string(key) + "/value";
-	RETURN_IF_FAILED(verify_get_property_args_and_get_control_value(session, controlId, metaKey.c_str(), property, &controlValue));
-	if (!controlValue->IsBool())
-	{
-		return MIXER_ERROR_INVALID_PROPERTY_TYPE;
-	}
-
-	*property = controlValue->GetBool();
-	return MIXER_OK;
+	return interactive_control_get_meta_property(session, controlId, key, property);
 }
 
 int interactive_control_get_meta_property_float(interactive_session session, const char* controlId, const char* key, float* property)
 {
-	rapidjson::Value* controlValue;
-	std::string metaKey = std::string(RPC_METADATA) + "/" + std::string(key) + "/value";
-	RETURN_IF_FAILED(verify_get_property_args_and_get_control_value(session, controlId, metaKey.c_str(), property, &controlValue));
-	if (!controlValue->IsFloat())
-	{
-		return MIXER_ERROR_INVALID_PROPERTY_TYPE;
-	}
-
-	*property = controlValue->GetFloat();
-	return MIXER_OK;
+	return interactive_control_get_meta_property(session, controlId, key, property);
 }
 
 int interactive_control_get_meta_property_string(interactive_session session, const char* controlId, const char* key, char* property, size_t* propertyLength)
-{
-	rapidjson::Value* controlValue;
-	std::string metaKey = std::string(RPC_METADATA) + "/" + std::string(key) + "/value";
-	RETURN_IF_FAILED(verify_get_property_args_and_get_control_value(session, controlId, metaKey.c_str(), propertyLength, &controlValue));
-	if (!controlValue->IsString())
-	{
-		return MIXER_ERROR_INVALID_PROPERTY_TYPE;
-	}
-
+{	
 	if (*propertyLength > 0 && nullptr == property)
 	{
 		return MIXER_ERROR_INVALID_POINTER;
 	}
 
-	if (!controlValue->IsString())
-	{
-		return MIXER_ERROR_INVALID_PROPERTY_TYPE;
-	}
+	std::string stringProp;
+	RETURN_IF_FAILED(interactive_control_get_meta_property(session, controlId, key, &stringProp));
+	
 
-	if (nullptr == property || *propertyLength < controlValue->GetStringLength() + 1)
+	if (nullptr == property || *propertyLength < stringProp.length() + 1)
 	{
-		*propertyLength = controlValue->GetStringLength() + 1;
+		*propertyLength = stringProp.length() + 1;
 		return MIXER_ERROR_BUFFER_SIZE;
 	}
 
-	if (0 != controlValue->GetStringLength())
+	if (0 != stringProp.length())
 	{
-		memcpy(property, controlValue->GetString(), *propertyLength - 1);
+		memcpy(property, stringProp.c_str(), *propertyLength - 1);
 	}
 
 	property[*propertyLength - 1] = '\0';

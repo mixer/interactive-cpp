@@ -1,10 +1,11 @@
 #include "interactivity.h"
 #include "common.h"
 #include "http_client.h"
+#include "rapidjson\document.h"
 
 #include <ctime>
 #include <string>
-#include "rapidjson\document.h"
+#include <thread>
 
 #define JSON_GRANTED_AT "granted_at"
 #define JSON_REFRESH_TOKEN "refresh_token"
@@ -131,6 +132,10 @@ int interactive_auth_wait_short_code(const char* clientId, const char* clientSec
 	{
 		RETURN_IF_FAILED(httpClient->make_request(validateUrl, "GET", nullptr, "", response));
 		handleStatus = response.statusCode;
+		if (204 == handleStatus)
+		{
+			std::this_thread::sleep_for(std::chrono::seconds(1));
+		}
 	}
 
 	std::string oauthCode;

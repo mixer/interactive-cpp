@@ -13,9 +13,9 @@
 
 using namespace Microsoft::VisualStudio::CppUnitTestFramework;
 
-#define ASSERT_NOERR(x) do {err = x; Assert::IsTrue(0 == err); if (err) return;} while (0)
-#define ASSERT_ERR(x, y) do {err = y; Assert::IsTrue(x == err);} while (0)
-#define ASSERT_RETERR(x) do {err = x; Assert::IsTrue(0 == err); if (err) return err;} while (0)
+#define ASSERT_NOERR(x) do {int _err = x; Assert::IsTrue(0 == _err); if (_err) return;} while (0)
+#define ASSERT_ERR(x, y) do {int _err = y; Assert::IsTrue(x == _err);} while (0)
+#define ASSERT_RETERR(x) do {int _err = x; Assert::IsTrue(0 == _err); if (_err) return _err;} while (0)
 
 namespace MixerTests
 {
@@ -27,7 +27,8 @@ namespace MixerTests
 #define DO_NOT_APPROVE_CLIENT_ID "b33e730969b2f1234afd94dff745dd1d2c4e7557e168ebce"
 #define DO_NOT_APPROVE_CLIENT_SECRET "98d47b58be9917e68769a9b687c8b68fb24daeed3d6a11aa5cfb65df44c54e59"
 
-interactive_session g_activeSession = nullptr;
+bool g_runInteractive = true;
+interactive_state g_activeSessionState = interactive_disconnected;
 
 void print_control_properties(interactive_session session, const std::string& controlId)
 {
@@ -201,7 +202,11 @@ void print_participant_properties(interactive_session session, const std::string
 		group = new char[groupLength];
 		ASSERT_NOERR(interactive_participant_get_group(session, participantId.c_str(), group, &groupLength));
 	}
-	Assert::IsTrue(MIXER_OK == err);
+	else
+	{
+		Assert::IsTrue(MIXER_OK == err);
+	}
+
 	ASSERT_NOERR(interactive_participant_is_disabled(session, participantId.c_str(), &isDisabled));
 	ASSERT_NOERR(interactive_participant_get_last_input_at(session, participantId.c_str(), &lastInputAt));
 	ASSERT_NOERR(interactive_participant_get_level(session, participantId.c_str(), &level));
@@ -212,7 +217,10 @@ void print_participant_properties(interactive_session session, const std::string
 		userName = new char[userNameLength];
 		ASSERT_NOERR(interactive_participant_get_user_name(session, participantId.c_str(), userName, &userNameLength));
 	}
-	Assert::IsTrue(MIXER_OK == err);
+	else
+	{
+		Assert::IsTrue(MIXER_OK == err);
+	}
 
 	std::stringstream s;
 	s << "[Participant] '" << userName << "' (" << level << ") Enabled: " << std::to_string(!isDisabled) << " Group: '" << group << "' Connected At: " << connectedAt << " Last Input At: " << lastInputAt;
@@ -338,16 +346,21 @@ void handle_input(void* context, interactive_session session, const interactive_
 
 void handle_state_changed(void* context, interactive_session session, interactive_state previousState, interactive_state newState)
 {
+	g_activeSessionState = newState;
 	switch (newState)
 	{
 	case interactive_disconnected:
-	{
+	{	
 		Logger::WriteMessage("Interactive disconnected");
 		break;
 	}
-	case interactive_not_ready:
+	case interactive_connecting:
 	{
-		g_activeSession = session;
+		Logger::WriteMessage("Interactive connecting...");
+		break;
+	}
+	case interactive_connected:
+	{	
 		Logger::WriteMessage("Interactive connected - waiting.");
 		break;
 	}
@@ -357,8 +370,9 @@ void handle_state_changed(void* context, interactive_session session, interactiv
 		break;
 	}
 	default:
-	{
+	{	
 		Logger::WriteMessage("ERROR: Unknown interactive state.");
+		Assert::IsTrue(false);
 		break;
 	}
 	}
@@ -404,14 +418,6 @@ void handle_control_changed(void* context, interactive_session session, interact
 	}
 	s << "'" << control->id << "' (" << control->kind << ")\r\n";
 	Logger::WriteMessage(s.str().c_str());
-}
-
-void on_control_mod_update(void* context, interactive_session session, interactive_control_event eventType, const interactive_control* control)
-{
-	Assert::IsTrue(interactive_control_updated == eventType);
-	bool disabled = false;
-	interactive_control_get_property_bool(session, control->id, "disabled", &disabled);
-	Assert::IsTrue(disabled);
 }
 
 void handle_error_assert(void* context, interactive_session session, int errorCode, const char* errorMessage, size_t errorMessageLength)
@@ -546,7 +552,6 @@ public:
 		g_start = std::chrono::high_resolution_clock::now();
 		interactive_config_debug(interactive_debug_trace, handle_debug_message);
 
-		int err = 0;
 		std::string clientId = CLIENT_ID;
 		std::string versionId = VERSION_ID;
 		std::string shareCode = SHARE_CODE;
@@ -558,21 +563,25 @@ public:
 		Logger::WriteMessage("Connecting...");
 		ASSERT_NOERR(interactive_open_session(&session));
 		ASSERT_NOERR(interactive_set_error_handler(session, handle_error_assert));
-		ASSERT_NOERR(interactive_connect(session, auth.c_str(), versionId.c_str(), shareCode.c_str(), true));
+		ASSERT_NOERR(interactive_set_state_changed_handler(session, handle_state_changed));
+		ASSERT_NOERR(interactive_connect(session, auth.c_str(), versionId.c_str(), shareCode.c_str(), false));
 
-		// Simulate 60 frames/sec for 1 seconds.
-		const int fps = 60;
-		const int seconds = 1;
-		for (int i = 0; i < fps * seconds; ++i)
+		interactive_state state;
+		ASSERT_NOERR(interactive_get_state(session, &state));
+		Assert::IsTrue(interactive_connecting == state);
+
+		// Run until the session is connected.
+		while (g_activeSessionState < interactive_connected)
 		{
 			ASSERT_NOERR(interactive_run(session, 1));
-			std::this_thread::sleep_for(std::chrono::milliseconds(1000 / fps));
+			if (g_activeSessionState < interactive_connected)
+			{	
+				std::this_thread::sleep_for(std::chrono::milliseconds(16));
+			}
 		}
 
 		Logger::WriteMessage("Disconnecting...");
 		interactive_close_session(session);
-
-		Assert::IsTrue(0 == err);
 	}
 
 	TEST_METHOD(ConnectWithSecretTest)
@@ -580,7 +589,6 @@ public:
 		g_start = std::chrono::high_resolution_clock::now();
 		interactive_config_debug(interactive_debug_trace, handle_debug_message);
 
-		int err = 0;
 		std::string clientId = DO_NOT_APPROVE_CLIENT_ID;
 		std::string clientSecret = DO_NOT_APPROVE_CLIENT_SECRET;
 		std::string versionId = VERSION_ID;
@@ -593,21 +601,25 @@ public:
 		Logger::WriteMessage("Connecting...");
 		ASSERT_NOERR(interactive_open_session(&session));
 		ASSERT_NOERR(interactive_set_error_handler(session, handle_error_assert));
+		ASSERT_NOERR(interactive_set_state_changed_handler(session, handle_state_changed));
 		ASSERT_NOERR(interactive_connect(session, auth.c_str(), versionId.c_str(), shareCode.c_str(), true));
 
-		// Simulate 60 frames/sec for 1 seconds.
-		const int fps = 60;
-		const int seconds = 1;
-		for (int i = 0; i < fps * seconds; ++i)
+		interactive_state state;
+		ASSERT_NOERR(interactive_get_state(session, &state));
+		Assert::IsTrue(interactive_connecting == state);
+
+		// Run until the session is connected.
+		while (g_activeSessionState < interactive_connected)
 		{
 			ASSERT_NOERR(interactive_run(session, 1));
-			std::this_thread::sleep_for(std::chrono::milliseconds(1000 / fps));
+			if (g_activeSessionState < interactive_connected)
+			{
+				std::this_thread::sleep_for(std::chrono::milliseconds(16));
+			}
 		}
 
 		Logger::WriteMessage("Disconnecting...");
 		interactive_close_session(session);
-
-		Assert::IsTrue(0 == err);
 	}
 
 	TEST_METHOD(InputTest)
@@ -615,7 +627,6 @@ public:
 		g_start = std::chrono::high_resolution_clock::now();
 		interactive_config_debug(interactive_debug_trace, handle_debug_message);
 
-		int err = 0;
 		std::string clientId = CLIENT_ID;
 		std::string versionId = VERSION_ID;
 		std::string shareCode = SHARE_CODE;
@@ -627,31 +638,22 @@ public:
 		ASSERT_NOERR(interactive_open_session(&session));
 		ASSERT_NOERR(interactive_set_error_handler(session, handle_error_assert));
 		ASSERT_NOERR(interactive_set_input_handler(session, handle_input));
-		ASSERT_NOERR(interactive_set_state_changed_handler(session, handle_state_changed));
 		ASSERT_NOERR(interactive_set_participants_changed_handler(session, handle_participants_changed));
 		ASSERT_NOERR(interactive_set_unhandled_method_handler(session, handle_unhandled_method));
 		ASSERT_NOERR(interactive_set_transaction_complete_handler(session, handle_transaction_complete));
-
-		ASSERT_NOERR(interactive_set_bandwidth_throttle(session, throttle_participant_leave, 0, 0));
-		ASSERT_NOERR(interactive_set_bandwidth_throttle(session, throttle_input, 2 * 1024 * 1024 /* 2mb */, 512 * 1024 /* 512kbps */));
-
+		ASSERT_NOERR(interactive_set_state_changed_handler(session, handle_state_changed));
 		ASSERT_NOERR(interactive_connect(session, auth.c_str(), versionId.c_str(), shareCode.c_str(), true));
-
 		ASSERT_ERR(MIXER_ERROR_INVALID_POINTER, interactive_capture_transaction(session, ""));
 
-		// Simulate 60 frames/sec
-		const int fps = 60;
-		const int seconds = 15;
-		for (int i = 0; i < fps * seconds; ++i)
+		auto start = std::chrono::steady_clock::now();
+		while (std::chrono::steady_clock::now() < start + std::chrono::seconds(15))
 		{
 			ASSERT_NOERR(interactive_run(session, 1));
-			std::this_thread::sleep_for(std::chrono::milliseconds(1000 / fps));
+			std::this_thread::sleep_for(std::chrono::milliseconds(1));
 		}
 
 		Logger::WriteMessage("Disconnecting...");
 		interactive_close_session(session);
-
-		Assert::IsTrue(0 == err);
 	}
 
 	TEST_METHOD(ManualReadyTest)
@@ -659,7 +661,6 @@ public:
 		g_start = std::chrono::high_resolution_clock::now();
 		interactive_config_debug(interactive_debug_trace, handle_debug_message);
 
-		int err = 0;
 		std::string clientId = CLIENT_ID;
 		std::string versionId = VERSION_ID;
 		std::string shareCode = SHARE_CODE;
@@ -676,36 +677,35 @@ public:
 			static int order = 0;
 			if (interactive_disconnected == prevState)
 			{
-				Assert::IsTrue(0 == order++ && interactive_not_ready == newState);
+				Assert::IsTrue(0 == order++ && interactive_connecting == newState);
 			}
-			else if (interactive_not_ready == prevState)
+			else if (interactive_connecting == prevState)
 			{
-				Assert::IsTrue(1 == order++ && interactive_ready == newState);
+				Assert::IsTrue(1 == order++ && interactive_connected == newState);
+				ASSERT_NOERR(interactive_set_ready(session, true));
+			}
+			else if (interactive_connected == prevState)
+			{	
+				Assert::IsTrue(2 == order++ && interactive_ready == newState);
+				ASSERT_NOERR(interactive_set_ready(session, false));
 			}
 			else if (interactive_ready == prevState)
 			{
-				Assert::IsTrue(2 == order++ && interactive_not_ready == newState);
+				Assert::IsTrue(3 == order++ && interactive_connected == newState);
+				g_runInteractive = false;
 			}
 		});
 
 		ASSERT_NOERR(interactive_connect(session, auth.c_str(), versionId.c_str(), shareCode.c_str(), false));
 
-		ASSERT_NOERR(interactive_set_ready(session, true));
-		ASSERT_NOERR(interactive_set_ready(session, false));
-
-		// Simulate 60/fps
-		const int fps = 60;
-		const int seconds = 1;
-		for (int i = 0; i < fps * seconds; ++i)
+		while (g_runInteractive)
 		{
 			ASSERT_NOERR(interactive_run(session, 1));
-			std::this_thread::sleep_for(std::chrono::milliseconds(1000 / fps));
+			std::this_thread::sleep_for(std::chrono::milliseconds(1));
 		}
 
 		Logger::WriteMessage("Disconnecting...");
 		interactive_close_session(session);
-
-		Assert::IsTrue(0 == err);
 	}
 
 	TEST_METHOD(GroupTest)
@@ -713,7 +713,6 @@ public:
 		g_start = std::chrono::high_resolution_clock::now();
 		interactive_config_debug(interactive_debug_trace, handle_debug_message);
 
-		int err = 0;
 		std::string clientId = CLIENT_ID;
 		std::string versionId = VERSION_ID;
 		std::string shareCode = SHARE_CODE;
@@ -726,90 +725,54 @@ public:
 		ASSERT_NOERR(interactive_open_session(&session));
 		ASSERT_NOERR(interactive_set_error_handler(session, handle_error_assert));
 		ASSERT_NOERR(interactive_set_participants_changed_handler(session, handle_participants_changed));
+
+		auto onStateChange = [](void* context, interactive_session session, interactive_state prevState, interactive_state currentState)
+		{
+			if (interactive_connected != currentState)
+			{
+				return;
+			}
+
+			Logger::WriteMessage("Enumerating groups.");
+			ASSERT_NOERR(interactive_get_groups(session, [](void* context, interactive_session session, const interactive_group* group)
+			{
+				std::stringstream s;
+				s << "[Group] '" << std::string(group->id, group->idLength) << "' Scene: '" << std::string(group->sceneId, group->sceneIdLength) << "'";
+				Logger::WriteMessage(s.str().c_str());
+			}));
+
+			Logger::WriteMessage("Creating group.");
+			ASSERT_NOERR(interactive_create_group(session, "Test group", nullptr));
+			Logger::WriteMessage("Moving all participants to new group");
+			ASSERT_NOERR(interactive_get_participants(session, [](void* context, interactive_session session, const interactive_participant* participant)
+			{
+				ASSERT_NOERR(interactive_participant_set_group(session, participant->id, "Test group"));
+			}));
+			ASSERT_NOERR(interactive_group_set_scene(session, "Test group", "Scene1"));
+
+			ASSERT_NOERR(interactive_get_groups(session, [](void* context, interactive_session session, const interactive_group* group)
+			{
+				if (0 == strcmp("Test group", group->id))
+				{
+					Logger::WriteMessage("Test group found.");
+					Assert::IsTrue(0 == strcmp("Scene1", group->sceneId));
+				}
+			}));
+
+			g_runInteractive = false;
+		};
+
+		ASSERT_NOERR(interactive_set_state_changed_handler(session, onStateChange));
 		ASSERT_NOERR(interactive_connect(session, auth.c_str(), versionId.c_str(), shareCode.c_str(), true));
 
-		// Simulate 60fps
-		const int fps = 60;
-		const int seconds = 1;
-		for (int i = 0; i < fps * seconds; ++i)
+		while (g_runInteractive)
 		{
 			ASSERT_NOERR(interactive_run(session, 1));
-			std::this_thread::sleep_for(std::chrono::milliseconds(1000 / fps));
+			std::this_thread::sleep_for(std::chrono::milliseconds(1));
 		}
-
-		Logger::WriteMessage("Enumerating groups.");
-		ASSERT_NOERR(interactive_get_groups(session, [](void* context, interactive_session session, interactive_group* group)
-		{
-			std::stringstream s;
-			s << "[Group] '" << std::string(group->id, group->idLength) << "' Scene: '" << std::string(group->sceneId, group->sceneIdLength) << "'";
-			Logger::WriteMessage(s.str().c_str());
-		}));
-
-		Logger::WriteMessage("Creating group.");
-		std::string groupId = "Test group";
-		ASSERT_NOERR(interactive_create_group(session, groupId.c_str(), nullptr));
-
-		// Simulate 60fps
-		for (int i = 0; i < fps * seconds; ++i)
-		{
-			ASSERT_NOERR(interactive_run(session, 1));
-			std::this_thread::sleep_for(std::chrono::milliseconds(1000 / fps));
-		}
-
-		Logger::WriteMessage("Enumerating groups.");
-		ASSERT_NOERR(interactive_get_groups(session, [](void* context, interactive_session session, interactive_group* group)
-		{
-			std::stringstream s;
-			s << "[Group] '" << std::string(group->id, group->idLength) << "' Scene: '" << std::string(group->sceneId, group->sceneIdLength) << "'";
-			Logger::WriteMessage(s.str().c_str());
-		}));
-
-		// Simulate 60 frames/sec for 1 second.
-		for (int i = 0; i < fps * seconds; ++i)
-		{
-			ASSERT_NOERR(interactive_run(session, 1));
-			std::this_thread::sleep_for(std::chrono::milliseconds(1000 / fps));
-		}
-
-		Logger::WriteMessage("Moving all participants to new group");
-		interactive_get_participants(session, [](void* context, interactive_session session, interactive_participant* participant)
-		{
-			interactive_participant_set_group(session, participant->id, "Test group");
-		});
-
-		// Simulate 60 frames/sec for 1 second.
-		for (int i = 0; i < fps * seconds; ++i)
-		{
-			ASSERT_NOERR(interactive_run(session, 1));
-			std::this_thread::sleep_for(std::chrono::milliseconds(1000 / fps));
-		}
-
-		interactive_get_participants(session, [](void* context, interactive_session session, interactive_participant* participant)
-		{
-			Assert::IsTrue(0 == strcmp(participant->groupId, "Test group"));
-		});
-
-		ASSERT_NOERR(interactive_group_set_scene(session, "Test group", "Scene1"));
-
-		// Simulate 60 frames/sec for 1 second.
-		for (int i = 0; i < fps * seconds; ++i)
-		{
-			ASSERT_NOERR(interactive_run(session, 1));
-			std::this_thread::sleep_for(std::chrono::milliseconds(1000 / fps));
-		}
-
-		ASSERT_NOERR(interactive_get_groups(session, [](void* context, interactive_session session, interactive_group* group)
-		{
-			if (0 == strcmp("Test group", group->id))
-			{
-				Assert::IsTrue(0 == strcmp("Scene1", group->sceneId));
-			}
-		}));
 
 		Logger::WriteMessage("Disconnecting...");
 		interactive_close_session(session);
-
-		Assert::IsTrue(0 == err);
 	}
 
 	TEST_METHOD(ScenesTest)
@@ -817,7 +780,6 @@ public:
 		g_start = std::chrono::high_resolution_clock::now();
 		interactive_config_debug(interactive_debug_trace, handle_debug_message);
 
-		int err = 0;
 		std::string clientId = CLIENT_ID;
 		std::string versionId = VERSION_ID;
 		std::string shareCode = SHARE_CODE;
@@ -829,49 +791,50 @@ public:
 		Logger::WriteMessage("Connecting...");
 		ASSERT_NOERR(interactive_open_session(&session));
 		ASSERT_NOERR(interactive_set_error_handler(session, handle_error_assert));
-		ASSERT_NOERR(interactive_connect(session, auth.c_str(), versionId.c_str(), shareCode.c_str(), true));
 		ASSERT_NOERR(interactive_set_participants_changed_handler(session, handle_participants_changed));
-		// Simulate 60 frames/sec for 1 second.
-		const int fps = 60;
-		const int seconds = 1;
-		for (int i = 0; i < fps * seconds; ++i)
-		{
-			ASSERT_NOERR(interactive_run(session, 1));
-			std::this_thread::sleep_for(std::chrono::milliseconds(1000 / fps));
-		}
 
-		Logger::WriteMessage("Enumerating scenes.");
-		ASSERT_NOERR(interactive_get_scenes(session, [](void* context, interactive_session session, interactive_scene* scene)
+		interactive_set_state_changed_handler(session, [](void* context, interactive_session session, interactive_state prevState, interactive_state currentState)
 		{
-			std::stringstream s;
-			s << "[Scene] '" << std::string(scene->id, scene->idLength) << "'";
-			Logger::WriteMessage(s.str().c_str());
+			if (interactive_connected != currentState)
+			{
+				return;
+			}
 
-			Logger::WriteMessage("Groups:");
-			interactive_scene_get_groups(session, scene->id, [](void* context, interactive_session session, interactive_group* group)
+			Logger::WriteMessage("Enumerating scenes.");
+			ASSERT_NOERR(interactive_get_scenes(session, [](void* context, interactive_session session, const interactive_scene* scene)
 			{
 				std::stringstream s;
-				s << std::setw(10) << group->id;
+				s << "[Scene] '" << std::string(scene->id, scene->idLength) << "'";
 				Logger::WriteMessage(s.str().c_str());
-			});
 
-			Logger::WriteMessage("Controls:");
-			interactive_scene_get_controls(session, scene->id, [](void* context, interactive_session session, interactive_control* control)
-			{
-				print_control_properties(session, control->id);
-			});
-		}));
+				Logger::WriteMessage("Groups:");
+				interactive_scene_get_groups(session, scene->id, [](void* context, interactive_session session, const interactive_group* group)
+				{
+					std::stringstream s;
+					s << std::setw(10) << group->id;
+					Logger::WriteMessage(s.str().c_str());
+				});
 
-		for (int i = 0; i < fps * seconds; ++i)
+				Logger::WriteMessage("Controls:");
+				interactive_scene_get_controls(session, scene->id, [](void* context, interactive_session session, const interactive_control* control)
+				{
+					print_control_properties(session, control->id);
+				});
+			}));
+
+			g_runInteractive = false;
+		});
+
+		ASSERT_NOERR(interactive_connect(session, auth.c_str(), versionId.c_str(), shareCode.c_str(), true));
+		
+		while (g_runInteractive)
 		{
 			ASSERT_NOERR(interactive_run(session, 1));
-			std::this_thread::sleep_for(std::chrono::milliseconds(1000 / fps));
+			std::this_thread::sleep_for(std::chrono::milliseconds(1));
 		}
 
 		Logger::WriteMessage("Disconnecting...");
 		interactive_close_session(session);
-
-		Assert::IsTrue(0 == err);
 	}
 
 	TEST_METHOD(NotConnectedTest)
@@ -879,7 +842,6 @@ public:
 		g_start = std::chrono::high_resolution_clock::now();
 		interactive_config_debug(interactive_debug_trace, handle_debug_message);
 
-		int err = 0;
 		std::string clientId = CLIENT_ID;
 		std::string versionId = VERSION_ID;
 		std::string shareCode = SHARE_CODE;
@@ -903,9 +865,9 @@ public:
 		unsigned long long ulong64;
 
 
-		ASSERT_ERR(MIXER_ERROR_NOT_CONNECTED, interactive_get_scenes(session, [](void* context, interactive_session session, interactive_scene* scene) {}));
-		ASSERT_ERR(MIXER_ERROR_NOT_CONNECTED, interactive_get_groups(session, [](void* context, interactive_session session, interactive_group* group) {}));
-		ASSERT_ERR(MIXER_ERROR_NOT_CONNECTED, interactive_get_participants(session, [](void* context, interactive_session session, interactive_participant* participant) {}));
+		ASSERT_ERR(MIXER_ERROR_NOT_CONNECTED, interactive_get_scenes(session, [](void* context, interactive_session session, const interactive_scene* scene) {}));
+		ASSERT_ERR(MIXER_ERROR_NOT_CONNECTED, interactive_get_groups(session, [](void* context, interactive_session session, const interactive_group* group) {}));
+		ASSERT_ERR(MIXER_ERROR_NOT_CONNECTED, interactive_get_participants(session, [](void* context, interactive_session session, const interactive_participant* participant) {}));
 
 		ASSERT_ERR(MIXER_ERROR_NOT_CONNECTED, interactive_participant_get_user_id(session, "participant", &uInt));
 		size = 8;
@@ -949,7 +911,6 @@ public:
 		g_start = std::chrono::high_resolution_clock::now();
 		interactive_config_debug(interactive_debug_trace, handle_debug_message);
 
-		int err = 0;
 		std::string clientId = CLIENT_ID;
 		std::string versionId = VERSION_ID;
 		std::string shareCode = SHARE_CODE;
@@ -961,27 +922,42 @@ public:
 		ASSERT_NOERR(interactive_open_session(&session));
 		ASSERT_NOERR(interactive_set_error_handler(session, handle_error_assert));
 		ASSERT_NOERR(interactive_set_input_handler(session, handle_input));
-		ASSERT_NOERR(interactive_set_state_changed_handler(session, handle_state_changed));
 		ASSERT_NOERR(interactive_set_participants_changed_handler(session, handle_participants_changed));
 		ASSERT_NOERR(interactive_set_unhandled_method_handler(session, handle_unhandled_method));
 		ASSERT_NOERR(interactive_set_transaction_complete_handler(session, handle_transaction_complete));
-		ASSERT_NOERR(interactive_set_control_changed_handler(session, on_control_mod_update));
+
+		auto onControlModUpdate = [](void* context, interactive_session session, interactive_control_event eventType, const interactive_control* control)
+		{
+			int err = 0;
+			Assert::IsTrue(interactive_control_updated == eventType);
+			bool disabled = false;
+			ASSERT_NOERR(interactive_control_get_property_bool(session, control->id, "disabled", &disabled));
+			Assert::IsTrue(disabled);
+			g_runInteractive = false;
+		};
+
+		ASSERT_NOERR(interactive_set_control_changed_handler(session, onControlModUpdate));
+
+		auto onStateChanged = [](void* context, interactive_session session, interactive_state prev, interactive_state curr)
+		{
+			if (interactive_connected == curr && interactive_connecting == prev)
+			{
+				int err = 0;
+				ASSERT_NOERR(interactive_control_set_property_bool(session, "GiveHealth", "disabled", true));
+			}
+		};
+
+		ASSERT_NOERR(interactive_set_state_changed_handler(session, onStateChanged));
 		ASSERT_NOERR(interactive_connect(session, auth.c_str(), versionId.c_str(), shareCode.c_str(), true));
-		ASSERT_NOERR(interactive_control_set_property_bool(session, "GiveHealth", "disabled", true));
 		
-		// Simulate 60 frames/sec
-		const int fps = 60;
-		const int seconds = 5;
-		for (int i = 0; i < fps * seconds; ++i)
+		while (g_runInteractive)
 		{
 			ASSERT_NOERR(interactive_run(session, 1));
-			std::this_thread::sleep_for(std::chrono::milliseconds(1000 / fps));
+			std::this_thread::sleep_for(std::chrono::milliseconds(1));
 		}
 
 		Logger::WriteMessage("Disconnecting...");
 		interactive_close_session(session);
-
-		Assert::IsTrue(0 == err);
 	}
 
 	TEST_METHOD(UserDataTest)
@@ -989,7 +965,6 @@ public:
 		g_start = std::chrono::high_resolution_clock::now();
 		interactive_config_debug(interactive_debug_trace, handle_debug_message);
 
-		int err = 0;
 		std::string clientId = CLIENT_ID;
 		std::string versionId = VERSION_ID;
 		std::string shareCode = SHARE_CODE;
@@ -1000,25 +975,26 @@ public:
 		interactive_session session;
 		ASSERT_NOERR(interactive_open_session(&session));
 		ASSERT_NOERR(interactive_set_error_handler(session, handle_error_assert));
-		ASSERT_NOERR(interactive_connect(session, auth.c_str(), versionId.c_str(), shareCode.c_str(), true));
-		ASSERT_NOERR(interactive_get_user(session, [](void* context, interactive_session session, const interactive_user* user)
+		interactive_set_state_changed_handler(session, [](void* context, interactive_session session, interactive_state prevState, interactive_state currentState)
 		{
-			Assert::IsTrue(nullptr != user);
-			std::stringstream logStream;
-			logStream << "Connecting as: " << user->userName << std::endl;
-			logStream << "Id: " << user->id << std::endl;
-			logStream << "Avatar: " << user->avatarUrl << std::endl;
-			logStream << "Experience: " << user->experience << std::endl;
-			logStream << "Level: " << user->level << std::endl;
-			logStream << "Sparks: " << user->sparks << std::endl;
-			logStream << "Broadcasting: " << (user->isBroadcasting ? "true" : "false") << std::endl;
-			Logger::WriteMessage(logStream.str().c_str());
-		}));
+			ASSERT_NOERR(interactive_get_user(session, [](void* context, interactive_session session, const interactive_user* user)
+			{
+				Assert::IsTrue(nullptr != user);
+				std::stringstream logStream;
+				logStream << "Connecting as: " << user->userName << std::endl;
+				logStream << "Id: " << user->id << std::endl;
+				logStream << "Avatar: " << user->avatarUrl << std::endl;
+				logStream << "Experience: " << user->experience << std::endl;
+				logStream << "Level: " << user->level << std::endl;
+				logStream << "Sparks: " << user->sparks << std::endl;
+				logStream << "Broadcasting: " << (user->isBroadcasting ? "true" : "false") << std::endl;
+				Logger::WriteMessage(logStream.str().c_str());
+			}));
+		});
+		ASSERT_NOERR(interactive_connect(session, auth.c_str(), versionId.c_str(), shareCode.c_str(), true));
 
 		Logger::WriteMessage("Disconnecting...");
 		interactive_close_session(session);
-
-		Assert::IsTrue(0 == err);
 	}
 };
 }

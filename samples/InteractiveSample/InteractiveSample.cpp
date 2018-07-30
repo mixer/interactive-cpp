@@ -16,7 +16,7 @@
 #define INTERACTIVE_ID	"135704"
 #define SHARE_CODE		"xe7dpqd5"
 
-#define MIXER_DEBUG 0
+#define MIXER_DEBUG 1
 
 std::map<std::string, std::string> controlsByTransaction;
 
@@ -51,7 +51,7 @@ int main()
 	err = authorize(authorization);
 	if (err) return err;
 
-	// Connect to the user's interactive channel, using the interactive project specified by the version ID.
+	
 	interactive_session session;
 	err = interactive_open_session(&session);
 	if (err) return err;
@@ -68,20 +68,40 @@ int main()
 	err = interactive_set_transaction_complete_handler(session, handle_transaction_complete);
 	if (err) return err;
 
-	// Connect to the interactive session. Session state is not changed until messages are pumped using interactive_run.
+	// Set a state change handler to get user data and create groups once connected.
+	err = interactive_set_state_changed_handler(session, [](void* context, interactive_session session, interactive_state previousState, interactive_state currentState)
+	{
+		if (interactive_connecting == previousState && interactive_connected == currentState)
+		{
+			// Get the connected user's data.
+			int err = interactive_get_user(session, handle_user);
+			if (err)
+			{
+				puts(std::to_string(err).c_str());
+				return;
+			}
+
+			// Create a group for participants to view the joystick scene.
+			err = interactive_create_group(session, "JoystickGroup", "Joystick");
+			if (err)
+			{
+				puts(std::to_string(err).c_str());
+				return;
+			}
+
+			// Now notify participants that interactive is ready.
+			err = interactive_set_ready(session, true);
+			if (err)
+			{
+				puts(std::to_string(err).c_str());
+				return;
+			}
+		}
+	});
+	if (err) return err;
+
+	// Asynchronously connect to the user's interactive channel, using the interactive project specified by the version ID.
 	err = interactive_connect(session, authorization.c_str(), INTERACTIVE_ID, SHARE_CODE, false);
-	if (err) return err;
-	
-	// Get the connected user's data.
-	err = interactive_get_user(session, handle_user);
-	if (err) return err;
-
-	// Create a group for participants to view the joystick scene.
-	err = interactive_create_group(session, "JoystickGroup", "Joystick");
-	if (err) return err;
-
-	// Now notify participants that interactive is ready.
-	err = interactive_set_ready(session, true);
 	if (err) return err;
 
 	// Simulate game update loop. All previously registered session callbacks will be called from this thread.
@@ -94,7 +114,6 @@ int main()
 	}
 
 	interactive_close_session(session);
-
 	return err;
 }
 
@@ -171,7 +190,7 @@ int get_participant_name(interactive_session session, const char* participantId,
 
 void handle_error(void* context, interactive_session session, int errorCode, const char* errorMessage, size_t errorMessageLength)
 {
-	std::cerr << "Unexpected Mixer interactive error: " << errorMessage;
+	std::cerr << "Unexpected Mixer interactive error: " << errorMessage << std::endl;
 }
 
 void handle_user(void* context, interactive_session session, const interactive_user* user)

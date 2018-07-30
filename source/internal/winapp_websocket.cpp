@@ -100,7 +100,7 @@ public:
 		m_ws->Control->MessageType = SocketMessageType::Utf8;
 
 		// Add any headers.
-		for (auto header : m_headers)
+		for (const auto& header : m_headers)
 		{
 			std::wstring keyWS = utf8_to_wstring(header.first);
 			std::wstring valueWS = utf8_to_wstring(header.second);
