@@ -8,6 +8,7 @@
 #include "../../source/interactivity.h"
 
 #include <map>
+#include <chrono>
 
 // A basic game implementation that creates a D3D11 device and
 // provides a game loop.

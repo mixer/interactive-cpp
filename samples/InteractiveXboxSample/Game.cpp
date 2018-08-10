@@ -30,12 +30,37 @@ Game::Game() :
 #include <iostream>
 #include <codecvt>
 #include <string>
+#include <sstream>
+#include <iomanip>
 
 std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
 
 #define CLIENT_ID		"f0d20e2d263b75894f5cdaabc8a344b99b1ea6f9ecb7fa4f"
 #define INTERACTIVE_ID	"135704"
 #define SHARE_CODE		"xe7dpqd5"
+
+#define MIXER_DEBUG 0
+
+static std::chrono::time_point<std::chrono::high_resolution_clock> s_gameStartTime = std::chrono::high_resolution_clock::now();
+
+void DebugPrint(const std::string& dbgStr)
+{
+	auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - s_gameStartTime);
+	std::stringstream formattedMessage;
+	auto hours = (elapsed.count() / (60 * 60 * 1000)) % 24;
+	auto mins = (elapsed.count() / (60 * 1000)) % 60;
+	auto seconds = (elapsed.count() / 1000) % 60;
+	auto milliseconds = elapsed.count() % 1000;
+
+	formattedMessage
+		<< std::setfill('0') << std::setw(2) << hours << ":"
+		<< std::setfill('0') << std::setw(2) << mins << ":"
+		<< std::setfill('0') << std::setw(2) << seconds << ":"
+		<< std::setfill('0') << std::setw(4) << milliseconds << " "
+		<< dbgStr << std::endl;
+
+	OutputDebugStringA(formattedMessage.str().c_str());
+}
 
 int GetXToken(std::string& token)
 {
@@ -52,7 +77,7 @@ int GetXToken(std::string& token)
 	// Note: This would fail certification. You must pop TCUI and allow a user to be chosen.
 	if (0 == Windows::Xbox::System::User::Users->Size)
 	{
-		OutputDebugStringA("No user signed in. Please sign in a user and try this sample again.");
+		DebugPrint("No user signed in. Please sign in a user and try this sample again.");
 		return E_ABORT;
 	}
 
@@ -119,8 +144,7 @@ void handle_error(void* context, interactive_session session, int errorCode, con
 	(context);
 	(session);
 	(errorMessageLength);
-	std::string debugLine = "Mixer error " + std::to_string(errorCode) + ": " + errorMessage + "\r\n";
-	OutputDebugStringA(debugLine.c_str());
+	DebugPrint("Mixer error " + std::to_string(errorCode) + ": " + errorMessage + "\r\n");
 }
 
 // Handle user data.
@@ -158,7 +182,7 @@ void handle_transaction(void* context, interactive_session session, const char* 
 	Game* game = (Game*)context;
 	if (errorCode)
 	{
-		OutputDebugStringA((std::string("ERROR: ") + errorMessage + "(" + std::to_string(errorCode) + ")").c_str());
+		DebugPrint(std::string("ERROR: ") + errorMessage + "(" + std::to_string(errorCode) + ")");
 	}
 	else
 	{
@@ -166,7 +190,7 @@ void handle_transaction(void* context, interactive_session session, const char* 
 		std::string controlId = game->m_controlsById[transactionId];
 		if (0 == strcmp("GiveHealth", controlId.c_str()))
 		{
-			OutputDebugStringA("Giving health to the player!\n");
+			DebugPrint("Giving health to the player!\n");
 		}
 	}
 
@@ -176,6 +200,7 @@ void handle_transaction(void* context, interactive_session session, const char* 
 // Initialize the Direct3D resources required to run.
 void Game::Initialize(IUnknown* window)
 {
+	s_gameStartTime = std::chrono::high_resolution_clock::now();
     m_window = window;
 
     CreateDevice();
@@ -199,6 +224,32 @@ void Game::Initialize(IUnknown* window)
 		throw err;
 		return;
 	}
+
+#if MIXER_DEBUG
+	interactive_config_debug(interactive_debug_trace, [](const interactive_debug_level dbgMsgType, const char* dbgMsg, size_t dbgMsgSize)
+	{
+		std::string msgType;
+		switch (dbgMsgType)
+		{
+		case interactive_debug_level::interactive_debug_info:
+			msgType = "Info";
+			break;
+		case interactive_debug_level::interactive_debug_warning:
+			msgType = "Warning";
+			break;
+		case interactive_debug_level::interactive_debug_error:
+			msgType = "Error";
+			break;
+		case interactive_debug_level::interactive_debug_trace:
+			msgType = "Trace";
+			break;
+		}
+		std::stringstream formattedMessage;
+		formattedMessage << "[" << std::setfill(' ') << std::setw(7) << msgType << "] " 
+			<< dbgMsg << std::endl;
+		DebugPrint(formattedMessage.str().c_str());
+	});
+#endif
 
 	// Open an interactive session. This session will remain open for the duration of this sample but it should be 
 	// closed using interactive_close_session() to avoid memory leaks.
@@ -283,7 +334,7 @@ void Game::Update(DX::StepTimer const& timer)
 	int err = interactive_run(m_interactiveSession, 1);
 	if (err)
 	{
-		OutputDebugStringA((std::string("ERROR: Failed to process interactive event: ") + std::to_string(err)).c_str());
+		DebugPrint((std::string("ERROR: Failed to process interactive event: ") + std::to_string(err)));
 	}
 
     PIXEndEvent();
