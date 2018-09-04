@@ -238,6 +238,7 @@ int interactive_auth_refresh_token(const char* clientId, const char* clientSecre
 	{
 		jsonBody = std::string("{ \"client_id\": \"") + clientId + "\", \"refresh_token\": \"" + refreshTokenData + "\", \"grant_type\": \"refresh_token\" }";
 	}
+    else
 	{
 		jsonBody = std::string("{ \"client_id\": \"") + clientId + "\", \"client_secret\": \"" + clientSecret + "\", \"refresh_token\": \"" + refreshTokenData + "\", \"grant_type\": \"refresh_token\" }";
 	}
