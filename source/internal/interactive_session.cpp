@@ -493,7 +493,7 @@ int interactive_open_session(interactive_session* sessionPtr)
 		return MIXER_ERROR_INVALID_POINTER;
 	}
 
-	std::auto_ptr<interactive_session_internal> session(new interactive_session_internal());
+	auto session = std::make_unique< interactive_session_internal>();
 
 	// Register method handlers
 	register_method_handlers(*session);
