@@ -32,8 +32,29 @@ public:
 		return 0;
 	}
 
+	bool is_websocket_supported()
+	{	
+		// Load winhttp and ensure WinHttpWebSocketCompleteUpgrade exists.
+		HMODULE winhttp = LoadLibraryA("winhttp");
+		if (winhttp)
+		{
+			FARPROC address = GetProcAddress(winhttp, "WinHttpWebSocketCompleteUpgrade");
+			if (nullptr != address)
+			{
+				return true;
+			}
+		}
+
+		return false;
+	}
+
 	int open(const std::string& uri, const on_ws_connect onConnect, const on_ws_message onMessage, const on_ws_error onError, const on_ws_close onClose)
 	{
+		if (!is_websocket_supported())
+		{
+			return ERROR_NOT_SUPPORTED;
+		}
+
 		{
 			std::lock_guard<std::mutex> lock(m_openMutex);
 			m_opening = true;
@@ -70,6 +91,7 @@ public:
 			}
 
 			// Open an http connection to the server.
+
 			hinternet_ptr sessionHandle(WinHttpOpen(L"Simplewebsocket - Windows", WINHTTP_ACCESS_TYPE_AUTOMATIC_PROXY, nullptr, nullptr, 0));
 			if (nullptr == sessionHandle)
 			{
