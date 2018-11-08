@@ -325,7 +325,7 @@ extern "C" {
 	/// <summary>
 	/// Set a <c>char*</c> property value by name.
 	/// </summary>
-	int interactive_control_set_property_string(interactive_session session, const char* controlId, const char* key, char* property);
+	int interactive_control_set_property_string(interactive_session session, const char* controlId, const char* key, const char* property);
 
 	/// <summary>
 	/// Get an <c>int</c> meta property value by name.
