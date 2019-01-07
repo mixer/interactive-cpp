@@ -983,7 +983,7 @@ public:
 				std::stringstream logStream;
 				logStream << "Connecting as: " << user->userName << std::endl;
 				logStream << "Id: " << user->id << std::endl;
-				logStream << "Avatar: " << user->avatarUrl << std::endl;
+				logStream << "Avatar: " << (nullptr == user->avatarUrl ? "" : user->avatarUrl) << std::endl;
 				logStream << "Experience: " << user->experience << std::endl;
 				logStream << "Level: " << user->level << std::endl;
 				logStream << "Sparks: " << user->sparks << std::endl;
