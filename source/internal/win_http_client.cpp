@@ -1,5 +1,6 @@
 #include "win_http_client.h"
 #include "common.h"
+#include "win_http_api.h"
 #include <windows.h>
 #include <winhttp.h>
 #include <urlmon.h>
@@ -8,18 +9,18 @@
 #include <sstream>
 #include <regex>
 
-#pragma comment(lib, "winhttp.lib")
-
 #define HTTP_VER L"HTTP/1.1"
 #define ACCEPT_TYPES L"*/*"
+
+static win_http_api winHttpApi;
 
 namespace mixer_internal
 {
 
 void
 hinternet_deleter::operator()(void* internet)
-{
-	WinHttpCloseHandle(internet);
+{	
+	winHttpApi.win_http_close_handle(internet);
 }
 
 std::string GetDebugError(DWORD errorCode)
@@ -46,7 +47,7 @@ std::string GetDebugError(DWORD errorCode)
 
 win_http_client::win_http_client()
 {
-	m_internet.reset(WinHttpOpen(L"Mixer C++ SDK - Windows", WINHTTP_ACCESS_TYPE_AUTOMATIC_PROXY, nullptr, nullptr, 0));
+	m_internet.reset(winHttpApi.win_http_open(L"Mixer C++ SDK - Windows", WINHTTP_ACCESS_TYPE_AUTOMATIC_PROXY, nullptr, nullptr, 0));
 };
 
 win_http_client::~win_http_client()
@@ -97,7 +98,7 @@ int win_http_client::make_request(const std::string& uri, const std::string& ver
 	else
 	{
 		// No cached session, establish a new one.
-		session = WinHttpConnect(m_internet.get(), utf8_to_wstring(host).c_str(), (INTERNET_PORT)atoi(port.c_str()), 0);
+		session = winHttpApi.win_http_connect(m_internet.get(), utf8_to_wstring(host).c_str(), (INTERNET_PORT)atoi(port.c_str()), 0);
 		if (!session)
 		{
 			return GetLastError();
@@ -109,7 +110,7 @@ int win_http_client::make_request(const std::string& uri, const std::string& ver
 
 	// Session established, make the request.
 	const wchar_t* acceptTypes[] = { ACCEPT_TYPES, NULL };
-	HINTERNET hRequest = WinHttpOpenRequest(session, utf8_to_wstring(verb).c_str(), utf8_to_wstring(path).c_str(), HTTP_VER, nullptr, acceptTypes, 0 == protocol.compare("https") ? WINHTTP_FLAG_SECURE : 0);
+	HINTERNET hRequest = winHttpApi.win_http_open_request(session, utf8_to_wstring(verb).c_str(), utf8_to_wstring(path).c_str(), HTTP_VER, nullptr, acceptTypes, 0 == protocol.compare("https") ? WINHTTP_FLAG_SECURE : 0);
 	if (!hRequest)
 	{
 		return GetLastError();
@@ -122,24 +123,24 @@ int win_http_client::make_request(const std::string& uri, const std::string& ver
 		for (const auto& header : *headers)
 		{
 			std::wstring str = utf8_to_wstring(header.first + ": " + header.second);
-			if (!WinHttpAddRequestHeaders(request.get(), str.c_str(), (DWORD)str.length(), WINHTTP_ADDREQ_FLAG_ADD | WINHTTP_ADDREQ_FLAG_REPLACE))
+			if (!winHttpApi.win_http_add_request_headers(request.get(), str.c_str(), (DWORD)str.length(), WINHTTP_ADDREQ_FLAG_ADD | WINHTTP_ADDREQ_FLAG_REPLACE))
 			{
 				return GetLastError();
 			}
 		}
 	}
 
-	if (!WinHttpSetTimeouts(request.get(), timeoutMs, timeoutMs, timeoutMs, timeoutMs))
+	if (!winHttpApi.win_http_set_timeouts(request.get(), timeoutMs, timeoutMs, timeoutMs, timeoutMs))
 	{
 		return GetLastError();
 	}
 	
-	if (!WinHttpSendRequest(request.get(), WINHTTP_NO_ADDITIONAL_HEADERS, 0, (void*)body.c_str(), (DWORD)body.length(), (DWORD)body.length(), 0))
+	if (!winHttpApi.win_http_send_request(request.get(), WINHTTP_NO_ADDITIONAL_HEADERS, 0, (void*)body.c_str(), (DWORD)body.length(), (DWORD)body.length(), 0))
 	{
 		return GetLastError();
 	}
 
-	if (!WinHttpReceiveResponse(request.get(), nullptr))
+	if (!winHttpApi.win_http_receive_response(request.get(), nullptr))
 	{
 		return GetLastError();
 	}
@@ -147,7 +148,7 @@ int win_http_client::make_request(const std::string& uri, const std::string& ver
 	DWORD httpStatus = 0;
 	DWORD httpStatusSize = sizeof(httpStatus);
 
-	if (!WinHttpQueryHeaders(request.get(), WINHTTP_QUERY_STATUS_CODE | WINHTTP_QUERY_FLAG_NUMBER, nullptr, &httpStatus, &httpStatusSize, nullptr))
+	if (!winHttpApi.win_http_query_headers(request.get(), WINHTTP_QUERY_STATUS_CODE | WINHTTP_QUERY_FLAG_NUMBER, nullptr, &httpStatus, &httpStatusSize, nullptr))
 	{
 		return GetLastError();
 	}
@@ -156,7 +157,7 @@ int win_http_client::make_request(const std::string& uri, const std::string& ver
 	char buffer[1024];
 	memset(buffer, 0, ARRAYSIZE(buffer));
 	DWORD bytesRead = 0;
-	while (WinHttpReadData(request.get(), buffer, ARRAYSIZE(buffer), &bytesRead) && bytesRead)
+	while (winHttpApi.win_http_read_data(request.get(), buffer, ARRAYSIZE(buffer), &bytesRead) && bytesRead)
 	{
 		responseStream << buffer;
 		bytesRead = 0;
