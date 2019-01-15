@@ -12,6 +12,8 @@
 #include "internal/winapp_http_client.cpp"
 #include "internal/winapp_websocket.cpp"
 #elif _WIN32
+#include "internal/win_dll.cpp"
+#include "internal/win_http_api.cpp"
 #include "internal/win_http_client.cpp"
 #include "internal/win_websocket.cpp"
 #endif

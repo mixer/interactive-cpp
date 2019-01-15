@@ -3,6 +3,7 @@
 
 #include <Windows.h>
 #include <winhttp.h>
+#include "win_http_api.h"
 
 #include <map>
 #include <sstream>
@@ -10,10 +11,10 @@
 #include <condition_variable>
 #include <regex>
 
-#pragma comment(lib, "winhttp.lib")
-
 namespace mixer_internal
 {
+
+static win_http_api winHttpApi;
 
 class ws_client : public websocket
 {
@@ -34,18 +35,7 @@ public:
 
 	bool is_websocket_supported()
 	{	
-		// Load winhttp and ensure WinHttpWebSocketCompleteUpgrade exists.
-		HMODULE winhttp = LoadLibraryA("winhttp");
-		if (winhttp)
-		{
-			FARPROC address = GetProcAddress(winhttp, "WinHttpWebSocketCompleteUpgrade");
-			if (nullptr != address)
-			{
-				return true;
-			}
-		}
-
-		return false;
+		return nullptr != winHttpApi.win_http_websocket_complete_upgrade;
 	}
 
 	int open(const std::string& uri, const on_ws_connect onConnect, const on_ws_message onMessage, const on_ws_error onError, const on_ws_close onClose)
@@ -92,19 +82,19 @@ public:
 
 			// Open an http connection to the server.
 
-			hinternet_ptr sessionHandle(WinHttpOpen(L"Simplewebsocket - Windows", WINHTTP_ACCESS_TYPE_AUTOMATIC_PROXY, nullptr, nullptr, 0));
+			hinternet_ptr sessionHandle(winHttpApi.win_http_open(L"Simplewebsocket - Windows", WINHTTP_ACCESS_TYPE_AUTOMATIC_PROXY, nullptr, nullptr, 0));
 			if (nullptr == sessionHandle)
 			{
 				return GetLastError();
 			}
 
-			hinternet_ptr connectionHandle(WinHttpConnect(sessionHandle.get(), utf8_to_wstring(host).c_str(), (INTERNET_PORT)atoi(port.c_str()), 0));
+			hinternet_ptr connectionHandle(winHttpApi.win_http_connect(sessionHandle.get(), utf8_to_wstring(host).c_str(), (INTERNET_PORT)atoi(port.c_str()), 0));
 			if (nullptr == connectionHandle)
 			{
 				return GetLastError();
 			}
 
-			hinternet_ptr requestHandle(WinHttpOpenRequest(connectionHandle.get(), L"GET", utf8_to_wstring(path).c_str(), nullptr, nullptr, nullptr, (0 == protocol.compare("wss") ? WINHTTP_FLAG_SECURE : 0)));
+			hinternet_ptr requestHandle(winHttpApi.win_http_open_request(connectionHandle.get(), L"GET", utf8_to_wstring(path).c_str(), nullptr, nullptr, nullptr, (0 == protocol.compare("wss") ? WINHTTP_FLAG_SECURE : 0)));
 			if (nullptr == requestHandle)
 			{
 				return GetLastError();
@@ -112,7 +102,7 @@ public:
 
 			// Request protocol upgrade from http to websocket. 
 #pragma prefast(suppress:6387, "WINHTTP_OPTION_UPGRADE_TO_WEB_SOCKET does not take any arguments.") 
-			BOOL status = WinHttpSetOption(requestHandle.get(), WINHTTP_OPTION_UPGRADE_TO_WEB_SOCKET, nullptr, 0);
+			BOOL status = winHttpApi.win_http_set_options(requestHandle.get(), WINHTTP_OPTION_UPGRADE_TO_WEB_SOCKET, nullptr, 0);
 			if (!status)
 			{
 				return GetLastError();
@@ -128,13 +118,13 @@ public:
 			std::string headers = headerStream.str();
 			// Perform websocket handshake by sending a request and receiving server's response. 
 			// Application may specify additional headers if needed. 
-			status = WinHttpSendRequest(requestHandle.get(), utf8_to_wstring(headers).c_str(), (DWORD)headers.length(), nullptr, 0, 0, 0);
+			status = winHttpApi.win_http_send_request(requestHandle.get(), utf8_to_wstring(headers).c_str(), (DWORD)headers.length(), nullptr, 0, 0, 0);
 			if (!status)
 			{
 				return GetLastError();
 			}
 
-			status = WinHttpReceiveResponse(requestHandle.get(), 0);
+			status = winHttpApi.win_http_receive_response(requestHandle.get(), 0);
 			if (!status)
 			{
 				return GetLastError();
@@ -142,7 +132,7 @@ public:
 
 			// Application should check what is the HTTP status code returned by the server and behave accordingly. 
 			// WinHttpWebSocketCompleteUpgrade will fail if the HTTP status code is different than 101. 
-			hinternet_ptr websocketHandle(WinHttpWebSocketCompleteUpgrade(requestHandle.get(), NULL));
+			hinternet_ptr websocketHandle(winHttpApi.win_http_websocket_complete_upgrade(requestHandle.get(), NULL));
 			if (nullptr == websocketHandle.get())
 			{
 				return GetLastError();
@@ -168,7 +158,7 @@ public:
 
 		while (!m_closed)
 		{
-			int err = WinHttpWebSocketReceive(m_websocketHandle.get(), buffer, sizeof(buffer) - 1, &bytesRead, &bufferType);
+			int err = winHttpApi.win_http_websocket_receive(m_websocketHandle.get(), buffer, sizeof(buffer) - 1, &bytesRead, &bufferType);
 			if (err)
 			{
 				if (ERROR_WINHTTP_OPERATION_CANCELLED == err && nullptr != onClose)
@@ -176,7 +166,7 @@ public:
 					BYTE reasonBuffer[123]; // Guaranteed max size for reason.
 					DWORD reasonLengthConsumed = 0;
 					USHORT status = 0;
-					WinHttpWebSocketQueryCloseStatus(m_websocketHandle.get(), &status, reasonBuffer, sizeof(reasonBuffer), &reasonLengthConsumed);
+					winHttpApi.win_http_websocket_query_close_status(m_websocketHandle.get(), &status, reasonBuffer, sizeof(reasonBuffer), &reasonLengthConsumed);
 					onClose(*this, status, m_closeReason);
 					return 0;
 				}
@@ -188,7 +178,7 @@ public:
 				BYTE reasonBuffer[123]; // Guaranteed max size for reason.
 				DWORD reasonLengthConsumed = 0;
 				USHORT status = 0;
-				WinHttpWebSocketQueryCloseStatus(m_websocketHandle.get(), &status, reasonBuffer, sizeof(reasonBuffer), &reasonLengthConsumed);
+				winHttpApi.win_http_websocket_query_close_status(m_websocketHandle.get(), &status, reasonBuffer, sizeof(reasonBuffer), &reasonLengthConsumed);
 				if (nullptr != onClose)
 				{
 					onClose(*this, status, std::string(reinterpret_cast<char*>(reasonBuffer), reasonLengthConsumed));
@@ -245,7 +235,7 @@ public:
 			}
 		}
 
-		return WinHttpWebSocketSend(m_websocketHandle.get(), WINHTTP_WEB_SOCKET_UTF8_MESSAGE_BUFFER_TYPE, (void*)message.c_str(), (DWORD)message.length());
+		return winHttpApi.win_http_websocket_send(m_websocketHandle.get(), WINHTTP_WEB_SOCKET_UTF8_MESSAGE_BUFFER_TYPE, (void*)message.c_str(), (DWORD)message.length());
 	}
 
 	int read(std::string& message)
@@ -263,7 +253,7 @@ public:
 
 		while (WINHTTP_WEB_SOCKET_UTF8_FRAGMENT_BUFFER_TYPE == bufferType)
 		{
-			int err = WinHttpWebSocketReceive(m_websocketHandle.get(), buffer, sizeof(buffer), &bytesRead, &bufferType);
+			int err = winHttpApi.win_http_websocket_receive(m_websocketHandle.get(), buffer, sizeof(buffer), &bytesRead, &bufferType);
 			if (err)
 			{
 				return err;
@@ -295,7 +285,7 @@ public:
 		{
 			m_closed = true;
 			m_closeReason = "Close requested";
-			WinHttpWebSocketClose(m_websocketHandle.get(), WINHTTP_WEB_SOCKET_SUCCESS_CLOSE_STATUS, (void*)m_closeReason.c_str(), (DWORD)m_closeReason.length());
+			winHttpApi.win_http_websocket_close(m_websocketHandle.get(), WINHTTP_WEB_SOCKET_SUCCESS_CLOSE_STATUS, (void*)m_closeReason.c_str(), (DWORD)m_closeReason.length());
 		}
 	}
 
