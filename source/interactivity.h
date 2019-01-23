@@ -9,6 +9,8 @@
 //*********************************************************
 #pragma once
 
+#define MIXER_API __declspec(dllexport)
+
 /** @mainpage Mixer Interactive C++ SDK Documentation
 
 This is the API documentation for the Mixer C++ SDK. For a detailed walkthrough of specific features and usage visit https://github.com/mixer/interactive-cpp/wiki.
@@ -41,7 +43,7 @@ extern "C" {
 	/// <remarks>
 	/// This is a blocking function that waits on network IO.
 	/// </remarks>
-	int interactive_auth_get_short_code(const char* clientId, const char* clientSecret, char* shortCode, size_t* shortCodeLength, char* shortCodeHandle, size_t* shortCodeHandleLength);
+	MIXER_API int interactive_auth_get_short_code(const char* clientId, const char* clientSecret, char* shortCode, size_t* shortCodeLength, char* shortCodeHandle, size_t* shortCodeHandleLength);
 
 	/// <summary>
 	/// Wait for a <c>shortCode</c> to be authorized or rejected after presenting the OAuth short code web page. The resulting <c>refreshToken</c>
@@ -50,12 +52,12 @@ extern "C" {
 	/// <remarks>
 	/// This is a blocking function that waits on network IO.
 	/// </remarks>
-	int interactive_auth_wait_short_code(const char* clientId, const char* clientSecret, const char* shortCodeHandle, char* refreshToken, size_t* refreshTokenLength);
+	MIXER_API int interactive_auth_wait_short_code(const char* clientId, const char* clientSecret, const char* shortCodeHandle, char* refreshToken, size_t* refreshTokenLength);
 
 	/// <summary>
 	/// Determine if a <c>refreshToken</c> returned by <c>interactive_auth_wait_short_code</c> is stale. A token is stale if it has exceeded its half-life.
 	/// </summary>
-	int interactive_auth_is_token_stale(const char* token, bool* isStale);
+	MIXER_API int interactive_auth_is_token_stale(const char* token, bool* isStale);
 
 	/// <summary>
 	/// Refresh a stale <c>refreshToken</c>.
@@ -63,12 +65,12 @@ extern "C" {
 	/// <remarks>
 	/// This is a blocking function that waits on network IO.
 	/// </remarks>
-	int interactive_auth_refresh_token(const char* clientId, const char* clientSecret, const char* staleToken, char* refreshToken, size_t* refreshTokenLength);
+	MIXER_API int interactive_auth_refresh_token(const char* clientId, const char* clientSecret, const char* staleToken, char* refreshToken, size_t* refreshTokenLength);
 
 	/// <summary>
 	/// Parse a <c>refreshToken</c> to get the authorization header that should be passed to <c>interactive_open_session()</c>.
 	/// </summary>
-	int interactive_auth_parse_refresh_token(const char* token, char* authorization, size_t* authorizationLength);
+	MIXER_API int interactive_auth_parse_refresh_token(const char* token, char* authorization, size_t* authorizationLength);
 	/** @} */
 
 	/** @name Session
@@ -86,7 +88,7 @@ extern "C" {
 	/// All calls to <c>interactive_open_session</c> must eventually be followed by a call to <c>interactive_close_session</c> to free the handle.
 	/// </remarks>
 	/// </summary>
-	int interactive_open_session(interactive_session* session);
+	MIXER_API int interactive_open_session(interactive_session* session);
 
 	/// <summary>
 	/// Asynchronously connect an interactive session. Call <c>interactive_run</c> to bootstrap the connection and call <c>interactive_set_state_changed_handler</c> to respond to connection state changes.
@@ -96,7 +98,7 @@ extern "C" {
 	/// <param name="versionId">The id of the interative project that should be started.</param>
 	/// <param name="shareCode">An optional parameter that is used when starting an interactive project that the user does not have implicit access to. This is usually required unless a project has been published.</param>
 	/// <param name="setReady">Specifies if the session should set the interactive ready state during connection. If false, this can be manually toggled later with <c>interactive_set_ready</c></param>
-	int interactive_connect(interactive_session session, const char* auth, const char* versionId, const char* shareCode, bool setReady);
+	MIXER_API int interactive_connect(interactive_session session, const char* auth, const char* versionId, const char* shareCode, bool setReady);
 
 	/// <summary>
 	/// Set the ready state for specified session. No participants will be able to see interactive scenes or give input
@@ -105,7 +107,7 @@ extern "C" {
 	/// <remarks>
 	/// This is a blocking function that waits on network IO.
 	/// </remarks>
-	int interactive_set_ready(interactive_session session, bool isReady);
+	MIXER_API int interactive_set_ready(interactive_session session, bool isReady);
 
 	/// <summary>
 	/// This function processes the specified number of events from the interactive service and calls back on registered event handlers.
@@ -113,7 +115,7 @@ extern "C" {
 	/// <remarks>
 	/// This should be called often, at least once per frame, so that interactive input is processed in a timely manner.
 	/// </remarks>
-	int interactive_run(interactive_session session, unsigned int maxEventsToProcess);
+	MIXER_API int interactive_run(interactive_session session, unsigned int maxEventsToProcess);
 
 	enum interactive_state
 	{
@@ -126,17 +128,17 @@ extern "C" {
 	/// <summary>
 	/// Get the current <c>interactive_state</c> for the specified session.
 	/// </summary>
-	int interactive_get_state(interactive_session session, interactive_state* state);
+	MIXER_API int interactive_get_state(interactive_session session, interactive_state* state);
 
 	/// <summary>
 	/// Set a session context that will be passed to every event callback. This context pointer is not read or written by this library, it's purely to enable your code to track state between calls and callbacks if necessary.
 	/// </summary>
-	int interactive_set_session_context(interactive_session session, void* context);
+	MIXER_API int interactive_set_session_context(interactive_session session, void* context);
 
 	/// <summary>
 	/// Get the previously set session context. Context will be nullptr on return if no context has been set.
 	/// </summary>
-	int interactive_get_session_context(interactive_session session, void** context);
+	MIXER_API int interactive_get_session_context(interactive_session session, void** context);
 
 	enum interactive_throttle_type
 	{
@@ -152,14 +154,14 @@ extern "C" {
 	/// There is a global throttle on all interactive sessions of 30 megabits and 10 megabits per second by default.
 	/// </remarks>
 	/// </summary>
-	int interactive_set_bandwidth_throttle(interactive_session session, interactive_throttle_type throttleType, unsigned int maxBytes, unsigned int bytesPerSecond);
+	MIXER_API int interactive_set_bandwidth_throttle(interactive_session session, interactive_throttle_type throttleType, unsigned int maxBytes, unsigned int bytesPerSecond);
 
 	/// <summary>
 	/// Capture a transaction to charge a participant the input's spark cost. This should be called before
 	/// taking further action on input as the participant may not have enough sparks or the transaction may have expired.
 	/// Register an <c>on_transaction_complete</c> handler to execute actions on the participant's behalf.
 	/// </summary>
-	int interactive_capture_transaction(interactive_session session, const char* transactionId);
+	MIXER_API int interactive_capture_transaction(interactive_session session, const char* transactionId);
 
 	/// <summary>
 	/// Disconnect from an interactive session and clean up memory.
@@ -168,7 +170,7 @@ extern "C" {
 	/// <para>This must not be called from inside an event handler as the lifetime of registered event handlers are assumed to outlive the session. Only call this when there is no thread processing events via <c>interactive_run</c></para>
 	/// <para>This is a blocking function that waits on outstanding network IO, ensuring all operations are completed before returning. It is not recommended to call this function from the UI thread.</para>
 	/// </remarks>
-	void interactive_close_session(interactive_session session);
+	MIXER_API void interactive_close_session(interactive_session session);
 	/** @} */
 
 	/** @name User
@@ -200,7 +202,7 @@ extern "C" {
 	/// <remarks>
 	/// This is a blocking function that waits on network IO. Do not call this from the UI thread.
 	/// </remarks>
-	int interactive_get_user(interactive_session session, on_interactive_user onUser);
+	MIXER_API int interactive_get_user(interactive_session session, on_interactive_user onUser);
 
 	/** @name Controls
 	*   @{
@@ -250,107 +252,107 @@ extern "C" {
 	/// <summary>
 	/// Trigger a cooldown on a control for the specified number of milliseconds.
 	/// </summary>
-	int interactive_control_trigger_cooldown(interactive_session session, const char* controlId, const unsigned long long cooldownMs);
+	MIXER_API int interactive_control_trigger_cooldown(interactive_session session, const char* controlId, const unsigned long long cooldownMs);
 
 	/// <summary>
 	/// Get the number of properties on the control.
 	/// </summary>
-	int interactive_control_get_property_count(interactive_session session, const char* controlId, size_t* count);
+	MIXER_API int interactive_control_get_property_count(interactive_session session, const char* controlId, size_t* count);
 
 	/// <summary>
 	/// Get the name and type of the property at the given index.
 	/// </summary>
-	int interactive_control_get_property_data(interactive_session session, const char* controlId, size_t index, char* propName, size_t* propNameLength, interactive_property_type* type);
+	MIXER_API int interactive_control_get_property_data(interactive_session session, const char* controlId, size_t index, char* propName, size_t* propNameLength, interactive_property_type* type);
 
 	/// <summary>
 	/// Get the number of meta properties on the control.
 	/// </summary>
-	int interactive_control_get_meta_property_count(interactive_session session, const char* controlId, size_t* count);
+	MIXER_API int interactive_control_get_meta_property_count(interactive_session session, const char* controlId, size_t* count);
 
 	/// <summary>
 	/// Get the name and type of the meta property at the given index.
 	/// </summary>
-	int interactive_control_get_meta_property_data(interactive_session session, const char* controlId, size_t index, char* propName, size_t* propNameLength, interactive_property_type* type);
+	MIXER_API int interactive_control_get_meta_property_data(interactive_session session, const char* controlId, size_t index, char* propName, size_t* propNameLength, interactive_property_type* type);
 
 	/// <summary>
 	/// Get an <c>int</c> property value by name.
 	/// </summary>
-	int interactive_control_get_property_int(interactive_session session, const char* controlId, const char* key, int* property);
+	MIXER_API int interactive_control_get_property_int(interactive_session session, const char* controlId, const char* key, int* property);
 
 	/// <summary>
 	/// Get a <c>long long</c> property value by name.
 	/// </summary>
-	int interactive_control_get_property_int64(interactive_session session, const char* controlId, const char* key, long long* property);
+	MIXER_API int interactive_control_get_property_int64(interactive_session session, const char* controlId, const char* key, long long* property);
 
 	/// <summary>
 	/// Get a <c>bool</c> property value by name.
 	/// </summary>
-	int interactive_control_get_property_bool(interactive_session session, const char* controlId, const char* key, bool* property);
+	MIXER_API int interactive_control_get_property_bool(interactive_session session, const char* controlId, const char* key, bool* property);
 
 	/// <summary>
 	/// Get a <c>float</c> property value by name.
 	/// </summary>
-	int interactive_control_get_property_float(interactive_session session, const char* controlId, const char* key, float* property);
+	MIXER_API int interactive_control_get_property_float(interactive_session session, const char* controlId, const char* key, float* property);
 
 	/// <summary>
 	/// Get a <c>char*</c> property value by name.
 	/// </summary>
-	int interactive_control_get_property_string(interactive_session session, const char* controlId, const char* key, char* property, size_t* propertyLength);
+	MIXER_API int interactive_control_get_property_string(interactive_session session, const char* controlId, const char* key, char* property, size_t* propertyLength);
 
 	/// <summary>
 	/// Set a control property to null.
 	/// </summary>
-	int interactive_control_set_property_null(interactive_session session, const char* controlId, const char* key);
+	MIXER_API int interactive_control_set_property_null(interactive_session session, const char* controlId, const char* key);
 
 	/// <summary>
 	/// Set an <c>int</c> property value by name.
 	/// </summary>
-	int interactive_control_set_property_int(interactive_session session, const char* controlId, const char* key, int property);
+	MIXER_API int interactive_control_set_property_int(interactive_session session, const char* controlId, const char* key, int property);
 
 	/// <summary>
 	/// Set a <c>long long</c> property value by name.
 	/// </summary>
-	int interactive_control_set_property_int64(interactive_session session, const char* controlId, const char* key, long long property);
+	MIXER_API int interactive_control_set_property_int64(interactive_session session, const char* controlId, const char* key, long long property);
 
 	/// <summary>
 	/// Set a <c>bool</c> property value by name.
 	/// </summary>
-	int interactive_control_set_property_bool(interactive_session session, const char* controlId, const char* key, bool property);
+	MIXER_API int interactive_control_set_property_bool(interactive_session session, const char* controlId, const char* key, bool property);
 
 	/// <summary>
 	/// Set a <c>float</c> property value by name.
 	/// </summary>
-	int interactive_control_set_property_float(interactive_session session, const char* controlId, const char* key, float property);
+	MIXER_API int interactive_control_set_property_float(interactive_session session, const char* controlId, const char* key, float property);
 
 	/// <summary>
 	/// Set a <c>char*</c> property value by name.
 	/// </summary>
-	int interactive_control_set_property_string(interactive_session session, const char* controlId, const char* key, const char* property);
+	MIXER_API int interactive_control_set_property_string(interactive_session session, const char* controlId, const char* key, const char* property);
 
 	/// <summary>
 	/// Get an <c>int</c> meta property value by name.
 	/// </summary>
-	int interactive_control_get_meta_property_int(interactive_session session, const char* controlId, const char* key, int* property);
+	MIXER_API int interactive_control_get_meta_property_int(interactive_session session, const char* controlId, const char* key, int* property);
 
 	/// <summary>
 	/// Get a <c>long long</c> meta property value by name.
 	/// </summary>
-	int interactive_control_get_meta_property_int64(interactive_session session, const char* controlId, const char* key, long long* property);
+	MIXER_API int interactive_control_get_meta_property_int64(interactive_session session, const char* controlId, const char* key, long long* property);
 
 	/// <summary>
 	/// Get a <c>bool</c> meta property value by name.
 	/// </summary>
-	int interactive_control_get_meta_property_bool(interactive_session session, const char* controlId, const char* key, bool* property);
+	MIXER_API int interactive_control_get_meta_property_bool(interactive_session session, const char* controlId, const char* key, bool* property);
 
 	/// <summary>
 	/// Get a <c>float</c> meta property value by name.
 	/// </summary>
-	int interactive_control_get_meta_property_float(interactive_session session, const char* controlId, const char* key, float* property);
+	MIXER_API int interactive_control_get_meta_property_float(interactive_session session, const char* controlId, const char* key, float* property);
 
 	/// <summary>
 	/// Get a <c>char*</c> meta property value by name.
 	/// </summary>
-	int interactive_control_get_meta_property_string(interactive_session session, const char* controlId, const char* key, char* property, size_t* propertyLength);
+	MIXER_API int interactive_control_get_meta_property_string(interactive_session session, const char* controlId, const char* key, char* property, size_t* propertyLength);
 	/** @} */
 
 	/** @name Groups
@@ -371,18 +373,18 @@ extern "C" {
 	/// <summary>
 	/// Get the interactive groups for the specified session.
 	/// </summary>
-	int interactive_get_groups(interactive_session session, on_group_enumerate onGroup);
+	MIXER_API int interactive_get_groups(interactive_session session, on_group_enumerate onGroup);
 
 	/// <summary>
 	/// Create a new group for the specified session with the specified scene for participants in this group. If no scene is specified it will be set
 	/// to the default scene.
 	/// </summary>
-	int interactive_create_group(interactive_session session, const char* groupId, const char* sceneId);
+	MIXER_API int interactive_create_group(interactive_session session, const char* groupId, const char* sceneId);
 
 	/// <summary>
 	/// Set a group's scene for the specified session. Use this and <c>interative_set_participant_group</c> to manage which scenes participants see.
 	/// </summary>
-	int interactive_group_set_scene(interactive_session session, const char* groupId, const char* sceneId);
+	MIXER_API int interactive_group_set_scene(interactive_session session, const char* groupId, const char* sceneId);
 	/** @} */
 
 	/** @name Scenes
@@ -401,17 +403,17 @@ extern "C" {
 	/// <summary>
 	/// Get all scenes for the specified session.
 	/// </summary>
-	int interactive_get_scenes(interactive_session session, on_scene_enumerate onScene);
+	MIXER_API int interactive_get_scenes(interactive_session session, on_scene_enumerate onScene);
 
 	/// <summary>
 	/// Get each group that this scene belongs to for the specified session.
 	/// </summary>
-	int interactive_scene_get_groups(interactive_session session, const char* sceneId, on_group_enumerate onGroup);
+	MIXER_API int interactive_scene_get_groups(interactive_session session, const char* sceneId, on_group_enumerate onGroup);
 
 	/// <summary>
 	/// Get a scene's controls for the specified session.
 	/// </summary>
-	int interactive_scene_get_controls(interactive_session session, const char* sceneId, on_control_enumerate onControl);
+	MIXER_API int interactive_scene_get_controls(interactive_session session, const char* sceneId, on_control_enumerate onControl);
 	/** @} */
 
 	/** @name Events and Handlers
@@ -513,37 +515,37 @@ extern "C" {
 	/// <summary>
 	/// Set the handler function for errors. This function may be called by a background thread so be careful when updating UI.
 	/// </summary>
-	int interactive_set_error_handler(interactive_session session, on_error onError);
+	MIXER_API int interactive_set_error_handler(interactive_session session, on_error onError);
 
 	/// <summary>
 	/// Set the handler function for state changes. This function is called by your own thread during <c>interactive_run</c>
 	/// </summary>
-	int interactive_set_state_changed_handler(interactive_session session, on_state_changed onStateChanged);
+	MIXER_API int interactive_set_state_changed_handler(interactive_session session, on_state_changed onStateChanged);
 
 	/// <summary>
 	/// Set the handler function for interactive input. This function is called by your own thread during <c>interactive_run</c>
 	/// </summary>
-	int interactive_set_input_handler(interactive_session session, on_input onInput);
+	MIXER_API int interactive_set_input_handler(interactive_session session, on_input onInput);
 
 	/// <summary>
 	/// Set the handler function for participants changing. This function is called by your own thread during <c>interactive_run</c>
 	/// </summary>
-	int interactive_set_participants_changed_handler(interactive_session session, on_participants_changed onParticipantsChanged);
+	MIXER_API int interactive_set_participants_changed_handler(interactive_session session, on_participants_changed onParticipantsChanged);
 
 	/// <summary>
 	/// Set the handler function for spark transaction completion. This function is called by your own thread during <c>interactive_run</c>
 	/// </summary>
-	int interactive_set_transaction_complete_handler(interactive_session session, on_transaction_complete onTransactionComplete);
+	MIXER_API int interactive_set_transaction_complete_handler(interactive_session session, on_transaction_complete onTransactionComplete);
 
 	/// <summary>
 	/// Set the handler function for changes to controls. This function is called by your own thread during <c>interactive_run</c>
 	/// </summary>
-	int interactive_set_control_changed_handler(interactive_session session, on_control_changed onControlChanged);
+	MIXER_API int interactive_set_control_changed_handler(interactive_session session, on_control_changed onControlChanged);
 
 	/// <summary>
 	/// Set the handler function for unhandled methods. This may be useful for more advanced scenarios or future protocol changes that may not have existed in this version of the library. This function is called by your own thread during <c>interactive_run</c>
 	/// </summary>
-	int interactive_set_unhandled_method_handler(interactive_session session, on_unhandled_method onUnhandledMethod);
+	MIXER_API int interactive_set_unhandled_method_handler(interactive_session session, on_unhandled_method onUnhandledMethod);
 	/** @} */
 
 	/** @name Participants
@@ -555,47 +557,47 @@ extern "C" {
 	/// <summary>
 	/// Get all participants (viewers) for the specified session.
 	/// </summary>
-	int interactive_get_participants(interactive_session session, on_participant_enumerate onParticipant);
+	MIXER_API int interactive_get_participants(interactive_session session, on_participant_enumerate onParticipant);
 
 	/// <summary>
 	/// Change the participant's group Use this along with <c>interactive_group_set_scene</c> to configure which scene a participant sees. All participants join the 'default' (case sensitive) group when joining a session.
 	/// </summary>
-	int interactive_participant_set_group(interactive_session session, const char* participantId, const char* groupId);
+	MIXER_API int interactive_participant_set_group(interactive_session session, const char* participantId, const char* groupId);
 
 	/// <summary>
 	/// Get the participant's user id.
 	/// </summary>
-	int interactive_participant_get_user_id(interactive_session session, const char* participantId, unsigned int* userId);
+	MIXER_API int interactive_participant_get_user_id(interactive_session session, const char* participantId, unsigned int* userId);
 
 	/// <summary>
 	/// Get the participant's user name.
 	/// </summary>
-	int interactive_participant_get_user_name(interactive_session session, const char* participantId, char* userName, size_t* userNameLength);
+	MIXER_API int interactive_participant_get_user_name(interactive_session session, const char* participantId, char* userName, size_t* userNameLength);
 
 	/// <summary>
 	/// Get the participant's level.
 	/// </summary>
-	int interactive_participant_get_level(interactive_session session, const char* participantId, unsigned int* level);
+	MIXER_API int interactive_participant_get_level(interactive_session session, const char* participantId, unsigned int* level);
 
 	/// <summary>
 	/// Get the participant's last input time as a unix millisecond timestamp.
 	/// </summary>
-	int interactive_participant_get_last_input_at(interactive_session session, const char* participantId, unsigned long long* lastInputAt);
+	MIXER_API int interactive_participant_get_last_input_at(interactive_session session, const char* participantId, unsigned long long* lastInputAt);
 
 	/// <summary>
 	/// Get the participant's unix millisecond timestamp when they connected to the session.
 	/// </summary>
-	int interactive_participant_get_connected_at(interactive_session session, const char* participantId, unsigned long long* connectedAt);
+	MIXER_API int interactive_participant_get_connected_at(interactive_session session, const char* participantId, unsigned long long* connectedAt);
 
 	/// <summary>
 	/// Is the participant's input disabled?
 	/// </summary>
-	int interactive_participant_is_disabled(interactive_session session, const char* participantId, bool* isDisabled);
+	MIXER_API int interactive_participant_is_disabled(interactive_session session, const char* participantId, bool* isDisabled);
 
 	/// <summary>
 	/// Get the participant's group name.
 	/// </summary>
-	int interactive_participant_get_group(interactive_session session, const char* participantId, char* group, size_t* groupLength);
+	MIXER_API int interactive_participant_get_group(interactive_session session, const char* participantId, char* group, size_t* groupLength);
 	/** @} */
 
 	/** @name Manual Protocol Integration
@@ -608,7 +610,7 @@ extern "C" {
 	/// Send a method to the interactive session. This may be used to interface with the interactive protocol directly and implement functionality 
 	/// that this SDK does not provide.
 	/// </summary>
-	int interactive_queue_method(interactive_session session, const char* method, const char* paramsJson, const on_method_reply onReply);
+	MIXER_API int interactive_queue_method(interactive_session session, const char* method, const char* paramsJson, const on_method_reply onReply);
 
 	/** @} */
 
@@ -632,12 +634,12 @@ extern "C" {
 	/// <summary>
 	/// Configure the debug verbosity for all interactive sessions in the current process.
 	/// </summary>
-	void interactive_config_debug_level(const interactive_debug_level dbgLevel);
+	MIXER_API void interactive_config_debug_level(const interactive_debug_level dbgLevel);
 
 	/// <summary>
 	/// Configure the debug verbosity and set the debug callback function for all interactive sessions in the current process.
 	/// </summary>
-	void interactive_config_debug(const interactive_debug_level dbgLevel, on_debug_msg dbgCallback);
+	MIXER_API void interactive_config_debug(const interactive_debug_level dbgLevel, on_debug_msg dbgCallback);
 	/** @} */
 
 	/** @name Error Codes
