@@ -350,7 +350,7 @@ void handle_state_changed(void* context, interactive_session session, interactiv
 	switch (newState)
 	{
 	case interactive_disconnected:
-	{	
+	{
 		Logger::WriteMessage("Interactive disconnected");
 		break;
 	}
@@ -360,7 +360,7 @@ void handle_state_changed(void* context, interactive_session session, interactiv
 		break;
 	}
 	case interactive_connected:
-	{	
+	{
 		Logger::WriteMessage("Interactive connected - waiting.");
 		break;
 	}
@@ -370,7 +370,7 @@ void handle_state_changed(void* context, interactive_session session, interactiv
 		break;
 	}
 	default:
-	{	
+	{
 		Logger::WriteMessage("ERROR: Unknown interactive state.");
 		Assert::IsTrue(false);
 		break;
@@ -441,7 +441,7 @@ int do_short_code_auth(const std::string& clientId, const std::string& clientSec
 
 	// Get an OAuth short code to display to the user.
 	ASSERT_RETERR(interactive_auth_get_short_code(clientId.c_str(), clientSecret.c_str(), shortCode, &shortCodeLength, shortCodeHandle, &shortCodeHandleLength));
-	
+
 	std::string authUrl = std::string("https://www.mixer.com/go?code=") + shortCode;
 	ShellExecuteA(0, 0, authUrl.c_str(), nullptr, nullptr, SW_SHOW);
 
@@ -575,7 +575,7 @@ public:
 		{
 			ASSERT_NOERR(interactive_run(session, 1));
 			if (g_activeSessionState < interactive_connected)
-			{	
+			{
 				std::this_thread::sleep_for(std::chrono::milliseconds(16));
 			}
 		}
@@ -685,7 +685,7 @@ public:
 				ASSERT_NOERR(interactive_set_ready(session, true));
 			}
 			else if (interactive_connected == prevState)
-			{	
+			{
 				Assert::IsTrue(2 == order++ && interactive_ready == newState);
 				ASSERT_NOERR(interactive_set_ready(session, false));
 			}
@@ -826,7 +826,7 @@ public:
 		});
 
 		ASSERT_NOERR(interactive_connect(session, auth.c_str(), versionId.c_str(), shareCode.c_str(), true));
-		
+
 		while (g_runInteractive)
 		{
 			ASSERT_NOERR(interactive_run(session, 1));
@@ -886,7 +886,7 @@ public:
 		ASSERT_ERR(MIXER_ERROR_NOT_CONNECTED, interactive_control_get_meta_property_count(session, controlId.c_str(), &size));
 		size = 8;
 		ASSERT_ERR(MIXER_ERROR_NOT_CONNECTED, interactive_control_get_meta_property_data(session, controlId.c_str(), 0, "id", &size, &type));
-		
+
 
 		ASSERT_ERR(MIXER_ERROR_NOT_CONNECTED, interactive_control_get_property_int(session, controlId.c_str(), "key", &intProp));
 		ASSERT_ERR(MIXER_ERROR_NOT_CONNECTED, interactive_control_get_property_int64(session, controlId.c_str(), "key", &int64Prop));
@@ -949,7 +949,7 @@ public:
 
 		ASSERT_NOERR(interactive_set_state_changed_handler(session, onStateChanged));
 		ASSERT_NOERR(interactive_connect(session, auth.c_str(), versionId.c_str(), shareCode.c_str(), true));
-		
+
 		while (g_runInteractive)
 		{
 			ASSERT_NOERR(interactive_run(session, 1));
@@ -992,6 +992,86 @@ public:
 			}));
 		});
 		ASSERT_NOERR(interactive_connect(session, auth.c_str(), versionId.c_str(), shareCode.c_str(), true));
+
+		Logger::WriteMessage("Disconnecting...");
+		interactive_close_session(session);
+	}
+
+	struct ChangeControlContext {
+		std::string controlId;
+		std::string propKey;
+		std::string newPropVal;
+		unsigned int iterations;
+		unsigned int currentIteration;
+	};
+
+	TEST_METHOD(ManyControlModificationsTest)
+	{
+		g_start = std::chrono::high_resolution_clock::now();
+		interactive_config_debug(interactive_debug_trace, handle_debug_message);
+
+		std::string clientId = CLIENT_ID;
+		std::string versionId = VERSION_ID;
+		std::string shareCode = SHARE_CODE;
+		std::string auth;
+
+		ASSERT_NOERR(do_auth(clientId, "", auth));
+
+		interactive_session session;
+		ASSERT_NOERR(interactive_open_session(&session));
+		ASSERT_NOERR(interactive_set_error_handler(session, handle_error_assert));
+
+		ChangeControlContext context;
+		context.controlId = "GiveHealth";
+		context.propKey = "text";
+		context.newPropVal = "0";
+		context.iterations = 10;
+		context.currentIteration = 0;
+		interactive_set_session_context(session, &context);
+
+		interactive_set_control_changed_handler(session, [](void* context, interactive_session session, interactive_control_event eventType, const interactive_control* control) {
+			std::stringstream logStream;
+
+			// Verify the control updated with the correct string.
+			ChangeControlContext* ctx = static_cast<ChangeControlContext*>(context);
+			size_t bufferSize = 4096;
+			char buffer[4096];
+			ASSERT_NOERR(interactive_control_get_property_string(session, ctx->controlId.c_str(), ctx->propKey.c_str(), buffer, &bufferSize));
+			Assert::IsTrue(0 == ctx->newPropVal.compare(buffer));
+
+			++ctx->currentIteration;
+			if (ctx->currentIteration >= ctx->iterations)
+			{
+				g_runInteractive = false;
+			}
+			else {
+				// Generate some random data to put into the string
+				ctx->newPropVal = std::to_string(rand());
+				ASSERT_NOERR(interactive_control_set_property_string(session, ctx->controlId.c_str(), ctx->propKey.c_str(), ctx->newPropVal.c_str()));
+			}
+		});
+
+		g_runInteractive = true;
+
+		ASSERT_NOERR(interactive_connect(session, auth.c_str(), versionId.c_str(), shareCode.c_str(), true));
+
+		interactive_set_state_changed_handler(session, [](void* context, interactive_session session, interactive_state previousState, interactive_state newState)
+		{
+			if (interactive_state::interactive_ready == newState) {
+				ChangeControlContext* ctx = static_cast<ChangeControlContext*>(context);
+				Assert::IsTrue(0 == ctx->currentIteration);
+				ASSERT_NOERR(interactive_control_set_property_string(session, ctx->controlId.c_str(), ctx->propKey.c_str(), ctx->newPropVal.c_str()));
+			}
+		});
+
+		while (g_runInteractive)
+		{
+			ASSERT_NOERR(interactive_run(session, 10));
+			// Wait one second between processing changes so it can be seen on the page.
+			std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+		}
+
+		Assert::IsTrue(context.currentIteration == context.iterations);
 
 		Logger::WriteMessage("Disconnecting...");
 		interactive_close_session(session);
