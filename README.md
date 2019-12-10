@@ -1,4 +1,9 @@
-# Mixer Interactivity C++ SDK
+# NOTE: This repo is no longer being maintained by Microsoft.
+You can find more information here: https://dev.mixer.com/blog/mixplaysdkchanges
+
+--------------
+
+## Mixer Interactivity C++ SDK
 
 The C++ Interactivity SDK supports client-side development with Mixer Interactivity.
 If you have not read through our [Interactive Reference Documentation](https://dev.mixer.com/reference/interactive/) now is a great time to do that.
