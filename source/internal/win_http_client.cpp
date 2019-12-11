@@ -157,8 +157,9 @@ int win_http_client::make_request(const std::string& uri, const std::string& ver
 	char buffer[1024];
 	memset(buffer, 0, ARRAYSIZE(buffer));
 	DWORD bytesRead = 0;
-	while (winHttpApi.win_http_read_data(request.get(), buffer, ARRAYSIZE(buffer), &bytesRead) && bytesRead)
+	while (winHttpApi.win_http_read_data(request.get(), buffer, ARRAYSIZE(buffer) - 1, &bytesRead) && bytesRead)
 	{
+		buffer[bytesRead] = '\0';
 		responseStream << buffer;
 		bytesRead = 0;
 		memset(buffer, 0, ARRAYSIZE(buffer));
